@@ -310,6 +310,13 @@ fn lexer_scan(s: &String) -> Vec<Token> {
 
     }
 
+    tokens.push (
+        Token {
+            kind: TokenKind::EOF,
+            lexeme: String::from("")
+        }
+    );
+
     tokens
 
 }
