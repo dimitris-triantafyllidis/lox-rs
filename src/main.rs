@@ -1,0 +1,5 @@
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    return ExitCode::from(0);
+}
