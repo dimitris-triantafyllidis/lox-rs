@@ -59,3 +59,39 @@ fn run_repl() {
 fn run(_s: &String) {
 
 }
+
+#[derive(Debug, PartialEq, Clone)]
+enum TokenKind {
+
+    // One-character tokens
+
+    LeftParenthesis, RightParenthesis,
+    LeftBrace, RightBrace,
+    Semicolon, Comma, Dot,
+    Minus, Plus, Slash, Star,
+
+    // One-character or two-character tokens
+
+    Bang, BangEqual,
+    Equal, EqualEqual,
+    Greater, GreaterEqual,
+    Less, LessEqual,
+
+    // Literals
+
+    Identifier,
+    String,
+    Number,
+
+    // Keywords
+
+    And, Class, Else, False,
+    Fun, For, If, Nil,
+    Or, Print, Return, Super,
+    This, True, Var, While,
+
+    //
+
+    EOF
+
+}
