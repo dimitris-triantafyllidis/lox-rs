@@ -59,8 +59,10 @@ fn run_repl() {
 fn run(s: &String) {
 
     let tokens = lexer_scan(&s);
+    let parsed = parse(&tokens);
+    let value = evaluate_expression(&parsed);
 
-    println!("{:#?}", tokens);
+    println!("{:?}", value);
 
 }
 
@@ -321,3 +323,353 @@ fn lexer_scan(s: &String) -> Vec<Token> {
 
 }
 
+#[derive(Debug)]
+enum Expression {
+    Literal {
+        token: Token
+    },
+    UnaryOperation {
+        operator: Token,
+        right:    Box<Expression>
+    },
+    BinaryOperation {
+        operator: Token,
+        left:     Box<Expression>,
+        right:    Box<Expression>
+    },
+    Parentheses {
+        expression: Box<Expression>
+    }
+}
+
+/*
+
+expression -> equality ;
+equality   -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term       -> factor ( ( "-" | "+" ) factor )* ;
+factor     -> unary ( ( "/" | "*" ) unary )* ;
+unary      -> ( "!" | "-" ) unary | primary ;
+primary    -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+
+*/
+
+fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+    return parse_equality(tokens, cursor);
+}
+
+fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
+
+    loop {
+
+        if cursor >= tokens.len() { break; }
+
+        if
+            tokens[cursor].kind == TokenKind::EqualEqual ||
+            tokens[cursor].kind == TokenKind::BangEqual
+        {
+            let left = Box::<Expression>::new(expr);
+            let operator = tokens[cursor].clone();
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::BinaryOperation { left, operator, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
+
+}
+
+fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_term(tokens, cursor);
+
+    loop {
+
+        if cursor >= tokens.len() { break; }
+
+        if
+            tokens[cursor].kind == TokenKind::Greater      ||
+            tokens[cursor].kind == TokenKind::GreaterEqual ||
+            tokens[cursor].kind == TokenKind::Less         ||
+            tokens[cursor].kind == TokenKind::LessEqual
+        {
+            let left = Box::<Expression>::new(expr);
+            let operator = tokens[cursor].clone();
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_term(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::BinaryOperation { left, operator, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
+
+}
+
+fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_factor(tokens, cursor);
+
+    loop {
+
+        if cursor >= tokens.len() { break; }
+
+        if
+            tokens[cursor].kind == TokenKind::Plus  ||
+            tokens[cursor].kind == TokenKind::Minus
+        {
+            let left = Box::<Expression>::new(expr);
+            let operator = tokens[cursor].clone();
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_factor(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::BinaryOperation { left, operator, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
+}
+
+fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_unary(tokens, cursor);
+
+    loop {
+
+        if cursor >= tokens.len() { break; }
+
+        if
+            tokens[cursor].kind == TokenKind::Star  ||
+            tokens[cursor].kind == TokenKind::Slash
+        {
+            let left = Box::<Expression>::new(expr);
+            let operator = tokens[cursor].clone();
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_unary(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::BinaryOperation { left, operator, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
+
+}
+
+fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let mut cursor = cursor;
+
+    if
+        tokens[cursor].kind == TokenKind::Bang  ||
+        tokens[cursor].kind == TokenKind::Minus
+    {
+        let operator = tokens[cursor].clone();
+
+        cursor += 1;
+
+        let (right_expr, new_cursor) = parse_unary(tokens, cursor);
+        let right = Box::<Expression>::new(right_expr);
+
+        cursor = new_cursor;
+
+        return (Expression::UnaryOperation { operator, right }, cursor);
+    }
+
+    return parse_primary(tokens, cursor);
+
+}
+
+fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usize) {
+
+    if
+        tokens[cursor].kind == TokenKind::Nil    ||
+        tokens[cursor].kind == TokenKind::False  ||
+        tokens[cursor].kind == TokenKind::True   ||
+        tokens[cursor].kind == TokenKind::Number ||
+        tokens[cursor].kind == TokenKind::String
+    {
+        return (
+            Expression::Literal {
+                token: tokens[cursor].clone()
+            },
+            cursor + 1
+        );
+    }
+
+    if tokens[cursor].kind == TokenKind::LeftParenthesis {
+        cursor += 1;
+
+        let (expr, new_cursor) = parse_expression(tokens, cursor);
+        cursor = new_cursor;
+
+        if tokens[cursor].kind != TokenKind::RightParenthesis {
+            panic!("Expected ')'");
+        }
+
+        cursor += 1;
+
+        return ( Expression::Parentheses { expression: Box::<Expression>::new(expr) }, cursor);
+    }
+
+    panic!("Expected expression");
+}
+
+fn parse(tokens: &Vec<Token>) -> Expression {
+    let (expr, cursor) = parse_expression(tokens, 0);
+
+    if tokens[cursor].kind != TokenKind::EOF {
+        panic!("Unexpected token '{}'", tokens[cursor].lexeme);
+    }
+
+    expr
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+enum Value {
+    Nil,
+    Boolean (bool),
+    Number (f64),
+    String (String)
+}
+
+fn value_to_bool(v: Value) -> bool {
+    match v {
+        Value::Nil => false,
+        Value::Boolean(false) => false,
+        _ => true
+    }
+}
+
+fn evaluate_literal(expr: &Expression) -> Value {
+
+    match expr {
+        Expression::Literal{token} if token.kind == TokenKind::Nil   => { return Value::Nil             },
+        Expression::Literal{token} if token.kind == TokenKind::False => { return Value::Boolean (false) },
+        Expression::Literal{token} if token.kind == TokenKind::True  => { return Value::Boolean (true)  },
+        Expression::Literal{token} if token.kind == TokenKind::Number => {
+            return Value::Number (
+                token.lexeme.parse().unwrap()
+            )
+        },
+        Expression::Literal{token} if token.kind == TokenKind::String => {
+            return Value::String (
+                token.lexeme
+                    [1..token.lexeme.len() - 1].to_string()
+            )
+        }
+        _ => panic!()
+    }
+
+}
+
+fn evaluate_parentheses(expr: &Expression) -> Value {
+
+    if let Expression::Parentheses { expression: e } = expr {
+        return evaluate_expression(e);
+    }
+
+    panic!()
+
+}
+
+fn evaluate_unary(expr: &Expression) -> Value {
+
+    if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
+        let rhs_value = evaluate_expression(rhs);
+        match rhs_value {
+            Value::Number (v) if op.kind == TokenKind::Minus => {
+                return Value::Number (-v)
+            }
+            _ if op.kind == TokenKind::Bang => {
+                return Value::Boolean (!value_to_bool(rhs_value))
+            }
+            _ => panic!()
+        }
+    }
+
+    panic!()
+
+}
+
+fn evaluate_binary(expr: &Expression) -> Value {
+    if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
+
+        let lhs_value = evaluate_expression(lhs);
+        let rhs_value = evaluate_expression(rhs);
+
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+            match op.kind {
+                TokenKind::Plus  => { return Value::Number ( vl + vr) },
+                TokenKind::Minus => { return Value::Number ( vl - vr) },
+                TokenKind::Star  => { return Value::Number ( vl * vr) },
+                TokenKind::Slash => { return Value::Number ( vl / vr) },
+                TokenKind::EqualEqual   => { return Value::Boolean ( vl == vr) },
+                TokenKind::BangEqual    => { return Value::Boolean ( vl != vr) },
+                TokenKind::Less         => { return Value::Boolean ( vl <  vr) },
+                TokenKind::LessEqual    => { return Value::Boolean ( vl <= vr) },
+                TokenKind::Greater      => { return Value::Boolean ( vl >  vr) },
+                TokenKind::GreaterEqual => { return Value::Boolean ( vl >= vr) },
+                _ => panic!()
+            }
+        }
+
+        if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+            match op.kind {
+                TokenKind::Plus  => { return Value::String(vl + &vr.clone() ) },
+                TokenKind::EqualEqual   => { return Value::Boolean (vl == vr) },
+                TokenKind::BangEqual    => { return Value::Boolean (vl != vr) },
+                TokenKind::Less         => { return Value::Boolean (vl <  vr) },
+                TokenKind::LessEqual    => { return Value::Boolean (vl <= vr) },
+                TokenKind::Greater      => { return Value::Boolean (vl >  vr) },
+                TokenKind::GreaterEqual => { return Value::Boolean (vl >= vr) },
+                _ => panic!()
+            }
+        }
+
+        if op.kind == TokenKind::EqualEqual {
+            return Value::Boolean(lhs_value == rhs_value);
+        }
+        else if op.kind == TokenKind::BangEqual {
+            return Value::Boolean(lhs_value != rhs_value);
+        }
+    }
+
+    panic!()
+
+}
+
+fn evaluate_expression(expr: &Expression) -> Value {
+
+    return match expr {
+        Expression::Literal { token } => evaluate_literal(expr),
+        Expression::UnaryOperation { operator, right }  => evaluate_unary(expr),
+        Expression::BinaryOperation { left, operator, right } => evaluate_binary(expr),
+        Expression::Parentheses { expression } => evaluate_parentheses(expr)
+    }
+
+}
