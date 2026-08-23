@@ -328,6 +328,9 @@ enum Expression {
     Literal {
         token: Token
     },
+    Variable {
+        identifier: Token,
+    },
     UnaryOperation {
         operator: Token,
         right:    Box<Expression>
@@ -345,12 +348,14 @@ enum Expression {
 #[derive(Debug)]
 enum Statement {
     Expression(Expression),
-    Print(Expression)
+    Print(Expression),
+    VariableDeclaration(Token, Option<Expression>)
 }
 
 /*
 
 program              -> statement* EOF ;
+declaration          -> variable_declaration | statement ;
 statement            -> expression_statement | print_statement ;
 expression_statement -> expression ";" ;
 print_statement      -> "print" expression ";" ;
@@ -360,7 +365,7 @@ comparison           -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term                 -> factor ( ( "-" | "+" ) factor )* ;
 factor               -> unary ( ( "/" | "*" ) unary )* ;
 unary                -> ( "!" | "-" ) unary | primary ;
-primary              -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+primary              -> NUMBER | STRING | IDENTIFIER | "true" | "false" | "nil" | "(" expression ")" ;
 
 */
 
@@ -377,12 +382,55 @@ fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
             break;
         }
 
-        (stmt, cursor) = parse_statement(tokens, cursor);
+        (stmt, cursor) = parse_declaration(tokens, cursor);
         statements.push(stmt);
 
     }
 
     return statements;
+}
+
+fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    if tokens[cursor].kind == TokenKind::Var {
+        return parse_variable_declaration(tokens, cursor + 1);
+    }
+    else {
+        return parse_statement(tokens, cursor);
+    }
+}
+
+fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+    let mut id: Token;
+    let mut expr: Expression;
+
+    if tokens[cursor].kind == TokenKind::Identifier {
+        id = tokens[cursor].clone();
+        cursor += 1;
+        if tokens[cursor].kind == TokenKind::Equal {
+            (expr, cursor) = parse_expression(tokens, cursor + 1);
+            if tokens[cursor].kind == TokenKind::Semicolon {
+                return (Statement::VariableDeclaration(id, Some(expr)), cursor + 1);
+            }
+            else {
+                panic!("Expected ';'");
+            }
+        }
+        else {
+            if tokens[cursor].kind == TokenKind::Semicolon {
+                return (Statement::VariableDeclaration(id, None), cursor + 1);
+            }
+            else {
+                panic!("Expected ';'");
+            }
+        }
+    }
+    else {
+        panic!("Expected identifier")
+    }
+
 }
 
 fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
@@ -583,6 +631,15 @@ fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usize) 
         );
     }
 
+    if tokens[cursor].kind == TokenKind::Identifier {
+        return (
+            Expression::Variable {
+                identifier: tokens[cursor].clone()
+            },
+            cursor + 1
+        );
+    }
+
     if tokens[cursor].kind == TokenKind::LeftParenthesis {
         cursor += 1;
 
@@ -721,7 +778,8 @@ fn evaluate_expression(expr: &Expression) -> Value {
         Expression::Literal { token } => evaluate_literal(expr),
         Expression::UnaryOperation { operator, right }  => evaluate_unary(expr),
         Expression::BinaryOperation { left, operator, right } => evaluate_binary(expr),
-        Expression::Parentheses { expression } => evaluate_parentheses(expr)
+        Expression::Parentheses { expression } => evaluate_parentheses(expr),
+        _ => panic!()
     }
 
 }
