@@ -60,9 +60,9 @@ fn run(s: &String) {
 
     let tokens = lexer_scan(&s);
     let parsed = parse(&tokens);
-    let value = evaluate_expression(&parsed);
+    //let value = evaluate_expression(&parsed);
 
-    println!("{:?}", value);
+    println!("{:#?}", parsed);
 
 }
 
@@ -342,17 +342,88 @@ enum Expression {
     }
 }
 
+#[derive(Debug)]
+enum Statement {
+    Expression(Expression),
+    Print(Expression)
+}
+
 /*
 
-expression -> equality ;
-equality   -> comparison ( ( "!=" | "==" ) comparison )* ;
-comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term       -> factor ( ( "-" | "+" ) factor )* ;
-factor     -> unary ( ( "/" | "*" ) unary )* ;
-unary      -> ( "!" | "-" ) unary | primary ;
-primary    -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+program              -> statement* EOF ;
+statement            -> expression_statement | print_statement ;
+expression_statement -> expression ";" ;
+print_statement      -> "print" expression ";" ;
+expression           -> equality ;
+equality             -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison           -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term                 -> factor ( ( "-" | "+" ) factor )* ;
+factor               -> unary ( ( "/" | "*" ) unary )* ;
+unary                -> ( "!" | "-" ) unary | primary ;
+primary              -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
 
 */
+
+fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
+
+    let mut cursor: usize = 0;
+    let mut stmt: Statement;
+
+    let mut statements = Vec::<Statement>::new();
+
+    loop {
+
+        if tokens[cursor].kind == TokenKind::EOF {
+            break;
+        }
+
+        (stmt, cursor) = parse_statement(tokens, cursor);
+        statements.push(stmt);
+
+    }
+
+    return statements;
+}
+
+fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    if tokens[cursor].kind == TokenKind::Print {
+        return parse_print_statement(tokens, cursor + 1);
+    }
+    else {
+        return parse_expression_statement(tokens, cursor);
+    }
+}
+
+fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let (expr, cursor) = parse_expression(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        return (
+            Statement::Expression(expr),
+            cursor + 1
+        );
+    } else {
+        panic!("Expected ';'");
+    }
+
+}
+
+fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let (expr, cursor) = parse_expression(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        return (
+            Statement::Print(expr),
+            cursor + 1
+        );
+    } else {
+        panic!("Expected ';'");
+    }
+
+}
 
 fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
     return parse_equality(tokens, cursor);
@@ -363,8 +434,6 @@ fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
     loop {
-
-        if cursor >= tokens.len() { break; }
 
         if
             tokens[cursor].kind == TokenKind::EqualEqual ||
@@ -393,8 +462,6 @@ fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
     loop {
-
-        if cursor >= tokens.len() { break; }
 
         if
             tokens[cursor].kind == TokenKind::Greater      ||
@@ -426,8 +493,6 @@ fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
 
     loop {
 
-        if cursor >= tokens.len() { break; }
-
         if
             tokens[cursor].kind == TokenKind::Plus  ||
             tokens[cursor].kind == TokenKind::Minus
@@ -454,8 +519,6 @@ fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
     loop {
-
-        if cursor >= tokens.len() { break; }
 
         if
             tokens[cursor].kind == TokenKind::Star  ||
@@ -537,17 +600,6 @@ fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usize) 
 
     panic!("Expected expression");
 }
-
-fn parse(tokens: &Vec<Token>) -> Expression {
-    let (expr, cursor) = parse_expression(tokens, 0);
-
-    if tokens[cursor].kind != TokenKind::EOF {
-        panic!("Unexpected token '{}'", tokens[cursor].lexeme);
-    }
-
-    expr
-}
-
 
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
