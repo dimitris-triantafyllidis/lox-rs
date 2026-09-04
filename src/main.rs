@@ -342,6 +342,10 @@ enum Expression {
     },
     Parentheses {
         expression: Box<Expression>
+    },
+    Assignment {
+        left: Token,
+        expression: Box<Expression>
     }
 }
 
@@ -354,12 +358,13 @@ enum Statement {
 
 /*
 
-program              -> statement* EOF ;
+program              -> declaration* EOF ;
 declaration          -> variable_declaration | statement ;
 statement            -> expression_statement | print_statement ;
 expression_statement -> expression ";" ;
 print_statement      -> "print" expression ";" ;
-expression           -> equality ;
+expression           -> assignment
+assignment           -> IDENTIFIER "=" assignment | equality ;
 equality             -> comparison ( ( "!=" | "==" ) comparison )* ;
 comparison           -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term                 -> factor ( ( "-" | "+" ) factor )* ;
@@ -474,7 +479,35 @@ fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usiz
 }
 
 fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
-    return parse_equality(tokens, cursor);
+    return parse_assignment(tokens, cursor);
+}
+
+fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (expr, mut cursor) = parse_equality(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::Equal {
+        cursor += 1;
+        let value_expr: Expression;
+
+        (value_expr, cursor) = parse_assignment(tokens, cursor);
+
+        match expr {
+            Expression::Variable{identifier: t} => {
+                return (
+                    Expression::Assignment { left: t, expression: Box::<Expression>::new(value_expr) },
+                    cursor
+                );
+            },
+            _ => {
+                panic!("Invalid assignment target");
+            }
+        }
+    }
+    else {
+        return (expr, cursor);
+    }
+
 }
 
 fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
