@@ -353,16 +353,18 @@ enum Expression {
 enum Statement {
     Expression(Expression),
     Print(Expression),
-    VariableDeclaration(Token, Option<Expression>)
+    VariableDeclaration(Token, Option<Expression>),
+    Block(Vec::<Statement>)
 }
 
 /*
 
 program              -> declaration* EOF ;
 declaration          -> variable_declaration | statement ;
-statement            -> expression_statement | print_statement ;
+statement            -> expression_statement | print_statement | block;
 expression_statement -> expression ";" ;
 print_statement      -> "print" expression ";" ;
+block                -> "{" declaration* "}";
 expression           -> assignment
 assignment           -> IDENTIFIER "=" assignment | equality ;
 equality             -> comparison ( ( "!=" | "==" ) comparison )* ;
@@ -443,6 +445,9 @@ fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
     }
+    else if tokens[cursor].kind == TokenKind::LeftBrace {
+        return parse_block(tokens, cursor + 1);
+    }
     else {
         return parse_expression_statement(tokens, cursor);
     }
@@ -460,6 +465,37 @@ fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
     } else {
         panic!("Expected ';'");
     }
+
+}
+
+fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut statements = Vec::<Statement>::new();
+    let mut cursor = cursor;
+
+    loop {
+
+        if tokens[cursor].kind == TokenKind::RightBrace {
+            cursor += 1;
+            break;
+        }
+
+        if tokens[cursor].kind == TokenKind::EOF {
+            panic!("Expected '}}'");
+        }
+
+        let statement: Statement;
+
+        (statement, cursor) = parse_declaration(tokens, cursor);
+
+        statements.push(statement);
+
+    }
+
+    return (
+        Statement::Block(statements),
+        cursor
+    )
 
 }
 
