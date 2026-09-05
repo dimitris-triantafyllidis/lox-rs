@@ -1,4 +1,7 @@
+use std::hash::Hash;
 use std::{env, fs, io, process::ExitCode};
+
+use std::collections::HashMap;
 
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -60,9 +63,12 @@ fn run(s: &String) {
 
     let tokens = lexer_scan(&s);
     let parsed = parse(&tokens);
-    //let value = evaluate_expression(&parsed);
 
-    println!("{:#?}", parsed);
+    println!("{:#?}", &parsed);
+
+    let mut interpreter = Interpreter::new();
+
+    interpreter.execute(&parsed);
 
 }
 
@@ -743,112 +749,250 @@ fn value_to_bool(v: Value) -> bool {
     }
 }
 
-fn evaluate_literal(expr: &Expression) -> Value {
+struct Interpreter {
+    stack: Vec::<HashMap::<String, Value>>
+}
 
-    match expr {
-        Expression::Literal{token} if token.kind == TokenKind::Nil   => { return Value::Nil             },
-        Expression::Literal{token} if token.kind == TokenKind::False => { return Value::Boolean (false) },
-        Expression::Literal{token} if token.kind == TokenKind::True  => { return Value::Boolean (true)  },
-        Expression::Literal{token} if token.kind == TokenKind::Number => {
-            return Value::Number (
-                token.lexeme.parse().unwrap()
-            )
-        },
-        Expression::Literal{token} if token.kind == TokenKind::String => {
-            return Value::String (
-                token.lexeme
-                    [1..token.lexeme.len() - 1].to_string()
-            )
+impl Interpreter {
+
+    pub fn new() -> Self {
+        Self {
+            stack: Vec::<HashMap::<String, Value>>::new()
         }
-        _ => panic!()
     }
 
-}
+    fn evaluate_literal(self: &mut Self, expr: &Expression) -> Value {
 
-fn evaluate_parentheses(expr: &Expression) -> Value {
-
-    if let Expression::Parentheses { expression: e } = expr {
-        return evaluate_expression(e);
-    }
-
-    panic!()
-
-}
-
-fn evaluate_unary(expr: &Expression) -> Value {
-
-    if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
-        let rhs_value = evaluate_expression(rhs);
-        match rhs_value {
-            Value::Number (v) if op.kind == TokenKind::Minus => {
-                return Value::Number (-v)
-            }
-            _ if op.kind == TokenKind::Bang => {
-                return Value::Boolean (!value_to_bool(rhs_value))
-            }
+        match expr {
+            Expression::Literal{token} if token.kind == TokenKind::Nil   => { return Value::Nil             },
+            Expression::Literal{token} if token.kind == TokenKind::False => { return Value::Boolean (false) },
+            Expression::Literal{token} if token.kind == TokenKind::True  => { return Value::Boolean (true)  },
+            Expression::Literal{token} if token.kind == TokenKind::Number => {
+                return Value::Number (
+                    token.lexeme.parse().unwrap()
+                )
+            },
+            Expression::Literal{token} if token.kind == TokenKind::String => {
+                return Value::String (
+                    token.lexeme
+                        [1..token.lexeme.len() - 1].to_string()
+                )
+            },
             _ => panic!()
         }
+
     }
 
-    panic!()
+    fn evaluate_variable(self: &mut Self, expr: &Expression) -> Value {
 
-}
+        match expr {
+            Expression::Variable { identifier: id } => {
+                for i in (0..self.stack.len()).rev() {
+                    if self.stack[i].contains_key(&id.lexeme) {
+                        return self.stack[i][&id.lexeme].clone();
+                    }
+                }
+                panic!("Undeclared identifier");
+            },
+            _ => panic!()
+        }
 
-fn evaluate_binary(expr: &Expression) -> Value {
-    if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
+    }
 
-        let lhs_value = evaluate_expression(lhs);
-        let rhs_value = evaluate_expression(rhs);
+    fn evaluate_unary(self: &mut Self, expr: &Expression) -> Value {
 
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
-            match op.kind {
-                TokenKind::Plus  => { return Value::Number ( vl + vr) },
-                TokenKind::Minus => { return Value::Number ( vl - vr) },
-                TokenKind::Star  => { return Value::Number ( vl * vr) },
-                TokenKind::Slash => { return Value::Number ( vl / vr) },
-                TokenKind::EqualEqual   => { return Value::Boolean ( vl == vr) },
-                TokenKind::BangEqual    => { return Value::Boolean ( vl != vr) },
-                TokenKind::Less         => { return Value::Boolean ( vl <  vr) },
-                TokenKind::LessEqual    => { return Value::Boolean ( vl <= vr) },
-                TokenKind::Greater      => { return Value::Boolean ( vl >  vr) },
-                TokenKind::GreaterEqual => { return Value::Boolean ( vl >= vr) },
+        if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
+            let rhs_value = self.evaluate_expression(rhs);
+            match rhs_value {
+                Value::Number (v) if op.kind == TokenKind::Minus => {
+                    return Value::Number (-v)
+                }
+                _ if op.kind == TokenKind::Bang => {
+                    return Value::Boolean (!value_to_bool(rhs_value))
+                }
                 _ => panic!()
             }
         }
 
-        if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
-            match op.kind {
-                TokenKind::Plus  => { return Value::String(vl + &vr.clone() ) },
-                TokenKind::EqualEqual   => { return Value::Boolean (vl == vr) },
-                TokenKind::BangEqual    => { return Value::Boolean (vl != vr) },
-                TokenKind::Less         => { return Value::Boolean (vl <  vr) },
-                TokenKind::LessEqual    => { return Value::Boolean (vl <= vr) },
-                TokenKind::Greater      => { return Value::Boolean (vl >  vr) },
-                TokenKind::GreaterEqual => { return Value::Boolean (vl >= vr) },
-                _ => panic!()
+        panic!()
+
+    }
+
+    fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> Value {
+
+        if let Expression::Parentheses { expression: e } = expr {
+            return self.evaluate_expression(e);
+        }
+
+        panic!()
+
+    }
+
+    fn evaluate_assignment(self: &mut Self, expr: &Expression) -> Value {
+
+        match expr {
+            Expression::Assignment {
+                left: lhs,
+                expression: rhs
+            } => {
+                for i in (0..self.stack.len()).rev() {
+                    if self.stack[i].contains_key(&lhs.lexeme) {
+                        let rhs_value = self.evaluate_expression(rhs);
+                        self.stack[i].insert(lhs.lexeme.clone(), rhs_value.clone());
+                        return rhs_value;
+                    }
+                }
+                panic!("Undeclared assignment target");
+            },
+            _ => panic!()
+        }
+
+    }
+
+    fn evaluate_binary(self: &mut Self, expr: &Expression) -> Value {
+
+        if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
+
+            let lhs_value = self.evaluate_expression(lhs);
+            let rhs_value = self.evaluate_expression(rhs);
+
+            if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+                match op.kind {
+                    TokenKind::Plus  => { return Value::Number ( vl + vr) },
+                    TokenKind::Minus => { return Value::Number ( vl - vr) },
+                    TokenKind::Star  => { return Value::Number ( vl * vr) },
+                    TokenKind::Slash => { return Value::Number ( vl / vr) },
+                    TokenKind::EqualEqual   => { return Value::Boolean ( vl == vr) },
+                    TokenKind::BangEqual    => { return Value::Boolean ( vl != vr) },
+                    TokenKind::Less         => { return Value::Boolean ( vl <  vr) },
+                    TokenKind::LessEqual    => { return Value::Boolean ( vl <= vr) },
+                    TokenKind::Greater      => { return Value::Boolean ( vl >  vr) },
+                    TokenKind::GreaterEqual => { return Value::Boolean ( vl >= vr) },
+                    _ => panic!()
+                }
+            }
+
+            if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+                match op.kind {
+                    TokenKind::Plus  => { return Value::String(vl + &vr.clone() ) },
+                    TokenKind::EqualEqual   => { return Value::Boolean (vl == vr) },
+                    TokenKind::BangEqual    => { return Value::Boolean (vl != vr) },
+                    TokenKind::Less         => { return Value::Boolean (vl <  vr) },
+                    TokenKind::LessEqual    => { return Value::Boolean (vl <= vr) },
+                    TokenKind::Greater      => { return Value::Boolean (vl >  vr) },
+                    TokenKind::GreaterEqual => { return Value::Boolean (vl >= vr) },
+                    _ => panic!()
+                }
+            }
+
+            if op.kind == TokenKind::EqualEqual {
+                return Value::Boolean(lhs_value == rhs_value);
+            }
+            else if op.kind == TokenKind::BangEqual {
+                return Value::Boolean(lhs_value != rhs_value);
             }
         }
 
-        if op.kind == TokenKind::EqualEqual {
-            return Value::Boolean(lhs_value == rhs_value);
-        }
-        else if op.kind == TokenKind::BangEqual {
-            return Value::Boolean(lhs_value != rhs_value);
-        }
+        panic!()
+
     }
 
-    panic!()
+    fn evaluate_expression(self: &mut Self, expr: &Expression) -> Value {
 
-}
+        return match expr {
+            Expression::Literal { .. } => self.evaluate_literal(expr),
+            Expression::UnaryOperation { .. }  => self.evaluate_unary(expr),
+            Expression::BinaryOperation { .. } => self.evaluate_binary(expr),
+            Expression::Parentheses { .. } => self.evaluate_parentheses(expr),
+            Expression::Variable { .. } => self.evaluate_variable(expr),
+            Expression::Assignment { .. } => self.evaluate_assignment(expr),
+            _ => panic!()
+        }
 
-fn evaluate_expression(expr: &Expression) -> Value {
+    }
 
-    return match expr {
-        Expression::Literal { token } => evaluate_literal(expr),
-        Expression::UnaryOperation { operator, right }  => evaluate_unary(expr),
-        Expression::BinaryOperation { left, operator, right } => evaluate_binary(expr),
-        Expression::Parentheses { expression } => evaluate_parentheses(expr),
-        _ => panic!()
+    fn execute_statement(self: &mut Self, statement: &Statement) {
+
+        match statement {
+            Statement::Expression(..) => self.execute_expression_statement(statement),
+            Statement::Print(..) => self.execute_print_statement(statement),
+            Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
+            Statement::Block(..) => self.execute_block_statement(statement),
+            _ => panic!()
+        }
+
+    }
+
+    fn execute_expression_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::Expression(expr) = statement {
+            self.evaluate_expression(&expr);
+            return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_print_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::Print(expr) = statement {
+            let expr_value = self.evaluate_expression(&expr);
+            println!("{:?}", expr_value);
+            return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::VariableDeclaration(id, expr) = statement {
+
+            let stack_top_frame_idx = self.stack.len() - 1;
+
+            if self.stack[stack_top_frame_idx].contains_key(&id.lexeme) {
+                panic!("Variable redeclaration");
+            }
+
+            let expr_value = match expr {
+                None => Value::Nil,
+                Some(expr) => self.evaluate_expression(&expr)
+            };
+
+            self.stack[stack_top_frame_idx].insert(id.lexeme.clone(), expr_value.clone());
+
+            return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_block_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::Block(statements) = statement {
+            self.stack.push(HashMap::<String, Value>::new());
+            for statement in statements {
+                self.execute_statement(statement);
+            }
+            self.stack.pop();
+            return;
+        }
+
+        panic!();
+    }
+
+    fn execute(self: &mut Self, statements: &Vec<Statement>) {
+
+        self.stack.push(HashMap::<String, Value>::new());
+        for statement in statements {
+            self.execute_statement(statement);
+        }
+        self.stack.pop();
+        return;
+
     }
 
 }
