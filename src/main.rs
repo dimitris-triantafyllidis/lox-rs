@@ -345,6 +345,14 @@ enum Expression {
         left:     Box<Expression>,
         right:    Box<Expression>
     },
+    LogicalOr {
+        left:     Box<Expression>,
+        right:    Box<Expression>
+    },
+    LogicalAnd {
+        left:     Box<Expression>,
+        right:    Box<Expression>
+    },
     Parentheses {
         expression: Box<Expression>
     },
@@ -373,7 +381,9 @@ if_statement         -> "if" "(" expression ")" statement ( "else" statement )? 
 print_statement      -> "print" expression ";" ;
 block                -> "{" declaration* "}";
 expression           -> assignment
-assignment           -> IDENTIFIER "=" assignment | equality ;
+assignment           -> IDENTIFIER "=" assignment | logic_or ;
+logic_or             -> logic_and ( "or" logic_and )* ;
+logic_and            -> equality ( "and" equality )* ;
 equality             -> comparison ( ( "!=" | "==" ) comparison )* ;
 comparison           -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term                 -> factor ( ( "-" | "+" ) factor )* ;
@@ -578,7 +588,7 @@ fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
 
 fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
 
-    let (expr, mut cursor) = parse_equality(tokens, cursor);
+    let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
     if tokens[cursor].kind == TokenKind::Equal {
         cursor += 1;
@@ -601,6 +611,56 @@ fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
     else {
         return (expr, cursor);
     }
+
+}
+
+fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
+
+    loop {
+
+        if tokens[cursor].kind == TokenKind::Or
+        {
+            let left = Box::<Expression>::new(expr);
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::LogicalOr { left, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
+
+}
+
+fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (mut expr, mut cursor) = parse_equality(tokens, cursor);
+
+    loop {
+
+        if tokens[cursor].kind == TokenKind::And
+        {
+            let left = Box::<Expression>::new(expr);
+            cursor += 1;
+            let (right_expr, new_cursor) = parse_equality(tokens, cursor);
+            let right = Box::<Expression>::new(right_expr);
+            expr = Expression::LogicalAnd { left, right };
+            cursor = new_cursor;
+        }
+        else {
+            break;
+        }
+
+    }
+
+    return (expr, cursor);
 
 }
 
@@ -949,6 +1009,52 @@ impl Interpreter {
 
     }
 
+    fn evaluate_logical_or(self: &mut Self, expr: &Expression) -> Value {
+
+        if let Expression::LogicalOr { left: lhs, right: rhs } = expr {
+
+            let lhs_value = self.evaluate_expression(lhs);
+
+            if let Value::Boolean(v) = lhs_value {
+                if v {
+                    return Value::Boolean(true);
+                }
+                else {
+                    return self.evaluate_expression(rhs);
+                }
+            }
+            else {
+                panic!("Expected boolean value");
+            }
+        }
+
+        panic!()
+
+    }
+
+    fn evaluate_logical_and(self: &mut Self, expr: &Expression) -> Value {
+
+        if let Expression::LogicalAnd { left: lhs, right: rhs } = expr {
+
+            let lhs_value = self.evaluate_expression(lhs);
+
+            if let Value::Boolean(v) = lhs_value {
+                if !v {
+                    return Value::Boolean(false);
+                }
+                else {
+                    return self.evaluate_expression(rhs);
+                }
+            }
+            else {
+                panic!("Expected boolean value");
+            }
+        }
+
+        panic!()
+
+    }
+
     fn evaluate_expression(self: &mut Self, expr: &Expression) -> Value {
 
         return match expr {
@@ -958,6 +1064,8 @@ impl Interpreter {
             Expression::Parentheses { .. } => self.evaluate_parentheses(expr),
             Expression::Variable { .. } => self.evaluate_variable(expr),
             Expression::Assignment { .. } => self.evaluate_assignment(expr),
+            Expression::LogicalOr { .. } => self.evaluate_logical_or(expr),
+            Expression::LogicalAnd { .. } => self.evaluate_logical_and(expr),
             _ => panic!()
         }
 
