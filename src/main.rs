@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::{env, fs, io, process::ExitCode};
 
 use std::collections::HashMap;
@@ -358,6 +357,7 @@ enum Expression {
 #[derive(Debug)]
 enum Statement {
     Expression(Expression),
+    If(Expression, Box<Statement>, Option<Box<Statement>>),
     Print(Expression),
     VariableDeclaration(Token, Option<Expression>),
     Block(Vec::<Statement>)
@@ -367,8 +367,9 @@ enum Statement {
 
 program              -> declaration* EOF ;
 declaration          -> variable_declaration | statement ;
-statement            -> expression_statement | print_statement | block;
+statement            -> expression_statement | if_statement | print_statement | block;
 expression_statement -> expression ";" ;
+if_statement         -> "if" "(" expression ")" statement ( "else" statement )? ;
 print_statement      -> "print" expression ";" ;
 block                -> "{" declaration* "}";
 expression           -> assignment
@@ -416,8 +417,8 @@ fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
 fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
 
     let mut cursor = cursor;
-    let mut id: Token;
-    let mut expr: Expression;
+    let id: Token;
+    let expr: Expression;
 
     if tokens[cursor].kind == TokenKind::Identifier {
         id = tokens[cursor].clone();
@@ -450,6 +451,9 @@ fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
 
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
+    }
+    else if tokens[cursor].kind == TokenKind::If {
+        return parse_if_statement(tokens, cursor + 1);
     }
     else if tokens[cursor].kind == TokenKind::LeftBrace {
         return parse_block(tokens, cursor + 1);
@@ -516,6 +520,54 @@ fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usiz
         );
     } else {
         panic!("Expected ';'");
+    }
+
+}
+
+fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+
+    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+        panic!("Expected '('");
+    }
+
+    cursor += 1;
+
+    let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
+
+    if tokens[cursor].kind != TokenKind::RightParenthesis {
+        panic!("Expected ')'");
+    }
+
+    cursor += 1;
+
+    let (then_statement, mut cursor) = parse_statement(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::Else {
+
+        cursor += 1;
+
+        let (else_statement, cursor) = parse_statement(tokens, cursor);
+
+        return (
+            Statement::If (
+                condition_expression,
+                Box::new(then_statement),
+                Some(Box::new(else_statement))
+            ),
+            cursor
+        );
+    }
+    else {
+        return (
+            Statement::If (
+                condition_expression,
+                Box::new(then_statement),
+                None
+            ),
+            cursor
+        );
     }
 
 }
@@ -918,6 +970,7 @@ impl Interpreter {
             Statement::Print(..) => self.execute_print_statement(statement),
             Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
             Statement::Block(..) => self.execute_block_statement(statement),
+            Statement::If(..) => self.execute_if_statement(statement),
             _ => panic!()
         }
 
@@ -940,6 +993,31 @@ impl Interpreter {
             let expr_value = self.evaluate_expression(&expr);
             println!("{:?}", expr_value);
             return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_if_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::If(condition_expression, then_statement, else_statement) = statement {
+            let condition_expression_value = self.evaluate_expression(condition_expression);
+            if let Value::Boolean(v) = condition_expression_value {
+                if v {
+                    self.execute_statement(then_statement);
+                    return;
+                }
+                else {
+                    if let Some(statement) = else_statement {
+                        self.execute_statement(statement);
+                        return;
+                    }
+                }
+            }
+            else {
+                panic!("Condition expression must be boolean");
+            }
         }
 
         panic!();
