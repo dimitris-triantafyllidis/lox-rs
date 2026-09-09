@@ -1178,8 +1178,24 @@ impl Interpreter {
     fn execute_print_statement(self: &mut Self, statement: &Statement) {
 
         if let Statement::Print(expr) = statement {
+
             let expr_value = self.evaluate_expression(&expr);
-            println!("{:?}", expr_value);
+
+            match expr_value {
+                Value::Boolean(b) => {
+                    println!("{b}");
+                },
+                Value::Number(n) => {
+                    println!("{n}");
+                },
+                Value::Nil => {
+                    println!("nil");
+                },
+                Value::String(s) => {
+                    println!("\"{s}\"")
+                }
+            }
+
             return;
         }
 
