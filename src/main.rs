@@ -371,28 +371,6 @@ enum Statement {
     Block(Vec::<Statement>)
 }
 
-/*
-
-program              -> declaration* EOF ;
-declaration          -> variable_declaration | statement ;
-statement            -> expression_statement | if_statement | print_statement | block;
-expression_statement -> expression ";" ;
-if_statement         -> "if" "(" expression ")" statement ( "else" statement )? ;
-print_statement      -> "print" expression ";" ;
-block                -> "{" declaration* "}";
-expression           -> assignment
-assignment           -> IDENTIFIER "=" assignment | logic_or ;
-logic_or             -> logic_and ( "or" logic_and )* ;
-logic_and            -> equality ( "and" equality )* ;
-equality             -> comparison ( ( "!=" | "==" ) comparison )* ;
-comparison           -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term                 -> factor ( ( "-" | "+" ) factor )* ;
-factor               -> unary ( ( "/" | "*" ) unary )* ;
-unary                -> ( "!" | "-" ) unary | primary ;
-primary              -> NUMBER | STRING | IDENTIFIER | "true" | "false" | "nil" | "(" expression ")" ;
-
-*/
-
 fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
 
     let mut cursor: usize = 0;
