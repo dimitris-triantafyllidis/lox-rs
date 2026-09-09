@@ -367,9 +367,10 @@ enum Statement {
     Expression(Expression),
     If(Expression, Box<Statement>, Option<Box<Statement>>),
     While(Expression, Box<Statement>),
+    For(Option<Box<Statement>>, Option<Expression>, Option<Expression>, Box<Statement>),
     Print(Expression),
     VariableDeclaration(Token, Option<Expression>),
-    Block(Vec::<Statement>)
+    Block(Vec<Statement>)
 }
 
 fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
@@ -444,6 +445,9 @@ fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     else if tokens[cursor].kind == TokenKind::While {
         return parse_while_statement(tokens, cursor + 1);
     }
+    else if tokens[cursor].kind == TokenKind::For {
+        return parse_for_statement(tokens, cursor + 1);
+    }
     else if tokens[cursor].kind == TokenKind::If {
         return parse_if_statement(tokens, cursor + 1);
     }
@@ -482,6 +486,69 @@ fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usiz
         ),
         cursor
     );
+}
+
+fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+
+    let initializer_statement: Option<Box<Statement>>;
+    let condition_expression: Option<Expression>;
+    let increment_expression: Option<Expression>;
+    let body_statement: Box<Statement>;
+
+    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+        panic!("Expected '('");
+    }
+
+    cursor += 1;
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        initializer_statement = None;
+        cursor += 1;
+    }
+    else {
+        let is: Statement;
+        (is, cursor) = parse_declaration(tokens, cursor);
+        initializer_statement = Some(Box::new(is));
+    }
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        condition_expression = None;
+    }
+    else {
+        let ce: Expression;
+        (ce, cursor) = parse_expression(tokens, cursor);
+        condition_expression = Some(ce);
+    }
+
+    cursor += 1;
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        increment_expression = None;
+    }
+    else {
+        let ie: Expression;
+        (ie, cursor) = parse_expression(tokens, cursor);
+        increment_expression = Some(ie);
+    }
+
+    cursor += 1;
+
+    let bs: Statement;
+    (bs, cursor) = parse_statement(tokens, cursor);
+    body_statement = Box::new(bs);
+
+    return (
+        Statement::For (
+            initializer_statement,
+            condition_expression,
+            increment_expression,
+            body_statement
+        ),
+        cursor
+    );
+
 }
 
 fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
@@ -1088,6 +1155,7 @@ impl Interpreter {
             Statement::Expression(..) => self.execute_expression_statement(statement),
             Statement::Print(..) => self.execute_print_statement(statement),
             Statement::While(..) => self.execute_while_statement(statement),
+            Statement::For(..) => self.execute_for_statement(statement),
             Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
             Statement::Block(..) => self.execute_block_statement(statement),
             Statement::If(..) => self.execute_if_statement(statement),
@@ -1137,6 +1205,51 @@ impl Interpreter {
                     panic!();
                 }
             }
+
+            return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_for_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::For (
+            initializer_statement,
+            condition_expression,
+            increment_expression,
+            body_statement,
+        ) = statement {
+
+            self.stack.push(HashMap::<String, Value>::new());
+
+            if let Some(statement) = initializer_statement {
+                self.execute_statement(statement.as_ref());
+            }
+
+            loop {
+                if let Some(ce) = condition_expression {
+                    let expr_value = self.evaluate_expression(ce);
+                    if let Value::Boolean(v) = expr_value {
+                        if v {
+                            self.execute_statement(body_statement);
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    else {
+                        panic!();
+                    }
+                }
+
+                if let Some(ie) = increment_expression {
+                    self.evaluate_expression(ie);
+                }
+            }
+
+            self.stack.pop();
 
             return;
         }
