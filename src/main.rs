@@ -366,6 +366,7 @@ enum Expression {
 enum Statement {
     Expression(Expression),
     If(Expression, Box<Statement>, Option<Box<Statement>>),
+    While(Expression, Box<Statement>),
     Print(Expression),
     VariableDeclaration(Token, Option<Expression>),
     Block(Vec::<Statement>)
@@ -440,6 +441,9 @@ fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
     }
+    else if tokens[cursor].kind == TokenKind::While {
+        return parse_while_statement(tokens, cursor + 1);
+    }
     else if tokens[cursor].kind == TokenKind::If {
         return parse_if_statement(tokens, cursor + 1);
     }
@@ -449,6 +453,35 @@ fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     else {
         return parse_expression_statement(tokens, cursor);
     }
+}
+
+fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+
+    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+        panic!("Expected '('");
+    }
+
+    cursor += 1;
+
+    let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
+
+    if tokens[cursor].kind != TokenKind::RightParenthesis {
+        panic!("Expected ')'");
+    }
+
+    cursor += 1;
+
+    let (body_statement, cursor) = parse_statement(tokens, cursor);
+
+    return (
+        Statement::While (
+            condition_expression,
+            Box::new(body_statement)
+        ),
+        cursor
+    );
 }
 
 fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
@@ -1054,6 +1087,7 @@ impl Interpreter {
         match statement {
             Statement::Expression(..) => self.execute_expression_statement(statement),
             Statement::Print(..) => self.execute_print_statement(statement),
+            Statement::While(..) => self.execute_while_statement(statement),
             Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
             Statement::Block(..) => self.execute_block_statement(statement),
             Statement::If(..) => self.execute_if_statement(statement),
@@ -1078,6 +1112,32 @@ impl Interpreter {
         if let Statement::Print(expr) = statement {
             let expr_value = self.evaluate_expression(&expr);
             println!("{:?}", expr_value);
+            return;
+        }
+
+        panic!();
+
+    }
+
+    fn execute_while_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::While(condition_expression, body_statement) = statement {
+
+            loop {
+                let expr_value = self.evaluate_expression(&condition_expression);
+                if let Value::Boolean(v) = expr_value {
+                    if v {
+                        self.execute_statement(body_statement);
+                    }
+                    else {
+                        break;
+                    }
+                }
+                else {
+                    panic!();
+                }
+            }
+
             return;
         }
 
