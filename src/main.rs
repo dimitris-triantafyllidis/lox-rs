@@ -63,7 +63,7 @@ fn run(s: &String) {
     let tokens = lexer_scan(&s);
     let parsed = parse(&tokens);
 
-    println!("{:#?}", &parsed);
+    // println!("{:#?}", &parsed);
 
     let mut interpreter = Interpreter::new();
 
@@ -931,7 +931,7 @@ enum Value {
     String (String)
 }
 
-fn value_to_bool(v: Value) -> bool {
+fn is_truthy(v: &Value) -> bool {
     match v {
         Value::Nil => false,
         Value::Boolean(false) => false,
@@ -998,7 +998,7 @@ impl Interpreter {
                     return Value::Number (-v)
                 }
                 _ if op.kind == TokenKind::Bang => {
-                    return Value::Boolean (!value_to_bool(rhs_value))
+                    return Value::Boolean (!is_truthy(&rhs_value))
                 }
                 _ => panic!()
             }
@@ -1093,16 +1093,11 @@ impl Interpreter {
 
             let lhs_value = self.evaluate_expression(lhs);
 
-            if let Value::Boolean(v) = lhs_value {
-                if v {
-                    return Value::Boolean(true);
-                }
-                else {
-                    return self.evaluate_expression(rhs);
-                }
+            if is_truthy(&lhs_value) {
+                return lhs_value;
             }
             else {
-                panic!("Expected boolean value");
+                return self.evaluate_expression(rhs);
             }
         }
 
@@ -1116,16 +1111,11 @@ impl Interpreter {
 
             let lhs_value = self.evaluate_expression(lhs);
 
-            if let Value::Boolean(v) = lhs_value {
-                if !v {
-                    return Value::Boolean(false);
-                }
-                else {
-                    return self.evaluate_expression(rhs);
-                }
+            if !is_truthy(&lhs_value) {
+                return lhs_value;
             }
             else {
-                panic!("Expected boolean value");
+                return self.evaluate_expression(rhs);
             }
         }
 
@@ -1209,16 +1199,11 @@ impl Interpreter {
 
             loop {
                 let expr_value = self.evaluate_expression(&condition_expression);
-                if let Value::Boolean(v) = expr_value {
-                    if v {
-                        self.execute_statement(body_statement);
-                    }
-                    else {
-                        break;
-                    }
+                if is_truthy(&expr_value) {
+                    self.execute_statement(body_statement);
                 }
                 else {
-                    panic!();
+                    break;
                 }
             }
 
@@ -1247,16 +1232,11 @@ impl Interpreter {
             loop {
                 if let Some(ce) = condition_expression {
                     let expr_value = self.evaluate_expression(ce);
-                    if let Value::Boolean(v) = expr_value {
-                        if v {
-                            self.execute_statement(body_statement);
-                        }
-                        else {
-                            break;
-                        }
+                    if is_truthy(&expr_value) {
+                        self.execute_statement(body_statement);
                     }
                     else {
-                        panic!();
+                        break;
                     }
                 }
 
@@ -1278,20 +1258,15 @@ impl Interpreter {
 
         if let Statement::If(condition_expression, then_statement, else_statement) = statement {
             let condition_expression_value = self.evaluate_expression(condition_expression);
-            if let Value::Boolean(v) = condition_expression_value {
-                if v {
-                    self.execute_statement(then_statement);
-                    return;
-                }
-                else {
-                    if let Some(statement) = else_statement {
-                        self.execute_statement(statement);
-                        return;
-                    }
-                }
+            if is_truthy(&condition_expression_value) {
+                self.execute_statement(then_statement);
+                return;
             }
             else {
-                panic!("Condition expression must be boolean");
+                if let Some(statement) = else_statement {
+                    self.execute_statement(statement);
+                    return;
+                }
             }
         }
 
