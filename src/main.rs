@@ -27,23 +27,31 @@ fn run_file(file_path: &String) {
 
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
-            run(&s);
+            let tokens = lexer_scan(&s);
+            let parsed = parse(&tokens);
+            let mut interpreter = Interpreter::new();
+            interpreter.execute(&parsed);
         },
         io::Result::Err(e) => {
             eprintln!("io error: {}", e);
         }
     }
+
 }
 
 fn run_repl() {
 
     let mut rl = DefaultEditor::new().unwrap();
 
+    let mut interpreter = Interpreter::new();
+
     loop {
         match rl.readline("lox > ") {
 
             Ok(line) => {
-                run(&line);
+                let tokens = lexer_scan(&line);
+                let parsed = parse(&tokens);
+                interpreter.execute(&parsed);
             }
             Err(ReadlineError::Interrupted) => {
                 continue;
@@ -56,19 +64,6 @@ fn run_repl() {
             }
         }
     }
-}
-
-fn run(s: &String) {
-
-    let tokens = lexer_scan(&s);
-    let parsed = parse(&tokens);
-
-    // println!("{:#?}", &parsed);
-
-    let mut interpreter = Interpreter::new();
-
-    interpreter.execute(&parsed);
-
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -946,8 +941,10 @@ struct Interpreter {
 impl Interpreter {
 
     pub fn new() -> Self {
+        let mut stack = Vec::<HashMap::<String, Value>>::new();
+        stack.push(HashMap::<String, Value>::new());
         Self {
-            stack: Vec::<HashMap::<String, Value>>::new()
+            stack
         }
     }
 
@@ -1313,14 +1310,10 @@ impl Interpreter {
     }
 
     fn execute(self: &mut Self, statements: &Vec<Statement>) {
-
-        self.stack.push(HashMap::<String, Value>::new());
         for statement in statements {
             self.execute_statement(statement);
         }
-        self.stack.pop();
         return;
-
     }
 
 }
