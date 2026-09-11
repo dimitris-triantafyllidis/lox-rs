@@ -369,6 +369,7 @@ enum Statement {
     While(Expression, Box<Statement>),
     For(Option<Box<Statement>>, Option<Expression>, Option<Expression>, Box<Statement>),
     Print(Expression),
+    FunctionDeclaration(Token, Vec<Token>, Box<Statement>),
     VariableDeclaration(Token, Option<Expression>),
     Block(Vec<Statement>)
 }
@@ -399,9 +400,104 @@ fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     if tokens[cursor].kind == TokenKind::Var {
         return parse_variable_declaration(tokens, cursor + 1);
     }
+    if tokens[cursor].kind == TokenKind::Fun {
+        return parse_function_declaration(tokens, cursor + 1);
+    }
     else {
         return parse_statement(tokens, cursor);
     }
+}
+
+fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+
+    if tokens[cursor].kind == TokenKind::Identifier {
+
+        let identifier = tokens[cursor].clone();
+        cursor += 1;
+
+        if tokens[cursor].kind == TokenKind::LeftParenthesis {
+
+            let mut parameters = Vec::<Token>::new();
+            cursor += 1;
+
+            #[derive(PartialEq)]
+            enum ParameterParsingState {
+                Start,
+                GetParameter,
+                Finish
+            }
+
+            let mut state = ParameterParsingState::Start;
+
+            loop {
+                match state {
+                    ParameterParsingState::Start => {
+                        if tokens[cursor].kind == TokenKind::RightParenthesis {
+                            cursor += 1;
+                            state = ParameterParsingState::Finish;
+                        }
+                        else {
+                            state = ParameterParsingState::GetParameter;
+                        }
+                    },
+                    ParameterParsingState::Finish => {
+                        break;
+                    },
+                    ParameterParsingState::GetParameter => {
+                        if parameters.len() < 255 {
+                            if tokens[cursor].kind == TokenKind::Identifier {
+                                parameters.push(tokens[cursor].clone());
+                                cursor += 1;
+                            }
+                            else {
+                                panic!("Expected identifier");
+                            }
+
+                            if tokens[cursor].kind == TokenKind::Comma {
+                                cursor += 1;
+                                state = ParameterParsingState::GetParameter;
+                            }
+                            else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                                cursor += 1;
+                                state = ParameterParsingState::Finish;
+                            }
+                            else {
+                                panic!("Expected ')' or ','");
+                            }
+                        }
+                        else {
+                            panic!("Can't have more than 255 parameters in a function call")
+                        }
+                    }
+                }
+            }
+
+            if tokens[cursor].kind == TokenKind::LeftBrace {
+                cursor += 1;
+                let (body, cursor) = parse_block(tokens, cursor);
+                return (
+                    Statement::FunctionDeclaration (
+                        identifier,
+                        parameters,
+                        Box::new(body)
+                    ),
+                    cursor
+                )
+            }
+            else {
+                panic!("Expected '{{'");
+            }
+        }
+        else {
+            panic!("Expected '('");
+        }
+    }
+    else {
+        panic!("Expected identifier");
+    }
+
 }
 
 fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
@@ -432,7 +528,7 @@ fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement,
         }
     }
     else {
-        panic!("Expected identifier")
+        panic!("Expected identifier");
     }
 
 }
@@ -936,7 +1032,7 @@ fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
                         }
                     }
                     else {
-                        panic!("Can't have more then 255 arguments in a function call")
+                        panic!("Can't have more than 255 arguments in a function call")
                     }
                 }
             }
