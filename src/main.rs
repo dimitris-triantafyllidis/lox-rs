@@ -103,7 +103,7 @@ enum TokenKind {
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Token {
     kind: TokenKind,
     lexeme: String
@@ -324,7 +324,7 @@ fn lexer_scan(s: &String) -> Vec<Token> {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Expression {
     Literal {
         token: Token
@@ -362,7 +362,7 @@ enum Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Statement {
     Expression(Expression),
     If(Expression, Box<Statement>, Option<Box<Statement>>),
@@ -1093,7 +1093,8 @@ enum Value {
     Nil,
     Boolean (bool),
     Number (f64),
-    String (String)
+    String (String),
+    Function (Vec<Token>, Statement),
 }
 
 fn is_truthy(v: &Value) -> bool {
@@ -1349,7 +1350,10 @@ impl Interpreter {
                     println!("nil");
                 },
                 Value::String(s) => {
-                    println!("\"{s}\"")
+                    println!("\"{s}\"");
+                },
+                _ => {
+                    panic!();
                 }
             }
 
