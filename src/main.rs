@@ -29,8 +29,9 @@ fn run_file(file_path: &String) {
         io::Result::Ok(s) => {
             let tokens = lexer_scan(&s);
             let parsed = parse(&tokens);
-            let mut interpreter = Interpreter::new();
-            interpreter.execute(&parsed);
+            println!("{:#?}", parsed);
+            //let mut interpreter = Interpreter::new();
+            //interpreter.execute(&parsed);
         },
         io::Result::Err(e) => {
             eprintln!("io error: {}", e);
@@ -354,6 +355,10 @@ enum Expression {
     Assignment {
         left: Token,
         expression: Box<Expression>
+    },
+    Call {
+        callee: Box<Expression>,
+        arguments: Vec<Expression>
     }
 }
 
@@ -870,7 +875,76 @@ fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
         return (Expression::UnaryOperation { operator, right }, cursor);
     }
 
-    return parse_primary(tokens, cursor);
+    return parse_call(tokens, cursor);
+
+}
+
+fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+
+    let (primary_expr, mut cursor) = parse_primary(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::LeftParenthesis {
+
+        cursor += 1;
+
+        let mut arguments = Vec::<Expression>::new();
+
+        #[derive(PartialEq)]
+        enum State {
+            Start,
+            GetArgument,
+            Finish
+        }
+
+        let mut state = State::Start;
+
+        loop {
+            match state {
+                State::Start => {
+                    if tokens[cursor].kind == TokenKind::RightParenthesis {
+                        cursor += 1;
+                        state = State::Finish;
+                    }
+                    else {
+                        state = State::GetArgument;
+                    }
+                },
+                State::Finish => {
+                    return (
+                        Expression::Call {
+                            callee: Box::new(primary_expr),
+                            arguments: arguments
+                        },
+                        cursor
+                    )
+                },
+                State::GetArgument => {
+                    if arguments.len() < 255 {
+                        let argument: Expression;
+                        (argument, cursor) = parse_expression(tokens, cursor);
+                        arguments.push(argument);
+                        if tokens[cursor].kind == TokenKind::Comma {
+                            cursor += 1;
+                            state = State::GetArgument;
+                        }
+                        else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                            cursor += 1;
+                            state = State::Finish;
+                        }
+                        else {
+                            panic!("Expected ')' or ','");
+                        }
+                    }
+                    else {
+                        panic!("Can't have more then 255 arguments in a function call")
+                    }
+                }
+            }
+        }
+    }
+    else {
+        return (primary_expr, cursor);
+    }
 
 }
 
