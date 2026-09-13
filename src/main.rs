@@ -1420,23 +1420,29 @@ impl Interpreter {
 
             if let Value::Function(parameters, body, closure_id) = callee {
                 if parameters.len() == arguments.len() {
+
+                    let mut argument_values = Vec::<Value>::new();
+
+                    for i in 0..parameters.len() {
+                        argument_values.push(self.evaluate_expression(&arguments[i]).clone());
+                    }
+
                     self.context.push_new_environment(Some(closure_id));
 
                     for i in 0..parameters.len() {
-                        let argument_value = self.evaluate_expression(&arguments[i]).clone();
                         self.context.insert_symbol (
                             &parameters[i].lexeme,
-                            argument_value
+                            argument_values[i].clone()
                         );
                     }
 
-                    let mut statements = Vec::<Statement>::new();
+                    if let Statement::Block(statements) = body {
+                        self.execute(&statements);
+                    }
+                    else {
+                        panic!("Expected block statement");
+                    }
 
-                    statements.push(body);
-
-
-
-                    self.execute(&statements);
                     self.context.pop_environment();
                     return Value::Nil;
                 }
@@ -1598,11 +1604,12 @@ impl Interpreter {
                 self.execute_statement(then_statement);
                 return;
             }
+            else if let Some(statement) = else_statement {
+                self.execute_statement(statement);
+                return;
+            }
             else {
-                if let Some(statement) = else_statement {
-                    self.execute_statement(statement);
-                    return;
-                }
+                return;
             }
         }
 
