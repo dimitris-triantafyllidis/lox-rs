@@ -30,8 +30,8 @@ fn run_file(file_path: &String) {
             let tokens = lexer_scan(&s);
             let parsed = parse(&tokens);
             println!("{:#?}", parsed);
-            //let mut interpreter = Interpreter::new();
-            //interpreter.execute(&parsed);
+            let mut interpreter = Interpreter::new();
+            interpreter.execute(&parsed);
         },
         io::Result::Err(e) => {
             eprintln!("io error: {}", e);
@@ -1094,7 +1094,7 @@ enum Value {
     Boolean (bool),
     Number (f64),
     String (String),
-    Function (Vec<Token>, Statement),
+    Function (Vec<Token>, Statement, usize),
 }
 
 fn is_truthy(v: &Value) -> bool {
@@ -1105,17 +1105,144 @@ fn is_truthy(v: &Value) -> bool {
     }
 }
 
+struct Environment {
+    symbols: HashMap<String, Value>,
+    parent_key: Option<usize>
+}
+
+impl Environment {
+    pub fn new(parent_key: Option<usize>) -> Self {
+        Self {
+            symbols: HashMap::<String, Value>::new(),
+            parent_key: parent_key
+        }
+    }
+}
+
+struct Context {
+    environments: HashMap<usize, Environment>,
+    environment_stack: Vec<usize>,
+    next_id: usize
+}
+
+impl Context {
+
+    pub fn new() -> Self {
+        Self {
+            environments: HashMap::<usize, Environment>::new(),
+            environment_stack: Vec::<usize>::new(),
+            next_id: 0
+        }
+    }
+
+    pub fn push_new_environment(self: &mut Self, parent_id: Option<usize>) {
+        self.environments.insert (
+            self.next_id,
+            Environment::new(parent_id)
+        );
+        self.environment_stack.push(self.next_id);
+        self.next_id += 1;
+    }
+
+    pub fn push_new_environment_auto(self: &mut Self) {
+        self.environments.insert (
+            self.next_id,
+            Environment::new(self.environment_stack.last().copied())
+        );
+        self.environment_stack.push(self.next_id);
+        self.next_id += 1;
+    }
+
+    pub fn pop_environment(self: &mut Self) {
+        self.environment_stack.pop();
+    }
+
+    pub fn get_symbol_value(self: &Self, identifier: &String) -> Value {
+
+        let mut id = *self
+            .environment_stack
+            .last()
+            .expect(&format!("Symbol {identifier} not found: interpreter context is empty"));
+
+        loop {
+            let env = self
+                .environments
+                .get(&id)
+                .expect("Environment id does not exist");
+
+            if let Some(value) = env.symbols.get(identifier) {
+                return value.clone();
+            }
+
+            id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+        }
+    }
+
+    pub fn set_symbol_value(&mut self, identifier: &String, value: Value) {
+
+        let mut id = *self
+            .environment_stack
+            .last()
+            .expect(&format!("Symbol {identifier} not found: interpreter context is empty"));
+
+        loop {
+            let env = self
+                .environments
+                .get_mut(&id)
+                .expect("Environment id does not exist");
+
+            if let Some(v) = env.symbols.get_mut(identifier) {
+                *v = value;
+                return;
+            }
+
+            id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+        }
+    }
+
+    pub fn insert_symbol(&mut self, identifier: &String, value: Value) {
+
+        let id = *self
+            .environment_stack
+            .last()
+            .expect("interpreter context is empty");
+
+        let env = self
+            .environments
+            .get_mut(&id)
+            .expect("environment id does not exist");
+
+        if env.symbols.contains_key(identifier) {
+            panic!("Symbol already exists");
+        }
+
+        env.symbols.insert(identifier.clone(), value);
+    }
+
+    pub fn get_current_environment_id(self: &Self) -> usize {
+
+        return *self
+            .environment_stack
+            .last()
+            .expect("Interpreter context is empty");
+
+    }
+
+}
+
 struct Interpreter {
-    stack: Vec::<HashMap::<String, Value>>
+    context: Context
 }
 
 impl Interpreter {
 
     pub fn new() -> Self {
-        let mut stack = Vec::<HashMap::<String, Value>>::new();
-        stack.push(HashMap::<String, Value>::new());
+
+        let mut context = Context::new();
+        context.push_new_environment_auto();
+
         Self {
-            stack
+            context
         }
     }
 
@@ -1145,14 +1272,11 @@ impl Interpreter {
 
         match expr {
             Expression::Variable { identifier: id } => {
-                for i in (0..self.stack.len()).rev() {
-                    if self.stack[i].contains_key(&id.lexeme) {
-                        return self.stack[i][&id.lexeme].clone();
-                    }
-                }
-                panic!("Undeclared identifier");
+                self.context.get_symbol_value(&id.lexeme).clone()
             },
-            _ => panic!()
+            _ => {
+                panic!()
+            }
         }
 
     }
@@ -1193,16 +1317,13 @@ impl Interpreter {
                 left: lhs,
                 expression: rhs
             } => {
-                for i in (0..self.stack.len()).rev() {
-                    if self.stack[i].contains_key(&lhs.lexeme) {
-                        let rhs_value = self.evaluate_expression(rhs);
-                        self.stack[i].insert(lhs.lexeme.clone(), rhs_value.clone());
-                        return rhs_value;
-                    }
-                }
-                panic!("Undeclared assignment target");
+                    let rhs_value = self.evaluate_expression(rhs);
+                    self.context.set_symbol_value(&lhs.lexeme, rhs_value.clone());
+                    return rhs_value;
             },
-            _ => panic!()
+            _ => {
+                panic!()
+            }
         }
 
     }
@@ -1291,6 +1412,48 @@ impl Interpreter {
 
     }
 
+    fn evaluate_function_call(self: &mut Self, expr: &Expression) -> Value {
+
+        if let Expression::Call { callee, arguments } = expr {
+
+            let callee = self.evaluate_expression(callee);
+
+            if let Value::Function(parameters, body, closure_id) = callee {
+                if parameters.len() == arguments.len() {
+                    self.context.push_new_environment(Some(closure_id));
+
+                    for i in 0..parameters.len() {
+                        let argument_value = self.evaluate_expression(&arguments[i]).clone();
+                        self.context.insert_symbol (
+                            &parameters[i].lexeme,
+                            argument_value
+                        );
+                    }
+
+                    let mut statements = Vec::<Statement>::new();
+
+                    statements.push(body);
+
+
+
+                    self.execute(&statements);
+                    self.context.pop_environment();
+                    return Value::Nil;
+                }
+                else {
+                    panic!("Wrong number of arguments");
+                }
+            }
+            else {
+                panic!("Expected function value");
+            }
+        }
+        else {
+            panic!("Expected call expression")
+        }
+
+    }
+
     fn evaluate_expression(self: &mut Self, expr: &Expression) -> Value {
 
         return match expr {
@@ -1302,6 +1465,7 @@ impl Interpreter {
             Expression::Assignment { .. } => self.evaluate_assignment(expr),
             Expression::LogicalOr { .. } => self.evaluate_logical_or(expr),
             Expression::LogicalAnd { .. } => self.evaluate_logical_and(expr),
+            Expression::Call { .. } => self.evaluate_function_call(expr),
             _ => panic!()
         }
 
@@ -1315,6 +1479,7 @@ impl Interpreter {
             Statement::While(..) => self.execute_while_statement(statement),
             Statement::For(..) => self.execute_for_statement(statement),
             Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
+            Statement::FunctionDeclaration(..) => self.execute_function_declaration_statement(statement),
             Statement::Block(..) => self.execute_block_statement(statement),
             Statement::If(..) => self.execute_if_statement(statement),
             _ => panic!()
@@ -1394,7 +1559,7 @@ impl Interpreter {
             body_statement,
         ) = statement {
 
-            self.stack.push(HashMap::<String, Value>::new());
+            self.context.push_new_environment_auto();
 
             if let Some(statement) = initializer_statement {
                 self.execute_statement(statement.as_ref());
@@ -1416,7 +1581,7 @@ impl Interpreter {
                 }
             }
 
-            self.stack.pop();
+            self.context.pop_environment();
 
             return;
         }
@@ -1445,22 +1610,36 @@ impl Interpreter {
 
     }
 
+    fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) {
+
+        if let Statement::FunctionDeclaration(id, params, body) = statement {
+
+            self.context.insert_symbol (
+                &id.lexeme,
+                Value::Function (
+                    params.clone(),
+                    *body.clone(),
+                    self.context.get_current_environment_id()
+                )
+            );
+
+            return;
+        }
+
+        panic!();
+
+    }
+
     fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) {
 
         if let Statement::VariableDeclaration(id, expr) = statement {
-
-            let stack_top_frame_idx = self.stack.len() - 1;
-
-            if self.stack[stack_top_frame_idx].contains_key(&id.lexeme) {
-                panic!("Variable redeclaration");
-            }
 
             let expr_value = match expr {
                 None => Value::Nil,
                 Some(expr) => self.evaluate_expression(&expr)
             };
 
-            self.stack[stack_top_frame_idx].insert(id.lexeme.clone(), expr_value.clone());
+            self.context.insert_symbol(&id.lexeme, expr_value.clone());
 
             return;
         }
@@ -1472,11 +1651,11 @@ impl Interpreter {
     fn execute_block_statement(self: &mut Self, statement: &Statement) {
 
         if let Statement::Block(statements) = statement {
-            self.stack.push(HashMap::<String, Value>::new());
+            self.context.push_new_environment_auto();
             for statement in statements {
                 self.execute_statement(statement);
             }
-            self.stack.pop();
+            self.context.pop_environment();
             return;
         }
 
