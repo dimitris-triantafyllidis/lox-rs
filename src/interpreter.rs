@@ -297,7 +297,7 @@ impl Interpreter {
 
     pub fn evaluate_expression(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        return match expr {
+        match expr {
             Expression::Literal         { .. } => return self.evaluate_literal(expr),
             Expression::UnaryOperation  { .. } => return self.evaluate_unary(expr),
             Expression::BinaryOperation { .. } => return self.evaluate_binary(expr),
@@ -317,6 +317,7 @@ impl Interpreter {
         match statement {
             Statement::Expression          (..) => return self.execute_expression_statement(statement),
             Statement::Print               (..) => return self.execute_print_statement(statement),
+            Statement::Return              (..) => return self.execute_return_statement(statement),
             Statement::While               (..) => return self.execute_while_statement(statement),
             Statement::For                 (..) => return self.execute_for_statement(statement),
             Statement::VariableDeclaration (..) => return self.execute_variable_declaration_statement(statement),
@@ -364,6 +365,20 @@ impl Interpreter {
             }
 
             return NodeResult::new ( Value::Nil, Control::Continue );
+        }
+
+        panic!();
+
+    }
+
+    pub fn execute_return_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+
+        if let Statement::Return(Some(expr)) = statement {
+            let expr_value = self.evaluate_expression(&expr).value;
+            return NodeResult::new ( expr_value, Control::FunctionReturn );
+        }
+        else if let Statement::Return(None) = statement {
+            return NodeResult::new ( Value::Nil, Control::FunctionReturn );
         }
 
         panic!();
