@@ -45,6 +45,7 @@ pub enum Statement {
     While(Expression, Box<Statement>),
     For(Option<Box<Statement>>, Option<Expression>, Option<Expression>, Box<Statement>),
     Print(Expression),
+    Return(Option<Expression>),
     FunctionDeclaration(Token, Vec<Token>, Box<Statement>),
     VariableDeclaration(Token, Option<Expression>),
     Block(Vec<Statement>)
@@ -214,6 +215,9 @@ pub fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize)
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
     }
+    if tokens[cursor].kind == TokenKind::Return {
+        return parse_return_statement(tokens, cursor + 1);
+    }
     else if tokens[cursor].kind == TokenKind::While {
         return parse_while_statement(tokens, cursor + 1);
     }
@@ -376,6 +380,28 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
             Statement::Print(expr),
+            cursor + 1
+        );
+    } else {
+        panic!("Expected ';'");
+    }
+
+}
+
+pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        return (
+            Statement::Return(None),
+            cursor + 1
+        );
+    }
+
+    let (expr, cursor) = parse_expression(tokens, cursor);
+
+    if tokens[cursor].kind == TokenKind::Semicolon {
+        return (
+            Statement::Return(Some(expr)),
             cursor + 1
         );
     } else {
