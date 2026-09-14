@@ -1,3 +1,4 @@
+use crate::lexer::TokenKind::Comma;
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
@@ -9,6 +10,27 @@ pub enum Value {
     Number (f64),
     String (String),
     Function (Vec<Token>, Statement, usize),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Control {
+    Continue,
+    FunctionReturn
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NodeResult {
+    value: Value,
+    control: Control
+}
+
+impl NodeResult {
+    pub fn new(value: Value, control: Control) -> Self {
+        return Self {
+            value,
+            control
+        }
+    }
 }
 
 pub fn is_truthy(v: &Value) -> bool {
@@ -35,51 +57,69 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_literal(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_literal(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Literal{token} if token.kind == TokenKind::Nil   => { return Value::Nil             },
-            Expression::Literal{token} if token.kind == TokenKind::False => { return Value::Boolean (false) },
-            Expression::Literal{token} if token.kind == TokenKind::True  => { return Value::Boolean (true)  },
+            Expression::Literal{token} if token.kind == TokenKind::Nil => {
+                return NodeResult::new(Value::Nil, Control::Continue);
+            },
+            Expression::Literal{token} if token.kind == TokenKind::False => {
+                return NodeResult::new(Value::Boolean(false), Control::Continue);
+            },
+            Expression::Literal{token} if token.kind == TokenKind::True  => {
+                return NodeResult::new(Value::Boolean(true), Control::Continue);
+            },
             Expression::Literal{token} if token.kind == TokenKind::Number => {
-                return Value::Number (
-                    token.lexeme.parse().unwrap()
+                return NodeResult::new (
+                    Value::Number (
+                        token.lexeme.parse().unwrap()
+                    ),
+                    Control::Continue
                 )
             },
             Expression::Literal{token} if token.kind == TokenKind::String => {
-                return Value::String (
-                    token.lexeme
-                        [1..token.lexeme.len() - 1].to_string()
+                return NodeResult::new (
+                    Value::String (
+                        token.lexeme[1..token.lexeme.len() - 1].to_string()
+                    ),
+                    Control::Continue
                 )
             },
             _ => panic!()
         }
-
     }
 
-    pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
             Expression::Variable { identifier: id } => {
-                self.context.get_symbol_value(&id.lexeme).clone()
+                NodeResult::new (
+                    self.context.get_symbol_value(&id.lexeme).clone(),
+                    Control::Continue
+                )
             },
             _ => {
                 panic!()
             }
         }
-
     }
 
-    pub fn evaluate_unary(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_unary(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
-            let rhs_value = self.evaluate_expression(rhs);
+            let rhs_value = self.evaluate_expression(rhs).value;
             match rhs_value {
                 Value::Number (v) if op.kind == TokenKind::Minus => {
-                    return Value::Number (-v)
+                    return NodeResult::new (
+                        Value::Number (-v),
+                        Control::Continue
+                    )
                 }
                 _ if op.kind == TokenKind::Bang => {
-                    return Value::Boolean (!is_truthy(&rhs_value))
+                    return NodeResult::new (
+                        Value::Boolean (!is_truthy(&rhs_value)),
+                        Control::Continue
+                    )
                 }
                 _ => panic!()
             }
@@ -89,26 +129,32 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Parentheses { expression: e } = expr {
-            return self.evaluate_expression(e);
+            return NodeResult::new (
+                self.evaluate_expression(e).value,
+                Control::Continue
+            )
         }
 
         panic!()
 
     }
 
-    pub fn evaluate_assignment(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_assignment(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
             Expression::Assignment {
                 left: lhs,
                 expression: rhs
             } => {
-                    let rhs_value = self.evaluate_expression(rhs);
-                    self.context.set_symbol_value(&lhs.lexeme, rhs_value.clone());
-                    return rhs_value;
+                let rhs_value = self.evaluate_expression(rhs).value;
+                self.context.set_symbol_value(&lhs.lexeme, rhs_value.clone());
+                return NodeResult::new (
+                    rhs_value,
+                    Control::Continue
+                );
             },
             _ => {
                 panic!()
@@ -117,47 +163,47 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_binary(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_binary(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
 
-            let lhs_value = self.evaluate_expression(lhs);
-            let rhs_value = self.evaluate_expression(rhs);
+            let lhs_value = self.evaluate_expression(lhs).value;
+            let rhs_value = self.evaluate_expression(rhs).value;
 
             if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
                 match op.kind {
-                    TokenKind::Plus  => { return Value::Number ( vl + vr) },
-                    TokenKind::Minus => { return Value::Number ( vl - vr) },
-                    TokenKind::Star  => { return Value::Number ( vl * vr) },
-                    TokenKind::Slash => { return Value::Number ( vl / vr) },
-                    TokenKind::EqualEqual   => { return Value::Boolean ( vl == vr) },
-                    TokenKind::BangEqual    => { return Value::Boolean ( vl != vr) },
-                    TokenKind::Less         => { return Value::Boolean ( vl <  vr) },
-                    TokenKind::LessEqual    => { return Value::Boolean ( vl <= vr) },
-                    TokenKind::Greater      => { return Value::Boolean ( vl >  vr) },
-                    TokenKind::GreaterEqual => { return Value::Boolean ( vl >= vr) },
+                    TokenKind::Plus         => { return NodeResult::new ( Value::Number ( vl + vr),   Control::Continue ) },
+                    TokenKind::Minus        => { return NodeResult::new ( Value::Number ( vl - vr),   Control::Continue ) },
+                    TokenKind::Star         => { return NodeResult::new ( Value::Number ( vl * vr),   Control::Continue ) },
+                    TokenKind::Slash        => { return NodeResult::new ( Value::Number ( vl / vr),   Control::Continue ) },
+                    TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean ( vl == vr), Control::Continue ) },
+                    TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean ( vl != vr), Control::Continue ) },
+                    TokenKind::Less         => { return NodeResult::new ( Value::Boolean ( vl <  vr), Control::Continue ) },
+                    TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean ( vl <= vr), Control::Continue ) },
+                    TokenKind::Greater      => { return NodeResult::new ( Value::Boolean ( vl >  vr), Control::Continue ) },
+                    TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean ( vl >= vr), Control::Continue ) },
                     _ => panic!()
                 }
             }
 
             if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
                 match op.kind {
-                    TokenKind::Plus  => { return Value::String(vl + &vr.clone() ) },
-                    TokenKind::EqualEqual   => { return Value::Boolean (vl == vr) },
-                    TokenKind::BangEqual    => { return Value::Boolean (vl != vr) },
-                    TokenKind::Less         => { return Value::Boolean (vl <  vr) },
-                    TokenKind::LessEqual    => { return Value::Boolean (vl <= vr) },
-                    TokenKind::Greater      => { return Value::Boolean (vl >  vr) },
-                    TokenKind::GreaterEqual => { return Value::Boolean (vl >= vr) },
+                    TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl + &vr.clone()), Control::Continue ) },
+                    TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean (vl == vr),         Control::Continue ) },
+                    TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean (vl != vr),         Control::Continue ) },
+                    TokenKind::Less         => { return NodeResult::new ( Value::Boolean (vl <  vr),         Control::Continue ) },
+                    TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean (vl <= vr),         Control::Continue ) },
+                    TokenKind::Greater      => { return NodeResult::new ( Value::Boolean (vl >  vr),         Control::Continue ) },
+                    TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean (vl >= vr),         Control::Continue ) },
                     _ => panic!()
                 }
             }
 
             if op.kind == TokenKind::EqualEqual {
-                return Value::Boolean(lhs_value == rhs_value);
+                return NodeResult::new ( Value::Boolean(lhs_value == rhs_value), Control::Continue );
             }
             else if op.kind == TokenKind::BangEqual {
-                return Value::Boolean(lhs_value != rhs_value);
+                return NodeResult::new ( Value::Boolean(lhs_value != rhs_value), Control::Continue );
             }
         }
 
@@ -165,14 +211,14 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_logical_or(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_logical_or(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::LogicalOr { left: lhs, right: rhs } = expr {
 
-            let lhs_value = self.evaluate_expression(lhs);
+            let lhs_value = self.evaluate_expression(lhs).value;
 
             if is_truthy(&lhs_value) {
-                return lhs_value;
+                return NodeResult::new ( lhs_value, Control::Continue );
             }
             else {
                 return self.evaluate_expression(rhs);
@@ -183,14 +229,14 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_logical_and(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_logical_and(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::LogicalAnd { left: lhs, right: rhs } = expr {
 
-            let lhs_value = self.evaluate_expression(lhs);
+            let lhs_value = self.evaluate_expression(lhs).value;
 
             if !is_truthy(&lhs_value) {
-                return lhs_value;
+                return NodeResult::new ( lhs_value, Control::Continue );
             }
             else {
                 return self.evaluate_expression(rhs);
@@ -201,11 +247,11 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_function_call(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_function_call(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Call { callee, arguments } = expr {
 
-            let callee = self.evaluate_expression(callee);
+            let callee = self.evaluate_expression(callee).value;
 
             if let Value::Function(parameters, body, closure_id) = callee {
                 if parameters.len() == arguments.len() {
@@ -213,7 +259,7 @@ impl Interpreter {
                     let mut argument_values = Vec::<Value>::new();
 
                     for i in 0..parameters.len() {
-                        argument_values.push(self.evaluate_expression(&arguments[i]).clone());
+                        argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
                     }
 
                     self.context.push_new_environment(Some(closure_id));
@@ -233,7 +279,7 @@ impl Interpreter {
                     }
 
                     self.context.pop_environment();
-                    return Value::Nil;
+                    return NodeResult::new ( Value::Nil, Control::Continue );
                 }
                 else {
                     panic!("Wrong number of arguments");
@@ -249,55 +295,55 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_expression(self: &mut Self, expr: &Expression) -> Value {
+    pub fn evaluate_expression(self: &mut Self, expr: &Expression) -> NodeResult {
 
         return match expr {
-            Expression::Literal { .. } => self.evaluate_literal(expr),
-            Expression::UnaryOperation { .. }  => self.evaluate_unary(expr),
-            Expression::BinaryOperation { .. } => self.evaluate_binary(expr),
-            Expression::Parentheses { .. } => self.evaluate_parentheses(expr),
-            Expression::Variable { .. } => self.evaluate_variable(expr),
-            Expression::Assignment { .. } => self.evaluate_assignment(expr),
-            Expression::LogicalOr { .. } => self.evaluate_logical_or(expr),
-            Expression::LogicalAnd { .. } => self.evaluate_logical_and(expr),
-            Expression::Call { .. } => self.evaluate_function_call(expr),
+            Expression::Literal         { .. } => return self.evaluate_literal(expr),
+            Expression::UnaryOperation  { .. } => return self.evaluate_unary(expr),
+            Expression::BinaryOperation { .. } => return self.evaluate_binary(expr),
+            Expression::Parentheses     { .. } => return self.evaluate_parentheses(expr),
+            Expression::Variable        { .. } => return self.evaluate_variable(expr),
+            Expression::Assignment      { .. } => return self.evaluate_assignment(expr),
+            Expression::LogicalOr       { .. } => return self.evaluate_logical_or(expr),
+            Expression::LogicalAnd      { .. } => return self.evaluate_logical_and(expr),
+            Expression::Call            { .. } => return self.evaluate_function_call(expr),
             _ => panic!()
         }
 
     }
 
-    pub fn execute_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         match statement {
-            Statement::Expression(..) => self.execute_expression_statement(statement),
-            Statement::Print(..) => self.execute_print_statement(statement),
-            Statement::While(..) => self.execute_while_statement(statement),
-            Statement::For(..) => self.execute_for_statement(statement),
-            Statement::VariableDeclaration(..) => self.execute_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration(..) => self.execute_function_declaration_statement(statement),
-            Statement::Block(..) => self.execute_block_statement(statement),
-            Statement::If(..) => self.execute_if_statement(statement),
+            Statement::Expression          (..) => return self.execute_expression_statement(statement),
+            Statement::Print               (..) => return self.execute_print_statement(statement),
+            Statement::While               (..) => return self.execute_while_statement(statement),
+            Statement::For                 (..) => return self.execute_for_statement(statement),
+            Statement::VariableDeclaration (..) => return self.execute_variable_declaration_statement(statement),
+            Statement::FunctionDeclaration (..) => return self.execute_function_declaration_statement(statement),
+            Statement::Block               (..) => return self.execute_block_statement(statement),
+            Statement::If                  (..) => return self.execute_if_statement(statement),
             _ => panic!()
         }
 
     }
 
-    pub fn execute_expression_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_expression_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::Expression(expr) = statement {
             self.evaluate_expression(&expr);
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_print_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_print_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::Print(expr) = statement {
 
-            let expr_value = self.evaluate_expression(&expr);
+            let expr_value = self.evaluate_expression(&expr).value;
 
             match expr_value {
                 Value::Boolean(b) => {
@@ -317,19 +363,19 @@ impl Interpreter {
                 }
             }
 
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_while_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_while_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::While(condition_expression, body_statement) = statement {
 
             loop {
-                let expr_value = self.evaluate_expression(&condition_expression);
+                let expr_value = self.evaluate_expression(&condition_expression).value;
                 if is_truthy(&expr_value) {
                     self.execute_statement(body_statement);
                 }
@@ -338,14 +384,14 @@ impl Interpreter {
                 }
             }
 
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_for_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_for_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::For (
             initializer_statement,
@@ -362,7 +408,7 @@ impl Interpreter {
 
             loop {
                 if let Some(ce) = condition_expression {
-                    let expr_value = self.evaluate_expression(ce);
+                    let expr_value = self.evaluate_expression(ce).value;
                     if is_truthy(&expr_value) {
                         self.execute_statement(body_statement);
                     }
@@ -378,27 +424,27 @@ impl Interpreter {
 
             self.context.pop_environment();
 
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_if_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_if_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::If(condition_expression, then_statement, else_statement) = statement {
-            let condition_expression_value = self.evaluate_expression(condition_expression);
+            let condition_expression_value = self.evaluate_expression(condition_expression).value;
             if is_truthy(&condition_expression_value) {
                 self.execute_statement(then_statement);
-                return;
+                return NodeResult::new ( Value::Nil, Control::Continue );
             }
             else if let Some(statement) = else_statement {
                 self.execute_statement(statement);
-                return;
+                return NodeResult::new ( Value::Nil, Control::Continue );
             }
             else {
-                return;
+                return NodeResult::new ( Value::Nil, Control::Continue );
             }
         }
 
@@ -406,7 +452,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::FunctionDeclaration(id, params, body) = statement {
 
@@ -419,32 +465,32 @@ impl Interpreter {
                 )
             );
 
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::VariableDeclaration(id, expr) = statement {
 
             let expr_value = match expr {
                 None => Value::Nil,
-                Some(expr) => self.evaluate_expression(&expr)
+                Some(expr) => self.evaluate_expression(&expr).value
             };
 
             self.context.insert_symbol(&id.lexeme, expr_value.clone());
 
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
 
     }
 
-    pub fn execute_block_statement(self: &mut Self, statement: &Statement) {
+    pub fn execute_block_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::Block(statements) = statement {
             self.context.push_new_environment_auto();
@@ -452,7 +498,7 @@ impl Interpreter {
                 self.execute_statement(statement);
             }
             self.context.pop_environment();
-            return;
+            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
         panic!();
