@@ -54,7 +54,7 @@ impl Context {
         self.environment_stack.pop();
     }
 
-    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> Value {
+    pub fn find_symbol(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
@@ -67,33 +67,38 @@ impl Context {
                 .get(&id)
                 .expect("Environment id does not exist");
 
-            if let Some(value) = env.symbols.get(identifier) {
-                return value.clone();
+            if let Some(..) = env.symbols.get(identifier) {
+                return id;
             }
 
             id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &String, value: Value, lookup_hop_count: Option<usize>) {
+    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> Value {
 
-        let mut id = *self
-            .environment_stack
-            .last()
-            .expect(&format!("Symbol {identifier} not found: interpreter context is empty"));
+        let env_id = self.find_symbol(identifier, lookup_hop_count);
+        let env = self.environments.get(&env_id).unwrap();
 
-        loop {
-            let env = self
-                .environments
-                .get_mut(&id)
-                .expect("Environment id does not exist");
+        if let Some(v) = env.symbols.get(identifier) {
+            return v.clone();
+        }
+        else {
+            panic!("Symbol not found")
+        }
+    }
 
-            if let Some(v) = env.symbols.get_mut(identifier) {
-                *v = value;
-                return;
-            }
+    pub fn set_symbol_value(self: &mut Self, identifier: &String, value: Value, lookup_hop_count: Option<usize>) {
 
-            id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+        let env_id = self.find_symbol(identifier, lookup_hop_count);
+        let env = self.environments.get_mut(&env_id).unwrap();
+
+        if let Some(v) = env.symbols.get_mut(identifier) {
+            *v = value;
+            return;
+        }
+        else {
+            panic!("Symbol not found")
         }
     }
 
