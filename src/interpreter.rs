@@ -98,7 +98,7 @@ impl Interpreter {
         match expr {
             Expression::Variable { identifier: id, .. } => {
                 NodeResult::new (
-                    self.context.get_symbol_value(&id.lexeme, None).clone(),
+                    self.context.get_symbol_value(&id.lexeme, &mut None).clone(),
                     Control::Continue
                 )
             },
@@ -156,7 +156,7 @@ impl Interpreter {
                 ..
             } => {
                 let rhs_result = self.evaluate_expression(rhs);
-                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), None);
+                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut None);
                 return NodeResult::new (
                     rhs_result.value,
                     Control::Continue

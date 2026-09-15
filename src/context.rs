@@ -54,28 +54,57 @@ impl Context {
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> usize {
+    pub fn find_symbol(self: &Self, identifier: &String, lookup_hop_count: &mut Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
             .last()
             .expect(&format!("Symbol {identifier} not found: interpreter context is empty"));
 
-        loop {
-            let env = self
-                .environments
-                .get(&id)
-                .expect("Environment id does not exist");
+        match lookup_hop_count {
 
-            if let Some(..) = env.symbols.get(identifier) {
-                return id;
+            None => {
+                let mut hop_count: usize = 0;
+                loop {
+                    let env = self
+                        .environments
+                        .get(&id)
+                        .expect("Environment id does not exist");
+
+                    if let Some(..) = env.symbols.get(identifier) {
+                        *lookup_hop_count = Some(hop_count);
+                        return id;
+                    }
+
+                    hop_count += 1;
+                    id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+                }
             }
+            Some(hop_count) => {
+                let mut hops_left = *hop_count;
+                loop {
+                    let env = self
+                        .environments
+                        .get(&id)
+                        .expect("Environment id does not exist");
 
-            id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+                    if hops_left == 0 {
+                        if let Some(..) = env.symbols.get(identifier) {
+                            return id;
+                        }
+                        else {
+                            panic!("Symbol not found");
+                        }
+                    }
+
+                    hops_left -= 1;
+                    id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+                }
+            }
         }
     }
 
-    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> Value {
+    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: &mut Option<usize>) -> Value {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get(&env_id).unwrap();
@@ -88,7 +117,7 @@ impl Context {
         }
     }
 
-    pub fn set_symbol_value(self: &mut Self, identifier: &String, value: Value, lookup_hop_count: Option<usize>) {
+    pub fn set_symbol_value(self: &mut Self, identifier: &String, value: Value, lookup_hop_count: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get_mut(&env_id).unwrap();
