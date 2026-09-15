@@ -7,6 +7,7 @@ pub enum Expression {
     },
     Variable {
         identifier: Token,
+        lookup_hop_count: Option<usize>
     },
     UnaryOperation {
         operator: Token,
@@ -30,6 +31,7 @@ pub enum Expression {
     },
     Assignment {
         left: Token,
+        lookup_hop_count: Option<usize>,
         expression: Box<Expression>
     },
     Call {
@@ -473,9 +475,13 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
         (value_expr, cursor) = parse_assignment(tokens, cursor);
 
         match expr {
-            Expression::Variable{identifier: t} => {
+            Expression::Variable{identifier: t, lookup_hop_count: None} => {
                 return (
-                    Expression::Assignment { left: t, expression: Box::<Expression>::new(value_expr) },
+                    Expression::Assignment {
+                        left: t,
+                        lookup_hop_count: None,
+                        expression: Box::<Expression>::new(value_expr)
+                    },
                     cursor
                 );
             },
@@ -766,7 +772,8 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
     if tokens[cursor].kind == TokenKind::Identifier {
         return (
             Expression::Variable {
-                identifier: tokens[cursor].clone()
+                identifier: tokens[cursor].clone(),
+                lookup_hop_count: None
             },
             cursor + 1
         );

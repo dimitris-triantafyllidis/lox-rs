@@ -54,7 +54,7 @@ impl Context {
         self.environment_stack.pop();
     }
 
-    pub fn get_symbol_value(self: &Self, identifier: &String) -> Value {
+    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: Option<usize>) -> Value {
 
         let mut id = *self
             .environment_stack
@@ -75,7 +75,7 @@ impl Context {
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &String, value: Value) {
+    pub fn set_symbol_value(&mut self, identifier: &String, value: Value, lookup_hop_count: Option<usize>) {
 
         let mut id = *self
             .environment_stack

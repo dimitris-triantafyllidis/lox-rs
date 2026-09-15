@@ -30,6 +30,12 @@ impl NodeResult {
             control
         }
     }
+    pub fn default() -> Self {
+        return Self {
+            value: Value::Nil,
+            control: Control::Continue
+        }
+    }
 }
 
 pub fn is_truthy(v: &Value) -> bool {
@@ -39,7 +45,6 @@ pub fn is_truthy(v: &Value) -> bool {
         _ => true
     }
 }
-
 pub struct Interpreter {
     pub context: Context
 }
@@ -91,9 +96,9 @@ impl Interpreter {
     pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Variable { identifier: id } => {
+            Expression::Variable { identifier: id, .. } => {
                 NodeResult::new (
-                    self.context.get_symbol_value(&id.lexeme).clone(),
+                    self.context.get_symbol_value(&id.lexeme, None).clone(),
                     Control::Continue
                 )
             },
@@ -147,10 +152,11 @@ impl Interpreter {
         match expr {
             Expression::Assignment {
                 left: lhs,
-                expression: rhs
+                expression: rhs,
+                ..
             } => {
                 let rhs_result = self.evaluate_expression(rhs);
-                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone());
+                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), None);
                 return NodeResult::new (
                     rhs_result.value,
                     Control::Continue
