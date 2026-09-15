@@ -370,6 +370,9 @@ impl Interpreter {
                 Value::String(s) => {
                     println!("\"{s}\"");
                 },
+                Value::Function(..) => {
+                    println!("<fn>");
+                }
                 _ => {
                     panic!();
                 }
