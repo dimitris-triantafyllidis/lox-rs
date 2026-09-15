@@ -1,4 +1,3 @@
-use crate::lexer::TokenKind::Comma;
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
@@ -107,8 +106,8 @@ impl Interpreter {
     pub fn evaluate_unary(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
-            let rhs_value = self.evaluate_expression(rhs).value;
-            match rhs_value {
+            let rhs_result = self.evaluate_expression(rhs);
+            match rhs_result.value {
                 Value::Number (v) if op.kind == TokenKind::Minus => {
                     return NodeResult::new (
                         Value::Number (-v),
@@ -117,7 +116,7 @@ impl Interpreter {
                 }
                 _ if op.kind == TokenKind::Bang => {
                     return NodeResult::new (
-                        Value::Boolean (!is_truthy(&rhs_value)),
+                        Value::Boolean (!is_truthy(&rhs_result.value)),
                         Control::Continue
                     )
                 }
@@ -132,8 +131,9 @@ impl Interpreter {
     pub fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Parentheses { expression: e } = expr {
+            let expression_result = self.evaluate_expression(e);
             return NodeResult::new (
-                self.evaluate_expression(e).value,
+                expression_result.value,
                 Control::Continue
             )
         }
@@ -149,12 +149,12 @@ impl Interpreter {
                 left: lhs,
                 expression: rhs
             } => {
-                let rhs_value = self.evaluate_expression(rhs).value;
-                self.context.set_symbol_value(&lhs.lexeme, rhs_value.clone());
+                let rhs_result = self.evaluate_expression(rhs);
+                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone());
                 return NodeResult::new (
-                    rhs_value,
+                    rhs_result.value,
                     Control::Continue
-                );
+                )
             },
             _ => {
                 panic!()
@@ -215,13 +215,14 @@ impl Interpreter {
 
         if let Expression::LogicalOr { left: lhs, right: rhs } = expr {
 
-            let lhs_value = self.evaluate_expression(lhs).value;
+            let lhs_result = self.evaluate_expression(lhs);
 
-            if is_truthy(&lhs_value) {
-                return NodeResult::new ( lhs_value, Control::Continue );
+            if is_truthy(&lhs_result.value) {
+                return NodeResult::new ( lhs_result.value, Control::Continue );
             }
             else {
-                return self.evaluate_expression(rhs);
+                let rhs_result = self.evaluate_expression(rhs);
+                return NodeResult::new ( rhs_result.value, Control::Continue );
             }
         }
 
@@ -233,13 +234,14 @@ impl Interpreter {
 
         if let Expression::LogicalAnd { left: lhs, right: rhs } = expr {
 
-            let lhs_value = self.evaluate_expression(lhs).value;
+            let lhs_result = self.evaluate_expression(lhs);
 
-            if !is_truthy(&lhs_value) {
-                return NodeResult::new ( lhs_value, Control::Continue );
+            if !is_truthy(&lhs_result.value) {
+                return NodeResult::new ( lhs_result.value, Control::Continue );
             }
             else {
-                return self.evaluate_expression(rhs);
+                let rhs_result = self.evaluate_expression(rhs);
+                return NodeResult::new ( rhs_result.value, Control::Continue );
             }
         }
 
@@ -272,7 +274,16 @@ impl Interpreter {
                     }
 
                     if let Statement::Block(statements) = body {
-                        self.execute(&statements);
+                        for statement in statements {
+                            let statement_result = self.execute_statement(&statement);
+                            if statement_result.control == Control::FunctionReturn {
+                                self.context.pop_environment();
+                                return NodeResult::new (
+                                    statement_result.value,
+                                    Control::Continue
+                                );
+                            }
+                        }
                     }
                     else {
                         panic!("Expected block statement");
@@ -332,8 +343,8 @@ impl Interpreter {
     pub fn execute_expression_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::Expression(expr) = statement {
-            self.evaluate_expression(&expr);
-            return NodeResult::new ( Value::Nil, Control::Continue );
+            let expr_result = self.evaluate_expression(&expr);
+            return NodeResult::new ( Value::Nil, expr_result.control );
         }
 
         panic!();
@@ -344,9 +355,9 @@ impl Interpreter {
 
         if let Statement::Print(expr) = statement {
 
-            let expr_value = self.evaluate_expression(&expr).value;
+            let expr_result = self.evaluate_expression(&expr);
 
-            match expr_value {
+            match expr_result.value {
                 Value::Boolean(b) => {
                     println!("{b}");
                 },
@@ -364,7 +375,7 @@ impl Interpreter {
                 }
             }
 
-            return NodeResult::new ( Value::Nil, Control::Continue );
+            return NodeResult::new ( Value::Nil, expr_result.control );
         }
 
         panic!();
@@ -374,8 +385,8 @@ impl Interpreter {
     pub fn execute_return_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         if let Statement::Return(Some(expr)) = statement {
-            let expr_value = self.evaluate_expression(&expr).value;
-            return NodeResult::new ( expr_value, Control::FunctionReturn );
+            let expr_result = self.evaluate_expression(&expr);
+            return NodeResult::new ( expr_result.value, Control::FunctionReturn );
         }
         else if let Statement::Return(None) = statement {
             return NodeResult::new ( Value::Nil, Control::FunctionReturn );
@@ -392,7 +403,10 @@ impl Interpreter {
             loop {
                 let expr_value = self.evaluate_expression(&condition_expression).value;
                 if is_truthy(&expr_value) {
-                    self.execute_statement(body_statement);
+                    let statement_result = self.execute_statement(body_statement);
+                    if statement_result.control == Control::FunctionReturn {
+                        return statement_result;
+                    }
                 }
                 else {
                     break;
@@ -425,7 +439,11 @@ impl Interpreter {
                 if let Some(ce) = condition_expression {
                     let expr_value = self.evaluate_expression(ce).value;
                     if is_truthy(&expr_value) {
-                        self.execute_statement(body_statement);
+                        let statement_result = self.execute_statement(body_statement);
+                        if statement_result.control == Control::FunctionReturn {
+                            self.context.pop_environment();
+                            return statement_result;
+                        }
                     }
                     else {
                         break;
@@ -438,7 +456,6 @@ impl Interpreter {
             }
 
             self.context.pop_environment();
-
             return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
@@ -451,12 +468,10 @@ impl Interpreter {
         if let Statement::If(condition_expression, then_statement, else_statement) = statement {
             let condition_expression_value = self.evaluate_expression(condition_expression).value;
             if is_truthy(&condition_expression_value) {
-                self.execute_statement(then_statement);
-                return NodeResult::new ( Value::Nil, Control::Continue );
+                return self.execute_statement(then_statement);
             }
             else if let Some(statement) = else_statement {
-                self.execute_statement(statement);
-                return NodeResult::new ( Value::Nil, Control::Continue );
+                return self.execute_statement(statement);
             }
             else {
                 return NodeResult::new ( Value::Nil, Control::Continue );
@@ -510,7 +525,11 @@ impl Interpreter {
         if let Statement::Block(statements) = statement {
             self.context.push_new_environment_auto();
             for statement in statements {
-                self.execute_statement(statement);
+                let statement_result = self.execute_statement(&statement);
+                if statement_result.control == Control::FunctionReturn {
+                    self.context.pop_environment();
+                    return statement_result;
+                }
             }
             self.context.pop_environment();
             return NodeResult::new ( Value::Nil, Control::Continue );
