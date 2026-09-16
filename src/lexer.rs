@@ -209,6 +209,15 @@ pub fn lexer_scan(s: &String) -> Vec<Token> {
 
     while cursor < characters.len() {
 
+        // Skip comments
+
+        if characters.len() - cursor >= 2 && (characters[cursor], characters[cursor + 1]) == ('/', '/') {
+            while cursor < characters.len() && characters[cursor] != '\n' {
+                cursor += 1;
+            }
+            continue;
+        }
+
         // Skip whitespace
 
         if characters[cursor].is_whitespace() {
