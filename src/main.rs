@@ -7,10 +7,12 @@ mod lexer;
 mod parser;
 mod interpreter;
 mod context;
+mod semantic_pass;
 
 use crate::lexer::*;
 use crate::parser::*;
 use crate::interpreter::*;
+use crate::semantic_pass::*;
 
 fn main() -> ExitCode {
 
@@ -35,7 +37,9 @@ fn run_file(file_path: &String) {
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
             let tokens = lexer_scan(&s);
-            let parsed = parse(&tokens);
+            let mut parsed = parse(&tokens);
+            let mut semantic_pass = SemanticPass::new();
+            semantic_pass.visit(&mut parsed);
             let mut interpreter = Interpreter::new();
             interpreter.execute(&parsed);
         },

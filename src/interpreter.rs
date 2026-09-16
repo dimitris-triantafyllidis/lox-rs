@@ -19,8 +19,8 @@ pub enum Control {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeResult {
-    value: Value,
-    control: Control
+    pub value: Value,
+    pub control: Control
 }
 
 impl NodeResult {
@@ -96,9 +96,10 @@ impl Interpreter {
     pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Variable { identifier: id, .. } => {
+            Expression::Variable { identifier: id, lookup_hop_count: hop_count } => {
+                let mut hop_count_mut_copy = *hop_count;
                 NodeResult::new (
-                    self.context.get_symbol_value(&id.lexeme, &mut None).clone(),
+                    self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
                     Control::Continue
                 )
             },
@@ -153,10 +154,11 @@ impl Interpreter {
             Expression::Assignment {
                 left: lhs,
                 expression: rhs,
-                ..
+                lookup_hop_count: hop_count
             } => {
                 let rhs_result = self.evaluate_expression(rhs);
-                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut None);
+                let mut hop_count_mut_copy = *hop_count;
+                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut hop_count_mut_copy);
                 return NodeResult::new (
                     rhs_result.value,
                     Control::Continue
