@@ -49,6 +49,7 @@ pub enum Statement {
     Print(Expression),
     Return(Option<Expression>),
     FunctionDeclaration(Token, Vec<Token>, Box<Statement>),
+    ClassDeclaration(Token, Vec<Statement>),
     VariableDeclaration(Token, Option<Expression>),
     Block(Vec<Statement>)
 }
@@ -81,6 +82,9 @@ pub fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usiz
     }
     if tokens[cursor].kind == TokenKind::Fun {
         return parse_function_declaration(tokens, cursor + 1);
+    }
+    if tokens[cursor].kind == TokenKind::Class {
+        return parse_class_declaration(tokens, cursor + 1);
     }
     else {
         return parse_statement(tokens, cursor);
@@ -171,6 +175,46 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
         }
         else {
             panic!("Expected '('");
+        }
+    }
+    else {
+        panic!("Expected identifier");
+    }
+
+}
+
+pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+
+    let mut cursor = cursor;
+
+    if tokens[cursor].kind == TokenKind::Identifier {
+
+        let identifier = tokens[cursor].clone();
+        cursor += 1;
+
+        if tokens[cursor].kind == TokenKind::LeftBrace {
+
+            let mut methods = Vec::<Statement>::new();
+            cursor += 1;
+
+            loop {
+                if tokens[cursor].kind == TokenKind::RightBrace {
+                    return (
+                        Statement::ClassDeclaration (
+                            identifier, methods
+                        ),
+                        cursor + 1
+                    );
+                }
+                else {
+                    let method: Statement;
+                    (method, cursor) = parse_function_declaration(tokens, cursor);
+                    methods.push(method);
+                }
+            }
+        }
+        else {
+            panic!("Expected '{{'")
         }
     }
     else {
