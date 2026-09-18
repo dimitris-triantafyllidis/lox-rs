@@ -174,6 +174,7 @@ impl SemanticPass {
             Statement::For                 (..) => self.visit_for_statement(statement),
             Statement::VariableDeclaration (..) => self.visit_variable_declaration_statement(statement),
             Statement::FunctionDeclaration (..) => self.visit_function_declaration_statement(statement),
+            Statement::ClassDeclaration    (..) => self.visit_class_declaration_statement(statement),
             Statement::Block               (..) => self.visit_block_statement(statement),
             Statement::If                  (..) => self.visit_if_statement(statement),
             _ => panic!()
@@ -306,6 +307,21 @@ impl SemanticPass {
             }
 
             self.context.pop_environment();
+        }
+        else {
+            panic!();
+        }
+
+    }
+
+    pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
+
+        if let Statement::ClassDeclaration(id, methods) = statement {
+
+            self.context.insert_symbol (
+                &id.lexeme,
+                Value::Nil
+            );
         }
         else {
             panic!();

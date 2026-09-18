@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
@@ -9,6 +12,7 @@ pub enum Value {
     Number (f64),
     String (String),
     Function (Vec<Token>, Statement, usize),
+    Class (HashMap<Token, Value>)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -341,6 +345,7 @@ impl Interpreter {
             Statement::For                 (..) => return self.execute_for_statement(statement),
             Statement::VariableDeclaration (..) => return self.execute_variable_declaration_statement(statement),
             Statement::FunctionDeclaration (..) => return self.execute_function_declaration_statement(statement),
+            Statement::ClassDeclaration    (..) => return self.execute_class_declaration_statement(statement),
             Statement::Block               (..) => return self.execute_block_statement(statement),
             Statement::If                  (..) => return self.execute_if_statement(statement),
             _ => panic!()
@@ -503,6 +508,39 @@ impl Interpreter {
                     params.clone(),
                     *body.clone(),
                     self.context.get_current_environment_id()
+                )
+            );
+
+            return NodeResult::new ( Value::Nil, Control::Continue );
+        }
+
+        panic!();
+
+    }
+
+    pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+
+        if let Statement::ClassDeclaration(id, statements) = statement {
+
+            let mut class_method_map = HashMap::<Token, Value>::new();
+
+            for statement in statements {
+                if let Statement::FunctionDeclaration(id, params, body) = statement {
+                    class_method_map.insert (
+                        id.clone(),
+                        Value::Function (
+                            params.clone(),
+                            *body.clone(),
+                            self.context.get_current_environment_id()
+                        )
+                    );
+                }
+            }
+
+            self.context.insert_symbol (
+                &id.lexeme,
+                Value::Class (
+                    class_method_map
                 )
             );
 

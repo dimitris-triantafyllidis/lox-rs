@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum TokenKind {
 
     // One-character tokens
@@ -34,7 +34,7 @@ pub enum TokenKind {
 
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String
