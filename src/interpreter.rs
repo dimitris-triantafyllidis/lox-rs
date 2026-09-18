@@ -409,6 +409,12 @@ impl Interpreter {
                 },
                 Value::Function{..} => {
                     println!("<fn>");
+                },
+                Value::Class{..} => {
+                    println!("<class>")
+                },
+                Value::Instance{..} => {
+                    println!("<instance>")
                 }
                 _ => {
                     panic!();
