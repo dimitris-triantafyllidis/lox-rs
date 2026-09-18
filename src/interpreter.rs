@@ -11,9 +11,18 @@ pub enum Value {
     Boolean (bool),
     Number (f64),
     String (String),
-    Function (Vec<Token>, Statement, usize),
-    Class (HashMap<Token, Value>),
-    Instance (Box<Value>, HashMap<Token, Value>)
+    Function  {
+        pars: Vec<Token>,
+        body: Statement,
+        closure_id: usize
+    },
+    Class {
+        methods: HashMap<Token, Value>
+    },
+    Instance {
+        class: Box<Value>,
+        properties: HashMap<Token, Value>
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -268,20 +277,20 @@ impl Interpreter {
 
             let callee = self.evaluate_expression(callee).value;
 
-            if let Value::Function(parameters, body, closure_id) = callee {
-                if parameters.len() == arguments.len() {
+            if let Value::Function { pars, body, closure_id } = callee {
+                if pars.len() == arguments.len() {
 
                     let mut argument_values = Vec::<Value>::new();
 
-                    for i in 0..parameters.len() {
+                    for i in 0..pars.len() {
                         argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
                     }
 
                     self.context.push_new_environment(Some(closure_id));
 
-                    for i in 0..parameters.len() {
+                    for i in 0..pars.len() {
                         self.context.insert_symbol (
-                            &parameters[i].lexeme,
+                            &pars[i].lexeme,
                             argument_values[i].clone()
                         );
                     }
@@ -309,13 +318,13 @@ impl Interpreter {
                     panic!("Wrong number of arguments");
                 }
             }
-            else if let Value::Class(..) = callee {
+            else if let Value::Class {..} = callee {
                 if arguments.len() == 0 {
                     return NodeResult::new (
-                        Value::Instance (
-                            Box::new(callee),
-                            HashMap::<Token, Value>::new()
-                        ),
+                        Value::Instance {
+                            class: Box::new(callee),
+                            properties: HashMap::<Token, Value>::new()
+                        },
                         Control::Continue
                     );
                 }
@@ -398,7 +407,7 @@ impl Interpreter {
                 Value::String(s) => {
                     println!("\"{s}\"");
                 },
-                Value::Function(..) => {
+                Value::Function{..} => {
                     println!("<fn>");
                 }
                 _ => {
@@ -519,11 +528,11 @@ impl Interpreter {
 
             self.context.insert_symbol (
                 &id.lexeme,
-                Value::Function (
-                    pars.clone(),
-                    *body.clone(),
-                    self.context.get_current_environment_id()
-                )
+                Value::Function {
+                    pars: pars.clone(),
+                    body: *body.clone(),
+                    closure_id: self.context.get_current_environment_id()
+                }
             );
 
             return NodeResult::new ( Value::Nil, Control::Continue );
@@ -543,20 +552,20 @@ impl Interpreter {
                 if let Statement::FunctionDeclaration { id, pars, body } = method_decl {
                     class_method_map.insert (
                         id.clone(),
-                        Value::Function (
-                            pars.clone(),
-                            *body.clone(),
-                            self.context.get_current_environment_id()
-                        )
+                        Value::Function {
+                            pars: pars.clone(),
+                            body: *body.clone(),
+                            closure_id: self.context.get_current_environment_id()
+                        }
                     );
                 }
             }
 
             self.context.insert_symbol (
                 &id.lexeme,
-                Value::Class (
-                    class_method_map
-                )
+                Value::Class {
+                    methods: class_method_map
+                }
             );
 
             return NodeResult::new ( Value::Nil, Control::Continue );
