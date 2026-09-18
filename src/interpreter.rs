@@ -12,7 +12,8 @@ pub enum Value {
     Number (f64),
     String (String),
     Function (Vec<Token>, Statement, usize),
-    Class (HashMap<Token, Value>)
+    Class (HashMap<Token, Value>),
+    Instance (Box<Value>, HashMap<Token, Value>)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -261,7 +262,7 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_function_call(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_call(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Call { callee, arguments } = expr {
 
@@ -308,8 +309,22 @@ impl Interpreter {
                     panic!("Wrong number of arguments");
                 }
             }
+            else if let Value::Class(..) = callee {
+                if arguments.len() == 0 {
+                    return NodeResult::new (
+                        Value::Instance (
+                            Box::new(callee),
+                            HashMap::<Token, Value>::new()
+                        ),
+                        Control::Continue
+                    );
+                }
+                else {
+                    panic!("Class calls cannot take arguments yet");
+                }
+            }
             else {
-                panic!("Expected function value");
+                panic!("Expected function value or class value");
             }
         }
         else {
@@ -329,7 +344,7 @@ impl Interpreter {
             Expression::Assignment      { .. } => return self.evaluate_assignment(expr),
             Expression::LogicalOr       { .. } => return self.evaluate_logical_or(expr),
             Expression::LogicalAnd      { .. } => return self.evaluate_logical_and(expr),
-            Expression::Call            { .. } => return self.evaluate_function_call(expr),
+            Expression::Call            { .. } => return self.evaluate_call(expr),
             _ => panic!()
         }
 
