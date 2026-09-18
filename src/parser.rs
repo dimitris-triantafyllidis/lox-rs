@@ -42,16 +42,46 @@ pub enum Expression {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Expression(Expression),
-    If(Expression, Box<Statement>, Option<Box<Statement>>),
-    While(Expression, Box<Statement>),
-    For(Option<Box<Statement>>, Option<Expression>, Option<Expression>, Box<Statement>),
-    Print(Expression),
-    Return(Option<Expression>),
-    FunctionDeclaration(Token, Vec<Token>, Box<Statement>),
-    ClassDeclaration(Token, Vec<Statement>),
-    VariableDeclaration(Token, Option<Expression>),
-    Block(Vec<Statement>)
+    Expression {
+        expr: Expression
+    },
+    If {
+        condition: Expression,
+        then_statement: Box<Statement>,
+        else_statement: Option<Box<Statement>>
+    },
+    While {
+        condition: Expression,
+        body: Box<Statement>
+    },
+    For {
+        init: Option<Box<Statement>>,
+        cond: Option<Expression>,
+        incr: Option<Expression>,
+        body: Box<Statement>
+    },
+    Print {
+        expr: Expression
+    },
+    Return {
+        expr: Option<Expression>
+    },
+    FunctionDeclaration {
+        id: Token,
+        pars: Vec<Token>,
+        body: Box<Statement>
+    },
+    ClassDeclaration {
+        id: Token,
+        method_decls: Vec<Statement>
+    },
+    VariableDeclaration {
+        id: Token,
+        init: Option<Expression>
+    },
+    Block {
+        statements: Vec<Statement>
+    }
 }
 
 pub fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
@@ -161,11 +191,11 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                 cursor += 1;
                 let (body, cursor) = parse_block(tokens, cursor);
                 return (
-                    Statement::FunctionDeclaration (
-                        identifier,
-                        parameters,
-                        Box::new(body)
-                    ),
+                    Statement::FunctionDeclaration {
+                        id: identifier,
+                        pars: parameters,
+                        body: Box::new(body)
+                    },
                     cursor
                 )
             }
@@ -200,9 +230,10 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
             loop {
                 if tokens[cursor].kind == TokenKind::RightBrace {
                     return (
-                        Statement::ClassDeclaration (
-                            identifier, methods
-                        ),
+                        Statement::ClassDeclaration {
+                            id: identifier,
+                            method_decls: methods
+                        },
                         cursor + 1
                     );
                 }
@@ -235,7 +266,10 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
         if tokens[cursor].kind == TokenKind::Equal {
             (expr, cursor) = parse_expression(tokens, cursor + 1);
             if tokens[cursor].kind == TokenKind::Semicolon {
-                return (Statement::VariableDeclaration(id, Some(expr)), cursor + 1);
+                return (
+                    Statement::VariableDeclaration { id: id, init: Some(expr) },
+                    cursor + 1
+                );
             }
             else {
                 panic!("Expected ';'");
@@ -243,7 +277,10 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
         }
         else {
             if tokens[cursor].kind == TokenKind::Semicolon {
-                return (Statement::VariableDeclaration(id, None), cursor + 1);
+                return (
+                    Statement::VariableDeclaration { id: id, init: None },
+                    cursor + 1
+                );
             }
             else {
                 panic!("Expected ';'");
@@ -302,10 +339,10 @@ pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     let (body_statement, cursor) = parse_statement(tokens, cursor);
 
     return (
-        Statement::While (
-            condition_expression,
-            Box::new(body_statement)
-        ),
+        Statement::While {
+            condition: condition_expression,
+            body: Box::new(body_statement)
+        },
         cursor
     );
 }
@@ -362,12 +399,12 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
     body_statement = Box::new(bs);
 
     return (
-        Statement::For (
-            initializer_statement,
-            condition_expression,
-            increment_expression,
-            body_statement
-        ),
+        Statement::For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement
+        },
         cursor
     );
 
@@ -379,7 +416,7 @@ pub fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Expression(expr),
+            Statement::Expression { expr },
             cursor + 1
         );
     } else {
@@ -413,7 +450,7 @@ pub fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     }
 
     return (
-        Statement::Block(statements),
+        Statement::Block { statements },
         cursor
     )
 
@@ -425,7 +462,7 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Print(expr),
+            Statement::Print { expr },
             cursor + 1
         );
     } else {
@@ -438,7 +475,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Return(None),
+            Statement::Return { expr: None },
             cursor + 1
         );
     }
@@ -447,7 +484,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Return(Some(expr)),
+            Statement::Return { expr: Some(expr) },
             cursor + 1
         );
     } else {
@@ -483,21 +520,21 @@ pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usi
         let (else_statement, cursor) = parse_statement(tokens, cursor);
 
         return (
-            Statement::If (
-                condition_expression,
-                Box::new(then_statement),
-                Some(Box::new(else_statement))
-            ),
+            Statement::If {
+                condition: condition_expression,
+                then_statement: Box::new(then_statement),
+                else_statement: Some(Box::new(else_statement))
+            },
             cursor
         );
     }
     else {
         return (
-            Statement::If (
-                condition_expression,
-                Box::new(then_statement),
-                None
-            ),
+            Statement::If {
+                condition: condition_expression,
+                then_statement: Box::new(then_statement),
+                else_statement: None
+            },
             cursor
         );
     }

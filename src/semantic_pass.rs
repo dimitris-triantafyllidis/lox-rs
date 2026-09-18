@@ -150,15 +150,15 @@ impl SemanticPass {
     pub fn visit_expression(self: &mut Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Literal         { .. } => self.visit_literal(expr),
-            Expression::UnaryOperation  { .. } => self.visit_unary(expr),
-            Expression::BinaryOperation { .. } => self.visit_binary(expr),
-            Expression::Parentheses     { .. } => self.visit_parentheses(expr),
-            Expression::Variable        { .. } => self.visit_variable(expr),
-            Expression::Assignment      { .. } => self.visit_assignment(expr),
-            Expression::LogicalOr       { .. } => self.visit_logical_or(expr),
-            Expression::LogicalAnd      { .. } => self.visit_logical_and(expr),
-            Expression::Call            { .. } => self.visit_function_call(expr),
+            Expression::Literal         {..} => self.visit_literal(expr),
+            Expression::UnaryOperation  {..} => self.visit_unary(expr),
+            Expression::BinaryOperation {..} => self.visit_binary(expr),
+            Expression::Parentheses     {..} => self.visit_parentheses(expr),
+            Expression::Variable        {..} => self.visit_variable(expr),
+            Expression::Assignment      {..} => self.visit_assignment(expr),
+            Expression::LogicalOr       {..} => self.visit_logical_or(expr),
+            Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
+            Expression::Call            {..} => self.visit_function_call(expr),
             _ => panic!()
         }
 
@@ -167,16 +167,16 @@ impl SemanticPass {
     pub fn visit_statement(self: &mut Self, statement: &mut Statement) {
 
         match statement {
-            Statement::Expression          (..) => self.visit_expression_statement(statement),
-            Statement::Print               (..) => self.visit_print_statement(statement),
-            Statement::Return              (..) => self.visit_return_statement(statement),
-            Statement::While               (..) => self.visit_while_statement(statement),
-            Statement::For                 (..) => self.visit_for_statement(statement),
-            Statement::VariableDeclaration (..) => self.visit_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration (..) => self.visit_function_declaration_statement(statement),
-            Statement::ClassDeclaration    (..) => self.visit_class_declaration_statement(statement),
-            Statement::Block               (..) => self.visit_block_statement(statement),
-            Statement::If                  (..) => self.visit_if_statement(statement),
+            Statement::Expression          {..} => self.visit_expression_statement(statement),
+            Statement::Print               {..} => self.visit_print_statement(statement),
+            Statement::Return              {..} => self.visit_return_statement(statement),
+            Statement::While               {..} => self.visit_while_statement(statement),
+            Statement::For                 {..} => self.visit_for_statement(statement),
+            Statement::VariableDeclaration {..} => self.visit_variable_declaration_statement(statement),
+            Statement::FunctionDeclaration {..} => self.visit_function_declaration_statement(statement),
+            Statement::ClassDeclaration    {..} => self.visit_class_declaration_statement(statement),
+            Statement::Block               {..} => self.visit_block_statement(statement),
+            Statement::If                  {..} => self.visit_if_statement(statement),
             _ => panic!()
         }
 
@@ -184,7 +184,7 @@ impl SemanticPass {
 
     pub fn visit_expression_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Expression(expr) = statement {
+        if let Statement::Expression { expr } = statement {
             self.visit_expression(expr);
         }
         else {
@@ -195,7 +195,7 @@ impl SemanticPass {
 
     pub fn visit_print_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Print(expr) = statement {
+        if let Statement::Print { expr } = statement {
             self.visit_expression(expr);
         }
         else {
@@ -206,10 +206,10 @@ impl SemanticPass {
 
     pub fn visit_return_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Return(Some(expr)) = statement {
+        if let Statement::Return { expr: Some(expr) } = statement {
             self.visit_expression(expr);
         }
-        else if let Statement::Return(None) = statement { }
+        else if let Statement::Return { expr: None } = statement { }
         else {
             panic!();
         }
@@ -218,9 +218,9 @@ impl SemanticPass {
 
     pub fn visit_while_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::While(condition_expression, body_statement) = statement {
-            self.visit_expression(condition_expression);
-            self.visit_statement(body_statement);
+        if let Statement::While { condition, body } = statement {
+            self.visit_expression(condition);
+            self.visit_statement(body);
         }
         else {
             panic!();
@@ -229,12 +229,12 @@ impl SemanticPass {
 
     pub fn visit_for_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::For (
-            initializer_statement,
-            condition_expression,
-            increment_expression,
-            body_statement,
-        ) = statement {
+        if let Statement::For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement,
+        } = statement {
 
             self.context.push_new_environment_auto();
 
@@ -262,8 +262,8 @@ impl SemanticPass {
 
     pub fn visit_if_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::If(condition_expression, then_statement, else_statement) = statement {
-            self.visit_expression(condition_expression);
+        if let Statement::If { condition, then_statement, else_statement } = statement {
+            self.visit_expression(condition);
             self.visit_statement(then_statement);
             if let Some(statement) = else_statement {
                 self.visit_statement(statement);
@@ -277,12 +277,12 @@ impl SemanticPass {
 
     pub fn visit_function_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::FunctionDeclaration(id, params, body) = statement {
+        if let Statement::FunctionDeclaration { id, pars, body } = statement {
 
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Function (
-                    params.clone(),
+                    pars.clone(),
                     *body.clone(),
                     self.context.get_current_environment_id()
                 )
@@ -290,14 +290,14 @@ impl SemanticPass {
 
             self.context.push_new_environment_auto();
 
-            for i in 0..params.len() {
+            for i in 0..pars.len() {
                 self.context.insert_symbol (
-                    &params[i].lexeme,
+                    &pars[i].lexeme,
                     Value::Nil
                 );
             }
 
-            if let Statement::Block(statements) = body.as_mut() {
+            if let Statement::Block { statements } = body.as_mut() {
                 for ref mut statement in statements {
                     self.visit_statement(statement);
                 }
@@ -316,7 +316,7 @@ impl SemanticPass {
 
     pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::ClassDeclaration(id, methods) = statement {
+        if let Statement::ClassDeclaration { id, .. } = statement {
 
             self.context.insert_symbol (
                 &id.lexeme,
@@ -331,9 +331,9 @@ impl SemanticPass {
 
     pub fn visit_variable_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::VariableDeclaration(id, expr) = statement {
+        if let Statement::VariableDeclaration { id, init } = statement {
 
-            if let Some(e) = expr {
+            if let Some(e) = init {
                 self.visit_expression(e);
             }
 
@@ -347,7 +347,7 @@ impl SemanticPass {
 
     pub fn visit_block_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Block(statements) = statement {
+        if let Statement::Block { statements } = statement {
             self.context.push_new_environment_auto();
             for statement in statements {
                 self.visit_statement(statement);

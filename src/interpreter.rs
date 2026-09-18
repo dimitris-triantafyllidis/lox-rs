@@ -286,7 +286,7 @@ impl Interpreter {
                         );
                     }
 
-                    if let Statement::Block(statements) = body {
+                    if let Statement::Block { statements } = body {
                         for statement in statements {
                             let statement_result = self.execute_statement(&statement);
                             if statement_result.control == Control::FunctionReturn {
@@ -336,15 +336,15 @@ impl Interpreter {
     pub fn evaluate_expression(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Literal         { .. } => return self.evaluate_literal(expr),
-            Expression::UnaryOperation  { .. } => return self.evaluate_unary(expr),
-            Expression::BinaryOperation { .. } => return self.evaluate_binary(expr),
-            Expression::Parentheses     { .. } => return self.evaluate_parentheses(expr),
-            Expression::Variable        { .. } => return self.evaluate_variable(expr),
-            Expression::Assignment      { .. } => return self.evaluate_assignment(expr),
-            Expression::LogicalOr       { .. } => return self.evaluate_logical_or(expr),
-            Expression::LogicalAnd      { .. } => return self.evaluate_logical_and(expr),
-            Expression::Call            { .. } => return self.evaluate_call(expr),
+            Expression::Literal         {..} => return self.evaluate_literal(expr),
+            Expression::UnaryOperation  {..} => return self.evaluate_unary(expr),
+            Expression::BinaryOperation {..} => return self.evaluate_binary(expr),
+            Expression::Parentheses     {..} => return self.evaluate_parentheses(expr),
+            Expression::Variable        {..} => return self.evaluate_variable(expr),
+            Expression::Assignment      {..} => return self.evaluate_assignment(expr),
+            Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
+            Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),
+            Expression::Call            {..} => return self.evaluate_call(expr),
             _ => panic!()
         }
 
@@ -353,16 +353,16 @@ impl Interpreter {
     pub fn execute_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         match statement {
-            Statement::Expression          (..) => return self.execute_expression_statement(statement),
-            Statement::Print               (..) => return self.execute_print_statement(statement),
-            Statement::Return              (..) => return self.execute_return_statement(statement),
-            Statement::While               (..) => return self.execute_while_statement(statement),
-            Statement::For                 (..) => return self.execute_for_statement(statement),
-            Statement::VariableDeclaration (..) => return self.execute_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration (..) => return self.execute_function_declaration_statement(statement),
-            Statement::ClassDeclaration    (..) => return self.execute_class_declaration_statement(statement),
-            Statement::Block               (..) => return self.execute_block_statement(statement),
-            Statement::If                  (..) => return self.execute_if_statement(statement),
+            Statement::Expression          {..} => return self.execute_expression_statement(statement),
+            Statement::Print               {..} => return self.execute_print_statement(statement),
+            Statement::Return              {..} => return self.execute_return_statement(statement),
+            Statement::While               {..} => return self.execute_while_statement(statement),
+            Statement::For                 {..} => return self.execute_for_statement(statement),
+            Statement::VariableDeclaration {..} => return self.execute_variable_declaration_statement(statement),
+            Statement::FunctionDeclaration {..} => return self.execute_function_declaration_statement(statement),
+            Statement::ClassDeclaration    {..} => return self.execute_class_declaration_statement(statement),
+            Statement::Block               {..} => return self.execute_block_statement(statement),
+            Statement::If                  {..} => return self.execute_if_statement(statement),
             _ => panic!()
         }
 
@@ -370,7 +370,7 @@ impl Interpreter {
 
     pub fn execute_expression_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Expression(expr) = statement {
+        if let Statement::Expression { expr } = statement {
             let expr_result = self.evaluate_expression(&expr);
             return NodeResult::new ( Value::Nil, expr_result.control );
         }
@@ -381,7 +381,7 @@ impl Interpreter {
 
     pub fn execute_print_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Print(expr) = statement {
+        if let Statement::Print { expr } = statement {
 
             let expr_result = self.evaluate_expression(&expr);
 
@@ -415,11 +415,11 @@ impl Interpreter {
 
     pub fn execute_return_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Return(Some(expr)) = statement {
+        if let Statement::Return { expr: Some(expr) } = statement {
             let expr_result = self.evaluate_expression(&expr);
             return NodeResult::new ( expr_result.value, Control::FunctionReturn );
         }
-        else if let Statement::Return(None) = statement {
+        else if let Statement::Return { expr: None } = statement {
             return NodeResult::new ( Value::Nil, Control::FunctionReturn );
         }
 
@@ -429,12 +429,12 @@ impl Interpreter {
 
     pub fn execute_while_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::While(condition_expression, body_statement) = statement {
+        if let Statement::While { condition, body } = statement {
 
             loop {
-                let expr_value = self.evaluate_expression(&condition_expression).value;
+                let expr_value = self.evaluate_expression(&condition).value;
                 if is_truthy(&expr_value) {
-                    let statement_result = self.execute_statement(body_statement);
+                    let statement_result = self.execute_statement(body);
                     if statement_result.control == Control::FunctionReturn {
                         return statement_result;
                     }
@@ -453,12 +453,12 @@ impl Interpreter {
 
     pub fn execute_for_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::For (
-            initializer_statement,
-            condition_expression,
-            increment_expression,
-            body_statement,
-        ) = statement {
+        if let Statement::For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement,
+        } = statement {
 
             self.context.push_new_environment_auto();
 
@@ -496,8 +496,8 @@ impl Interpreter {
 
     pub fn execute_if_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::If(condition_expression, then_statement, else_statement) = statement {
-            let condition_expression_value = self.evaluate_expression(condition_expression).value;
+        if let Statement::If { condition, then_statement, else_statement } = statement {
+            let condition_expression_value = self.evaluate_expression(condition).value;
             if is_truthy(&condition_expression_value) {
                 return self.execute_statement(then_statement);
             }
@@ -515,12 +515,12 @@ impl Interpreter {
 
     pub fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::FunctionDeclaration(id, params, body) = statement {
+        if let Statement::FunctionDeclaration { id, pars, body } = statement {
 
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Function (
-                    params.clone(),
+                    pars.clone(),
                     *body.clone(),
                     self.context.get_current_environment_id()
                 )
@@ -535,16 +535,16 @@ impl Interpreter {
 
     pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::ClassDeclaration(id, statements) = statement {
+        if let Statement::ClassDeclaration { id, method_decls } = statement {
 
             let mut class_method_map = HashMap::<Token, Value>::new();
 
-            for statement in statements {
-                if let Statement::FunctionDeclaration(id, params, body) = statement {
+            for method_decl in method_decls {
+                if let Statement::FunctionDeclaration { id, pars, body } = method_decl {
                     class_method_map.insert (
                         id.clone(),
                         Value::Function (
-                            params.clone(),
+                            pars.clone(),
                             *body.clone(),
                             self.context.get_current_environment_id()
                         )
@@ -568,9 +568,9 @@ impl Interpreter {
 
     pub fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::VariableDeclaration(id, expr) = statement {
+        if let Statement::VariableDeclaration { id, init } = statement {
 
-            let expr_value = match expr {
+            let expr_value = match init {
                 None => Value::Nil,
                 Some(expr) => self.evaluate_expression(&expr).value
             };
@@ -586,7 +586,7 @@ impl Interpreter {
 
     pub fn execute_block_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Block(statements) = statement {
+        if let Statement::Block { statements } = statement {
             self.context.push_new_environment_auto();
             for statement in statements {
                 let statement_result = self.execute_statement(&statement);
