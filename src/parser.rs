@@ -135,55 +135,32 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
             let mut parameters = Vec::<Token>::new();
             cursor += 1;
 
-            #[derive(PartialEq)]
-            enum ParameterParsingState {
-                Start,
-                GetParameter,
-                Finish
-            }
-
-            let mut state = ParameterParsingState::Start;
-
             loop {
-                match state {
-                    ParameterParsingState::Start => {
-                        if tokens[cursor].kind == TokenKind::RightParenthesis {
-                            cursor += 1;
-                            state = ParameterParsingState::Finish;
-                        }
-                        else {
-                            state = ParameterParsingState::GetParameter;
-                        }
-                    },
-                    ParameterParsingState::Finish => {
-                        break;
-                    },
-                    ParameterParsingState::GetParameter => {
-                        if parameters.len() < 255 {
-                            if tokens[cursor].kind == TokenKind::Identifier {
-                                parameters.push(tokens[cursor].clone());
-                                cursor += 1;
-                            }
-                            else {
-                                panic!("Expected identifier");
-                            }
-
-                            if tokens[cursor].kind == TokenKind::Comma {
-                                cursor += 1;
-                                state = ParameterParsingState::GetParameter;
-                            }
-                            else if tokens[cursor].kind == TokenKind::RightParenthesis {
-                                cursor += 1;
-                                state = ParameterParsingState::Finish;
-                            }
-                            else {
-                                panic!("Expected ')' or ','");
-                            }
-                        }
-                        else {
-                            panic!("Can't have more than 255 parameters in a function call")
-                        }
+                if tokens[cursor].kind == TokenKind::RightParenthesis {
+                    cursor += 1;
+                    break;
+                }
+                else if parameters.len() < 255 {
+                    if tokens[cursor].kind == TokenKind::Identifier {
+                        parameters.push(tokens[cursor].clone());
+                        cursor += 1;
                     }
+                    else {
+                        panic!("Expected identifier");
+                    }
+                    if tokens[cursor].kind == TokenKind::Comma {
+                        cursor += 1;
+                    }
+                    else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                        cursor += 1;
+                        break;
+                    }
+                    else {
+                        panic!("Expected ')' or ','");
+                    }
+                }
+                else {
+                    panic!("Can't have more than 255 arguments in a function call");
                 }
             }
 
