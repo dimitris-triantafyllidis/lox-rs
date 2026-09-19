@@ -542,7 +542,7 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
         (value_expr, cursor) = parse_assignment(tokens, cursor);
 
         match expr {
-            Expression::Variable{identifier: t, lookup_hop_count: None} => {
+            Expression::Variable { identifier: t, lookup_hop_count: None } => {
                 return (
                     Expression::Assignment {
                         left: t,
@@ -552,6 +552,16 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
                     cursor
                 );
             },
+            Expression::Get { instance, property } => {
+                return (
+                    Expression::Set {
+                        instance: instance,
+                        property: property,
+                        value: Box::new(value_expr)
+                    },
+                    cursor
+                );
+            }
             _ => {
                 panic!("Invalid assignment target");
             }
