@@ -37,6 +37,15 @@ pub enum Expression {
     Call {
         callee: Box<Expression>,
         arguments: Vec<Expression>
+    },
+    Set {
+        instance: Box<Expression>,
+        property: Token,
+        value:    Box<Expression>
+    },
+    Get {
+        instance: Box<Expression>,
+        property: Token
     }
 }
 
@@ -743,50 +752,68 @@ pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) 
 
 pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
 
-    let (primary_expr, mut cursor) = parse_primary(tokens, cursor);
+    let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::LeftParenthesis {
-        return (primary_expr, cursor);
-    }
-    else {
+    loop {
 
-        cursor += 1;
+        if tokens[cursor].kind == TokenKind::LeftParenthesis {
 
-        let mut arguments = Vec::<Expression>::new();
+            cursor += 1;
+            let mut arguments = Vec::<Expression>::new();
 
-        loop {
-            if tokens[cursor].kind == TokenKind::RightParenthesis {
-                cursor += 1;
-                break;
-            }
-            else if arguments.len() < 255 {
-                let argument: Expression;
-                (argument, cursor) = parse_expression(tokens, cursor);
-                arguments.push(argument);
-                if tokens[cursor].kind == TokenKind::Comma {
+            loop {
+                if tokens[cursor].kind == TokenKind::RightParenthesis {
                     cursor += 1;
-                }
-                else if tokens[cursor].kind == TokenKind::RightParenthesis {
-                    cursor += 1;
+                    expr = Expression::Call {
+                        callee: Box::new(expr),
+                        arguments
+                    };
                     break;
                 }
+                else if arguments.len() < 255 {
+                    let argument: Expression;
+                    (argument, cursor) = parse_expression(tokens, cursor);
+                    arguments.push(argument);
+                    if tokens[cursor].kind == TokenKind::Comma {
+                        cursor += 1;
+                    }
+                    else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                        cursor += 1;
+                        expr = Expression::Call {
+                            callee: Box::new(expr),
+                            arguments
+                        };
+                        break;
+                    }
+                    else {
+                        panic!("Expected ')' or ','");
+                    }
+                }
                 else {
-                    panic!("Expected ')' or ','");
+                    panic!("Can't have more than 255 arguments in a function call");
+                }
+            }
+        }
+        else if tokens[cursor].kind == TokenKind::Dot {
+            cursor += 1;
+            if tokens[cursor].kind == TokenKind::Identifier {
+                let identifier = tokens[cursor].clone();
+                cursor += 1;
+                expr = Expression::Get {
+                    instance: Box::new(expr),
+                    property: identifier
                 }
             }
             else {
-                panic!("Can't have more than 255 arguments in a function call");
+                panic!("Expected property name after '.'.");
             }
         }
-
-        return (
-            Expression::Call {
-                callee: Box::new(primary_expr),
-                arguments: arguments
-            },
-            cursor
-        )
+        else {
+            break;
+        }
     }
+
+    return (expr, cursor);
 }
 
 pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usize) {
