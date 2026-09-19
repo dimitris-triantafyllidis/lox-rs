@@ -137,7 +137,7 @@ impl SemanticPass {
 
     }
 
-    pub fn visit_function_call(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_call(self: &mut Self, expr: &mut Expression) {
 
         if let Expression::Call { callee, arguments } = expr {
             self.visit_expression(callee);
@@ -158,7 +158,7 @@ impl SemanticPass {
             Expression::Assignment      {..} => self.visit_assignment(expr),
             Expression::LogicalOr       {..} => self.visit_logical_or(expr),
             Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
-            Expression::Call            {..} => self.visit_function_call(expr),
+            Expression::Call            {..} => self.visit_call(expr),
             _ => panic!()
         }
 
