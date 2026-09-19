@@ -66,6 +66,31 @@ impl SemanticPass {
 
     }
 
+    pub fn visit_get(self: &mut Self, expr: &mut Expression) {
+
+        match expr {
+            Expression::Get { instance, .. } => {
+                self.visit_expression(instance);
+            },
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn visit_set(self: &mut Self, expr: &mut Expression) {
+
+        match expr {
+            Expression::Set { instance, value, .. } => {
+                self.visit_expression(instance);
+                self.visit_expression(value);
+            },
+            _ => {
+                panic!()
+            }
+        }
+    }
+
     pub fn visit_assignment(self: &mut Self, expr: &mut Expression) {
 
         match expr {
@@ -159,6 +184,8 @@ impl SemanticPass {
             Expression::LogicalOr       {..} => self.visit_logical_or(expr),
             Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
             Expression::Call            {..} => self.visit_call(expr),
+            Expression::Get             {..} => self.visit_get(expr),
+            Expression::Set             {..} => self.visit_set(expr),
             _ => panic!()
         }
 

@@ -1,9 +1,17 @@
 use std::collections::HashMap;
-use std::hash::Hash;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
+
+#[derive(Debug, Clone, PartialEq)]
+struct Instance {
+    class: Box<Value>,
+    properties: HashMap<Token, Value>
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -20,8 +28,7 @@ pub enum Value {
         methods: HashMap<Token, Value>
     },
     Instance {
-        class: Box<Value>,
-        properties: HashMap<Token, Value>
+        instance: Rc<RefCell<Instance>>
     }
 }
 
@@ -120,6 +127,73 @@ impl Interpreter {
             _ => {
                 panic!()
             }
+        }
+    }
+
+    pub fn evaluate_set(self: &mut Self, expr: &Expression) -> NodeResult {
+
+        if let Expression::Set { instance, property, value } = expr {
+
+            let instance = self.evaluate_expression(instance.as_ref()).value;
+
+            if let Value::Instance { instance } = instance {
+                let mut instance = instance.borrow_mut();
+                let value = self.evaluate_expression(value).value;
+                instance.properties.insert(property.clone(), value.clone());
+                return NodeResult::new (
+                    value.clone(),
+                    Control::Continue
+                );
+            }
+            else {
+                panic!("Expected instance value");
+            }
+
+        }
+        else {
+            panic!("Expected set expression");
+        }
+    }
+
+    pub fn evaluate_get(self: &mut Self, expr: &Expression) -> NodeResult {
+
+        if let Expression::Get { instance, property } = expr {
+
+            let instance = self.evaluate_expression(instance.as_ref()).value;
+
+            if let Value::Instance { instance } = instance {
+                let instance = instance.borrow_mut();
+                let value: Value;
+
+                if instance.properties.contains_key(&property) {
+                    value = instance.properties.get(&property).unwrap().clone()
+                }
+                else {
+                    if let Value::Class { methods } = instance.class.as_ref() {
+                        if methods.contains_key(&property) {
+                            value = methods.get(&property).unwrap().clone();
+                        }
+                        else {
+                            panic!("Undefined property");
+                        }
+                    }
+                    else {
+                        panic!("Expected class value");
+                    }
+                }
+                return NodeResult::new (
+
+                    value,
+                    Control::Continue
+                );
+            }
+            else {
+                panic!("Expected instance value");
+            }
+
+        }
+        else {
+            panic!("Expected set expression");
         }
     }
 
@@ -322,11 +396,17 @@ impl Interpreter {
                 if arguments.len() == 0 {
                     return NodeResult::new (
                         Value::Instance {
-                            class: Box::new(callee),
-                            properties: HashMap::<Token, Value>::new()
+                            instance: Rc::new (
+                                RefCell::new (
+                                    Instance {
+                                        class:      Box::new(callee),
+                                        properties: HashMap::<Token, Value>::new()
+                                    }
+                                )
+                            )
                         },
                         Control::Continue
-                    );
+                    )
                 }
                 else {
                     panic!("Class calls cannot take arguments yet");
@@ -354,6 +434,8 @@ impl Interpreter {
             Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
             Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),
             Expression::Call            {..} => return self.evaluate_call(expr),
+            Expression::Get             {..} => return self.evaluate_get(expr),
+            Expression::Set             {..} => return self.evaluate_set(expr),
             _ => panic!()
         }
 
