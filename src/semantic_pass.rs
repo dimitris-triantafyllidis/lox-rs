@@ -10,7 +10,7 @@ enum FunctionContext {
 
 pub struct SemanticPass {
     pub context: Context,
-    pub function_context_type_stack: Vec<FunctionContext>
+    pub function_context_stack: Vec<FunctionContext>
 }
 
 impl SemanticPass {
@@ -20,11 +20,11 @@ impl SemanticPass {
         let mut context = Context::new();
         context.push_new_environment_auto();
 
-        let function_context_type_stack = Vec::<FunctionContext>::new();
+        let function_context_stack = Vec::<FunctionContext>::new();
 
         Self {
             context,
-            function_context_type_stack
+            function_context_stack
         }
     }
 

@@ -46,7 +46,8 @@ pub enum Expression {
     Get {
         instance: Box<Expression>,
         property: Token
-    }
+    },
+    This
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -839,6 +840,13 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
             Expression::Literal {
                 token: tokens[cursor].clone()
             },
+            cursor + 1
+        );
+    }
+
+    if tokens[cursor].kind == TokenKind::This {
+        return (
+            Expression::This,
             cursor + 1
         );
     }
