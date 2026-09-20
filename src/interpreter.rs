@@ -130,6 +130,21 @@ impl Interpreter {
         }
     }
 
+    pub fn evaluate_this(self: &mut Self, expr: &Expression) -> NodeResult {
+
+        match expr {
+            Expression::This => {
+                NodeResult::new (
+                    self.context.get_symbol_value(&"this".to_string(), &mut Some(1)).clone(),
+                    Control::Continue
+                )
+            },
+            _ => {
+                panic!()
+            }
+        }
+    }
+
     pub fn evaluate_set(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Set { instance, property, value } = expr {
@@ -159,11 +174,11 @@ impl Interpreter {
 
         if let Expression::Get { instance, property } = expr {
 
-            let instance = self.evaluate_expression(instance.as_ref()).value;
+            let instance_value = self.evaluate_expression(instance.as_ref()).value;
 
-            if let Value::Instance { instance } = instance {
+            if let Value::Instance { instance } = instance_value.clone() {
                 let instance = instance.borrow_mut();
-                let value: Value;
+                let mut value: Value;
 
                 if instance.properties.contains_key(&property) {
                     value = instance.properties.get(&property).unwrap().clone()
@@ -172,6 +187,15 @@ impl Interpreter {
                     if let Value::Class { methods } = instance.class.as_ref() {
                         if methods.contains_key(&property) {
                             value = methods.get(&property).unwrap().clone();
+                            if let Value::Function { ref mut closure_id, .. } = value {
+                                self.context.push_new_environment(Some(*closure_id));
+                                self.context.insert_symbol(&"this".to_string(), instance_value);
+                                *closure_id = self.context.next_id - 1;
+                                self.context.pop_environment();
+                            }
+                            else {
+                                panic!("Expected function value");
+                            }
                         }
                         else {
                             panic!("Undefined property");
@@ -182,7 +206,6 @@ impl Interpreter {
                     }
                 }
                 return NodeResult::new (
-
                     value,
                     Control::Continue
                 );
@@ -190,7 +213,6 @@ impl Interpreter {
             else {
                 panic!("Expected instance value");
             }
-
         }
         else {
             panic!("Expected set expression");
@@ -430,6 +452,7 @@ impl Interpreter {
             Expression::BinaryOperation {..} => return self.evaluate_binary(expr),
             Expression::Parentheses     {..} => return self.evaluate_parentheses(expr),
             Expression::Variable        {..} => return self.evaluate_variable(expr),
+            Expression::This            {..} => return self.evaluate_this(expr),
             Expression::Assignment      {..} => return self.evaluate_assignment(expr),
             Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
             Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),

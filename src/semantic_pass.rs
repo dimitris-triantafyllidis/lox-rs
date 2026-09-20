@@ -54,6 +54,18 @@ impl SemanticPass {
         }
     }
 
+    pub fn visit_this(self: &mut Self, expr: &mut Expression) {
+
+        match expr {
+            Expression::This => {
+                self.context.get_symbol_value(&"this".to_string(), &mut Some(1));
+            },
+            _ => {
+                panic!()
+            }
+        }
+    }
+
     pub fn visit_unary(self: &mut Self, expr: &mut Expression) {
 
         if let Expression::UnaryOperation { operator: _, right: rhs } = expr {
@@ -189,6 +201,7 @@ impl SemanticPass {
             Expression::BinaryOperation {..} => self.visit_binary(expr),
             Expression::Parentheses     {..} => self.visit_parentheses(expr),
             Expression::Variable        {..} => self.visit_variable(expr),
+            Expression::This            {..} => self.visit_this(expr),
             Expression::Assignment      {..} => self.visit_assignment(expr),
             Expression::LogicalOr       {..} => self.visit_logical_or(expr),
             Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
