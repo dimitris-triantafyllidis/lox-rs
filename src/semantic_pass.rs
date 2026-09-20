@@ -3,8 +3,14 @@ use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
 
+enum FunctionContext {
+    Function,
+    Method
+}
+
 pub struct SemanticPass {
-    pub context: Context
+    pub context: Context,
+    pub function_context_type_stack: Vec<FunctionContext>
 }
 
 impl SemanticPass {
@@ -14,8 +20,11 @@ impl SemanticPass {
         let mut context = Context::new();
         context.push_new_environment_auto();
 
+        let function_context_type_stack = Vec::<FunctionContext>::new();
+
         Self {
-            context
+            context,
+            function_context_type_stack
         }
     }
 
