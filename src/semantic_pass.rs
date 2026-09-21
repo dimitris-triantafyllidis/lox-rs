@@ -230,7 +230,11 @@ impl SemanticPass {
             Statement::While               {..} => self.visit_while_statement(statement),
             Statement::For                 {..} => self.visit_for_statement(statement),
             Statement::VariableDeclaration {..} => self.visit_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration {..} => self.visit_function_declaration_statement(statement),
+            Statement::FunctionDeclaration {..} => {
+                self.function_context_stack.push(FunctionContext::Function);
+                self.visit_function_declaration_statement(statement);
+                self.function_context_stack.pop();
+            },
             Statement::ClassDeclaration    {..} => self.visit_class_declaration_statement(statement),
             Statement::Block               {..} => self.visit_block_statement(statement),
             Statement::If                  {..} => self.visit_if_statement(statement),
@@ -375,15 +379,31 @@ impl SemanticPass {
 
         if let Statement::ClassDeclaration { id, method_decls } = statement {
 
+            self.class_context_stack.push(ClassContext::Class);
+
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Nil
             );
 
             for method_decl in method_decls {
-                self.visit_function_declaration_statement(method_decl);
+                if let Statement::FunctionDeclaration { id, .. } = method_decl {
+                    if id.lexeme == "init" {
+                        self.function_context_stack.push(FunctionContext::Initializer);
+                    }
+                    else {
+                        self.function_context_stack.push(FunctionContext::Method);
+                    }
+                    self.visit_function_declaration_statement(method_decl);
+                    self.function_context_stack.pop();
+                }
+                else {
+                    panic!("Expected function declaration statement");
+                }
+
             }
 
+            self.class_context_stack.pop();
         }
         else {
             panic!();
