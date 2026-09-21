@@ -135,7 +135,7 @@ impl Interpreter {
         match expr {
             Expression::This => {
                 NodeResult::new (
-                    self.context.get_symbol_value(&"this".to_string(), &mut Some(1)).clone(),
+                    self.context.get_symbol_value(&"this".to_string(), &mut None).clone(),
                     Control::Continue
                 )
             },
@@ -150,10 +150,10 @@ impl Interpreter {
         if let Expression::Set { instance, property, value } = expr {
 
             let instance = self.evaluate_expression(instance.as_ref()).value;
+            let value = self.evaluate_expression(value).value;
 
             if let Value::Instance { instance } = instance {
                 let mut instance = instance.borrow_mut();
-                let value = self.evaluate_expression(value).value;
                 instance.properties.insert(property.clone(), value.clone());
                 return NodeResult::new (
                     value.clone(),

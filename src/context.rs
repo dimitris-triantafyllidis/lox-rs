@@ -93,7 +93,7 @@ impl Context {
                             return id;
                         }
                         else {
-                            panic!("Symbol not found");
+                            panic!("Symbol {} not found", identifier);
                         }
                     }
 

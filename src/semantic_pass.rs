@@ -3,12 +3,14 @@ use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {
     Function,
     Method,
     Initializer
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassContext {
     Class
 }
@@ -62,11 +64,11 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_this(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_this(self: &Self, expr: &mut Expression) {
 
         match expr {
             Expression::This => {
-                self.context.get_symbol_value(&"this".to_string(), &mut Some(1));
+                self.context.get_symbol_value(&"this".to_string(), &mut None);
             },
             _ => {
                 panic!()
@@ -340,12 +342,21 @@ impl SemanticPass {
 
         if let Statement::FunctionDeclaration { id, pars, body } = statement {
 
+            let function_context = self.function_context_stack.last().cloned().unwrap();
+            let mut closure_id = self.context.get_current_environment_id();
+
+            if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
+                self.context.push_new_environment(Some(closure_id));
+                self.context.insert_symbol(&"this".to_string(), Value::Nil);
+                closure_id = self.context.next_id - 1;
+            }
+
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Function {
                     pars: pars.clone(),
                     body: *body.clone(),
-                    closure_id: self.context.get_current_environment_id()
+                    closure_id
                 }
             );
 
@@ -362,6 +373,11 @@ impl SemanticPass {
                 for ref mut statement in statements {
                     self.visit_statement(statement);
                 }
+
+                if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
+                    self.context.pop_environment();
+                }
+
             }
             else {
                 panic!("Expected block statement");
