@@ -68,7 +68,12 @@ impl SemanticPass {
 
         match expr {
             Expression::This => {
-                self.context.get_symbol_value(&"this".to_string(), &mut None);
+                if self.class_context_stack.is_empty() {
+                    panic!("Unexpected 'this' outside a class context");
+                }
+                else {
+                    self.context.get_symbol_value(&"this".to_string(), &mut None);
+                }
             },
             _ => {
                 panic!()
@@ -270,9 +275,18 @@ impl SemanticPass {
     pub fn visit_return_statement(self: &mut Self, statement: &mut Statement) {
 
         if let Statement::Return { expr: Some(expr) } = statement {
-            self.visit_expression(expr);
+            if self.function_context_stack.is_empty() {
+                panic!("Unexpected 'return' outside a function context")
+            }
+            else {
+                self.visit_expression(expr);
+            }
         }
-        else if let Statement::Return { expr: None } = statement { }
+        else if let Statement::Return { expr: None } = statement {
+            if self.function_context_stack.is_empty() {
+                panic!("Unexpected 'return' outside a function context")
+            }
+        }
         else {
             panic!();
         }
