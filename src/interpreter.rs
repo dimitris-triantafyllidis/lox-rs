@@ -8,7 +8,7 @@ use crate::parser::*;
 use crate::context::*;
 
 #[derive(Debug, Clone, PartialEq)]
-struct Instance {
+pub struct Instance {
     class: Box<Value>,
     properties: HashMap<Token, Value>
 }
