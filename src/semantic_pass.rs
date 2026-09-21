@@ -373,12 +373,17 @@ impl SemanticPass {
 
     pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::ClassDeclaration { id, .. } = statement {
+        if let Statement::ClassDeclaration { id, method_decls } = statement {
 
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Nil
             );
+
+            for method_decl in method_decls {
+                self.visit_function_declaration_statement(method_decl);
+            }
+
         }
         else {
             panic!();
