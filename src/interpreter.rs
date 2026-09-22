@@ -170,52 +170,55 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_get(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_get_internal(self: &mut Self, instance_value: &Value, property: &Token) -> Value {
 
-        if let Expression::Get { instance, property } = expr {
+        if let Value::Instance { instance } = instance_value.clone() {
+            let instance = instance.borrow_mut();
+            let mut value: Value;
 
-            let instance_value = self.evaluate_expression(instance.as_ref()).value;
-
-            if let Value::Instance { instance } = instance_value.clone() {
-                let instance = instance.borrow_mut();
-                let mut value: Value;
-
-                if instance.properties.contains_key(&property) {
-                    value = instance.properties.get(&property).unwrap().clone()
-                }
-                else {
-                    if let Value::Class { methods } = instance.class.as_ref() {
-                        if methods.contains_key(&property) {
-                            value = methods.get(&property).unwrap().clone();
-                            if let Value::Function { ref mut closure_id, .. } = value {
-                                self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol(&"this".to_string(), instance_value);
-                                *closure_id = self.context.next_id - 1;
-                                self.context.pop_environment();
-                            }
-                            else {
-                                panic!("Expected function value");
-                            }
+            if instance.properties.contains_key(&property) {
+                value = instance.properties.get(&property).unwrap().clone()
+            }
+            else {
+                if let Value::Class { methods } = instance.class.as_ref() {
+                    if methods.contains_key(&property) {
+                        value = methods.get(&property).unwrap().clone();
+                        if let Value::Function { ref mut closure_id, .. } = value {
+                            self.context.push_new_environment(Some(*closure_id));
+                            self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                            *closure_id = self.context.next_id - 1;
+                            self.context.pop_environment();
                         }
                         else {
-                            panic!("Undefined property");
+                            panic!("Expected function value");
                         }
                     }
                     else {
-                        panic!("Expected class value");
+                        panic!("Undefined property");
                     }
                 }
-                return NodeResult::new (
-                    value,
-                    Control::Continue
-                );
+                else {
+                    panic!("Expected class value");
+                }
             }
-            else {
-                panic!("Expected instance value");
-            }
+            return value;
         }
         else {
-            panic!("Expected set expression");
+            panic!("Expected instance value");
+        }
+    }
+
+    pub fn evaluate_get(self: &mut Self, expr: &Expression) -> NodeResult {
+
+        if let Expression::Get { instance, property } = expr {
+            let instance_value = self.evaluate_expression(instance.as_ref()).value;
+            return NodeResult::new (
+                self.evaluate_get_internal(&instance_value, property),
+                Control::Continue
+            );
+        }
+        else {
+            panic!("Expected get expression");
         }
     }
 
@@ -367,13 +370,52 @@ impl Interpreter {
 
     }
 
+    pub fn evaluate_function_call(self: &mut Self, callee: Value, arguments: &Vec<Value>) -> Value {
+
+        if let Value::Function { pars, body, closure_id } = callee {
+            if pars.len() == arguments.len() {
+
+                self.context.push_new_environment(Some(closure_id));
+
+                for i in 0..pars.len() {
+                    self.context.insert_symbol (
+                        &pars[i].lexeme,
+                        arguments[i].clone()
+                    );
+                }
+
+                if let Statement::Block { statements } = body {
+                    for statement in statements {
+                        let statement_result = self.execute_statement(&statement);
+                        if statement_result.control == Control::FunctionReturn {
+                            self.context.pop_environment();
+                            return statement_result.value;
+                        }
+                    }
+                }
+                else {
+                    panic!("Expected block statement");
+                }
+
+                self.context.pop_environment();
+                return Value::Nil;
+            }
+            else {
+                panic!("Wrong number of arguments");
+            }
+        }
+        else {
+            panic!("Expected function value");
+        }
+    }
+
     pub fn evaluate_call(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Call { callee, arguments } = expr {
 
             let callee = self.evaluate_expression(callee).value;
 
-            if let Value::Function { pars, body, closure_id } = callee {
+            if let Value::Function { ref pars, .. } = callee {
                 if pars.len() == arguments.len() {
 
                     let mut argument_values = Vec::<Value>::new();
@@ -382,57 +424,69 @@ impl Interpreter {
                         argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
                     }
 
-                    self.context.push_new_environment(Some(closure_id));
-
-                    for i in 0..pars.len() {
-                        self.context.insert_symbol (
-                            &pars[i].lexeme,
-                            argument_values[i].clone()
-                        );
-                    }
-
-                    if let Statement::Block { statements } = body {
-                        for statement in statements {
-                            let statement_result = self.execute_statement(&statement);
-                            if statement_result.control == Control::FunctionReturn {
-                                self.context.pop_environment();
-                                return NodeResult::new (
-                                    statement_result.value,
-                                    Control::Continue
-                                );
-                            }
-                        }
-                    }
-                    else {
-                        panic!("Expected block statement");
-                    }
-
-                    self.context.pop_environment();
-                    return NodeResult::new ( Value::Nil, Control::Continue );
+                    return NodeResult::new (
+                        self.evaluate_function_call(callee, &argument_values),
+                        Control::Continue
+                    );
                 }
                 else {
                     panic!("Wrong number of arguments");
                 }
             }
-            else if let Value::Class {..} = callee {
-                if arguments.len() == 0 {
-                    return NodeResult::new (
-                        Value::Instance {
-                            instance: Rc::new (
-                                RefCell::new (
-                                    Instance {
-                                        class:      Box::new(callee),
-                                        properties: HashMap::<Token, Value>::new()
-                                    }
-                                )
+            else if let Value::Class { ref methods } = callee {
+
+                let new_instance =
+                    Value::Instance {
+                        instance: Rc::new (
+                            RefCell::new (
+                                Instance {
+                                    class:      Box::new(callee.clone()),
+                                    properties: HashMap::<Token, Value>::new()
+                                }
                             )
-                        },
-                        Control::Continue
-                    )
+                        )
+                    };
+
+                let init_token =
+                    Token {
+                        kind:TokenKind::Identifier,
+                        lexeme: "init".to_string()
+                    };
+
+                if methods.contains_key (
+                    &init_token
+                ) {
+                    let init_bound_function = self.evaluate_get_internal (
+                        &new_instance,
+                        &init_token
+                    );
+
+                    if let Value::Function { ref pars, .. } = init_bound_function {
+                        if pars.len() == arguments.len() {
+
+                            let mut argument_values = Vec::<Value>::new();
+
+                            for i in 0..pars.len() {
+                                argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
+                            }
+
+                            self.evaluate_function_call(init_bound_function, &argument_values);
+                        }
+                        else {
+                            panic!("Wrong number of class arguments");
+                        }
+                    }
                 }
                 else {
-                    panic!("Class calls cannot take arguments yet");
+                    if arguments.len() != 0 {
+                        panic!("Cannot pass arguments to class without a user-defined init method");
+                    }
                 }
+
+                return NodeResult::new (
+                    new_instance,
+                    Control::Continue
+                )
             }
             else {
                 panic!("Expected function value or class value");
