@@ -220,7 +220,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                 }
                 super_class = Some (
                     Expression::Variable {
-                        identifier: identifier.clone(),
+                        identifier: tokens[cursor].clone(),
                         lookup_hop_count: None
                     }
                 );

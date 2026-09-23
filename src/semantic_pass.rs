@@ -407,7 +407,11 @@ impl SemanticPass {
 
     pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::ClassDeclaration { id, method_decls, .. } = statement {
+        if let Statement::ClassDeclaration { id, method_decls, super_class } = statement {
+
+            if let Some(expr) = super_class {
+                self.visit_variable(expr);
+            }
 
             self.class_context_stack.push(ClassContext::Class);
 
