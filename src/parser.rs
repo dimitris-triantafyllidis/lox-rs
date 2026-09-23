@@ -47,7 +47,10 @@ pub enum Expression {
         instance: Box<Expression>,
         property: Token
     },
-    This
+    This,
+    Super {
+        property: Token
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
