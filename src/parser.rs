@@ -880,6 +880,31 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
         );
     }
 
+    if tokens[cursor].kind == TokenKind::Super {
+
+        cursor += 1;
+
+        if tokens[cursor].kind == TokenKind::Dot {
+            cursor += 1;
+        }
+        else {
+            panic!("Expected '.' after 'super'");
+        }
+
+        if tokens[cursor].kind == TokenKind::Identifier {
+            return (
+                Expression::Super {
+                    property: tokens[cursor].clone()
+                },
+                cursor + 1
+            );
+        }
+        else {
+            panic!("Expected property name after 'super.'");
+        }
+
+    }
+
     if tokens[cursor].kind == TokenKind::Identifier {
         return (
             Expression::Variable {
