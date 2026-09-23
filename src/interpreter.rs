@@ -25,7 +25,8 @@ pub enum Value {
         closure_id: usize
     },
     Class {
-        methods: HashMap<Token, Value>
+        methods: HashMap<Token, Value>,
+        super_class: Option<Box<Value>>
     },
     Instance {
         instance: Rc<RefCell<Instance>>
@@ -180,7 +181,7 @@ impl Interpreter {
                 value = instance.properties.get(&property).unwrap().clone()
             }
             else {
-                if let Value::Class { methods } = instance.class.as_ref() {
+                if let Value::Class { methods, super_class } = instance.class.as_ref() {
                     if methods.contains_key(&property) {
                         value = methods.get(&property).unwrap().clone();
                         if let Value::Function { ref mut closure_id, .. } = value {
@@ -433,7 +434,7 @@ impl Interpreter {
                     panic!("Wrong number of arguments");
                 }
             }
-            else if let Value::Class { ref methods } = callee {
+            else if let Value::Class { ref methods, .. } = callee {
 
                 let new_instance =
                     Value::Instance {
@@ -709,7 +710,22 @@ impl Interpreter {
 
     pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::ClassDeclaration { id, method_decls, .. } = statement {
+        if let Statement::ClassDeclaration { id, method_decls, super_class } = statement {
+
+            let super_class_result: Option<Box<Value>>;
+
+            if let Some(expr) = super_class {
+                let super_class_value = self.evaluate_variable(expr).value;
+                if let Value::Class {..} = super_class_value {
+                    super_class_result = Some(Box::new(super_class_value.clone()));
+                }
+                else {
+                    panic!("Superclass must be a class");
+                }
+            }
+            else {
+                super_class_result = None;
+            }
 
             let mut class_method_map = HashMap::<Token, Value>::new();
 
@@ -729,7 +745,8 @@ impl Interpreter {
             self.context.insert_symbol (
                 &id.lexeme,
                 Value::Class {
-                    methods: class_method_map
+                    methods: class_method_map,
+                    super_class: super_class_result
                 }
             );
 
