@@ -49,7 +49,8 @@ pub enum Expression {
     },
     This,
     Super {
-        property: Token
+        property: Token,
+        lookup_hop_count: Option<usize>
     }
 }
 
@@ -894,7 +895,8 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
         if tokens[cursor].kind == TokenKind::Identifier {
             return (
                 Expression::Super {
-                    property: tokens[cursor].clone()
+                    property: tokens[cursor].clone(),
+                    lookup_hop_count: None
                 },
                 cursor + 1
             );

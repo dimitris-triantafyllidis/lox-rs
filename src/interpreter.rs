@@ -146,6 +146,49 @@ impl Interpreter {
         }
     }
 
+    pub fn evaluate_super(self: &mut Self, expr: &Expression) -> NodeResult {
+
+        match expr {
+
+            Expression::Super { property, lookup_hop_count } => {
+
+                let mut hop_count_mut_copy = *lookup_hop_count;
+                let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
+                let mut value: Value;
+
+                let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&"super".to_string(), &mut hop_count_mut_copy).clone()));
+                while let Some(box_value) = method_lookup_class.clone() {
+                    if let Value::Class { methods, super_class } = box_value.as_ref() {
+                        if methods.contains_key(&property) {
+                            value = methods.get(&property).unwrap().clone();
+                            if let Value::Function { ref mut closure_id, .. } = value {
+                                self.context.push_new_environment(Some(*closure_id));
+                                self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                                *closure_id = self.context.next_id - 1;
+                                self.context.pop_environment();
+                                return NodeResult { value, control: Control::Continue };
+                            }
+                            else {
+                                panic!("Expected function value");
+                            }
+                        }
+                        else {
+                            method_lookup_class = super_class.clone();
+                            continue;
+                        }
+                    }
+                    else {
+                        panic!("Expected class value");
+                    }
+                }
+                panic!("Undefined property");
+            },
+            _ => {
+                panic!();
+            }
+        }
+    }
+
     pub fn evaluate_set(self: &mut Self, expr: &Expression) -> NodeResult {
 
         if let Expression::Set { instance, property, value } = expr {
@@ -520,6 +563,7 @@ impl Interpreter {
             Expression::Call            {..} => return self.evaluate_call(expr),
             Expression::Get             {..} => return self.evaluate_get(expr),
             Expression::Set             {..} => return self.evaluate_set(expr),
+            Expression::Super           {..} => return self.evaluate_super(expr),
             _ => panic!()
         }
 
@@ -724,6 +768,9 @@ impl Interpreter {
                 let super_class_value = self.evaluate_variable(expr).value;
                 if let Value::Class {..} = super_class_value {
                     super_class_result = Some(Box::new(super_class_value.clone()));
+                    self.context.push_new_environment_auto();
+                    self.context.insert_symbol(&"super".to_string(), super_class_value.clone());
+                    println!("{:#?}", super_class_value.clone());
                 }
                 else {
                     panic!("Superclass must be a class");
@@ -746,6 +793,10 @@ impl Interpreter {
                         }
                     );
                 }
+            }
+
+            if let Some(..) = super_class {
+                self.context.pop_environment();
             }
 
             self.context.insert_symbol (

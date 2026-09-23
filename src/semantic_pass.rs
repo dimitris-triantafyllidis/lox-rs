@@ -81,6 +81,24 @@ impl SemanticPass {
         }
     }
 
+    pub fn visit_super(self: &Self, expr: &mut Expression) {
+
+        match expr {
+            Expression::Super {
+                lookup_hop_count: hop_count,
+                ..
+            } => {
+                if !hop_count.is_none() {
+                    panic!();
+                }
+                self.context.get_symbol_value(&"super".to_string(), hop_count);
+            },
+            _ => {
+                panic!()
+            }
+        }
+    }
+
     pub fn visit_unary(self: &mut Self, expr: &mut Expression) {
 
         if let Expression::UnaryOperation { operator: _, right: rhs } = expr {
@@ -223,6 +241,7 @@ impl SemanticPass {
             Expression::Call            {..} => self.visit_call(expr),
             Expression::Get             {..} => self.visit_get(expr),
             Expression::Set             {..} => self.visit_set(expr),
+            Expression::Super           {..} => self.visit_super(expr),
             _ => panic!()
         }
 
@@ -420,6 +439,11 @@ impl SemanticPass {
                 Value::Nil
             );
 
+            if let Some(..) = super_class {
+                self.context.push_new_environment_auto();
+                self.context.insert_symbol(&"super".to_string(), Value::Nil);
+            }
+
             for method_decl in method_decls {
                 if let Statement::FunctionDeclaration { id, .. } = method_decl {
                     if id.lexeme == "init" {
@@ -434,7 +458,10 @@ impl SemanticPass {
                 else {
                     panic!("Expected function declaration statement");
                 }
+            }
 
+            if let Some(..) = super_class {
+                self.context.pop_environment();
             }
 
             self.class_context_stack.pop();
