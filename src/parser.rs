@@ -83,7 +83,8 @@ pub enum Statement {
     },
     ClassDeclaration {
         id: Token,
-        method_decls: Vec<Statement>
+        method_decls: Vec<Statement>,
+        super_class: Option<Expression>
     },
     VariableDeclaration {
         id: Token,
@@ -209,6 +210,30 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
         let identifier = tokens[cursor].clone();
         cursor += 1;
 
+        let super_class: Option<Expression>;
+
+        if tokens[cursor].kind == TokenKind::Less {
+            cursor += 1;
+            if tokens[cursor].kind == TokenKind::Identifier {
+                if tokens[cursor] == identifier {
+                    panic!("Super class cannot be the same as the inheriting class");
+                }
+                super_class = Some (
+                    Expression::Variable {
+                        identifier: identifier.clone(),
+                        lookup_hop_count: None
+                    }
+                );
+                cursor += 1;
+            }
+            else {
+                panic!("Expected super class identifier after '<' in class declaration");
+            }
+        }
+        else {
+            super_class = None;
+        }
+
         if tokens[cursor].kind == TokenKind::LeftBrace {
 
             let mut methods = Vec::<Statement>::new();
@@ -219,7 +244,8 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                     return (
                         Statement::ClassDeclaration {
                             id: identifier,
-                            method_decls: methods
+                            method_decls: methods,
+                            super_class: super_class
                         },
                         cursor + 1
                     );

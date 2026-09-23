@@ -709,7 +709,7 @@ impl Interpreter {
 
     pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::ClassDeclaration { id, method_decls } = statement {
+        if let Statement::ClassDeclaration { id, method_decls, .. } = statement {
 
             let mut class_method_map = HashMap::<Token, Value>::new();
 
