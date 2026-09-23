@@ -178,31 +178,37 @@ impl Interpreter {
             let mut value: Value;
 
             if instance.properties.contains_key(&property) {
-                value = instance.properties.get(&property).unwrap().clone()
+                value = instance.properties.get(&property).unwrap().clone();
+                return value;
             }
             else {
-                if let Value::Class { methods, super_class } = instance.class.as_ref() {
-                    if methods.contains_key(&property) {
-                        value = methods.get(&property).unwrap().clone();
-                        if let Value::Function { ref mut closure_id, .. } = value {
-                            self.context.push_new_environment(Some(*closure_id));
-                            self.context.insert_symbol(&"this".to_string(), instance_value.clone());
-                            *closure_id = self.context.next_id - 1;
-                            self.context.pop_environment();
+                let mut method_lookup_class = Some(instance.class.clone());
+                while let Some(box_value) = method_lookup_class {
+                    if let Value::Class { methods, super_class } = box_value.as_ref() {
+                        if methods.contains_key(&property) {
+                            value = methods.get(&property).unwrap().clone();
+                            if let Value::Function { ref mut closure_id, .. } = value {
+                                self.context.push_new_environment(Some(*closure_id));
+                                self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                                *closure_id = self.context.next_id - 1;
+                                self.context.pop_environment();
+                                return value;
+                            }
+                            else {
+                                panic!("Expected function value");
+                            }
                         }
                         else {
-                            panic!("Expected function value");
+                            method_lookup_class = super_class.clone();
+                            continue;
                         }
                     }
                     else {
-                        panic!("Undefined property");
+                        panic!("Expected class value");
                     }
                 }
-                else {
-                    panic!("Expected class value");
-                }
+                panic!("Undefined property");
             }
-            return value;
         }
         else {
             panic!("Expected instance value");
