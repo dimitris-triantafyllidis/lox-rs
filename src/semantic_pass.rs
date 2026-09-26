@@ -3,6 +3,8 @@ use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
 
+use crate::parser::expression::*;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {
     Function,
@@ -49,10 +51,12 @@ impl SemanticPass {
     pub fn visit_variable(self: &mut Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Variable {
-                identifier: id,
-                lookup_hop_count: hop_count
-            } => {
+            Expression::Variable (
+                Variable {
+                    identifier: id,
+                    lookup_hop_count: hop_count
+                }
+            ) => {
                 if !hop_count.is_none() {
                     panic!();
                 }
@@ -84,10 +88,12 @@ impl SemanticPass {
     pub fn visit_super(self: &Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Super {
-                lookup_hop_count: hop_count,
-                ..
-            } => {
+            Expression::Super (
+                Super {
+                    lookup_hop_count: hop_count,
+                    ..
+                }
+            ) => {
                 if !hop_count.is_none() {
                     panic!();
                 }
@@ -101,7 +107,7 @@ impl SemanticPass {
 
     pub fn visit_unary(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::UnaryOperation { operator: _, right: rhs } = expr {
+        if let Expression::UnaryOperation ( UnaryOperation { operator: _, right: rhs } ) = expr {
             self.visit_expression(rhs);
         }
         else {
@@ -111,7 +117,7 @@ impl SemanticPass {
 
     pub fn visit_parentheses(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::Parentheses { expression: e } = expr {
+        if let Expression::Parentheses ( Parentheses { expression: e } ) = expr {
             self.visit_expression(e);
         }
         else {
@@ -123,7 +129,7 @@ impl SemanticPass {
     pub fn visit_get(self: &mut Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Get { instance, .. } => {
+            Expression::Get ( Get { instance, .. } ) => {
                 self.visit_expression(instance);
             },
             _ => {
@@ -135,7 +141,7 @@ impl SemanticPass {
     pub fn visit_set(self: &mut Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Set { instance, value, .. } => {
+            Expression::Set ( Set { instance, value, .. } ) => {
                 self.visit_expression(instance);
                 self.visit_expression(value);
             },
@@ -148,11 +154,13 @@ impl SemanticPass {
     pub fn visit_assignment(self: &mut Self, expr: &mut Expression) {
 
         match expr {
-            Expression::Assignment {
-                left: lhs,
-                expression: rhs,
-                lookup_hop_count: hop_count
-            } => {
+            Expression::Assignment (
+                Assignment {
+                    left: lhs,
+                    expression: rhs,
+                    lookup_hop_count: hop_count
+                }
+            ) => {
                 self.visit_expression(rhs);
                 self.context.set_symbol_value(&lhs.lexeme, Value::Nil, hop_count);
             },
@@ -165,7 +173,7 @@ impl SemanticPass {
 
     pub fn visit_binary(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
+        if let Expression::BinaryOperation ( BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
 
             self.visit_expression(lhs);
             self.visit_expression(rhs);
@@ -192,7 +200,7 @@ impl SemanticPass {
 
     pub fn visit_logical_or(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::LogicalOr { left: lhs, right: rhs } = expr {
+        if let Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
 
             self.visit_expression(lhs);
             self.visit_expression(rhs);
@@ -205,7 +213,7 @@ impl SemanticPass {
 
     pub fn visit_logical_and(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::LogicalAnd { left: lhs, right: rhs } = expr {
+        if let Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
 
             self.visit_expression(lhs);
             self.visit_expression(rhs);
@@ -218,7 +226,7 @@ impl SemanticPass {
 
     pub fn visit_call(self: &mut Self, expr: &mut Expression) {
 
-        if let Expression::Call { callee, arguments } = expr {
+        if let Expression::Call ( Call { callee, arguments } ) = expr {
             self.visit_expression(callee);
             for argument in arguments {
                 self.visit_expression(argument);

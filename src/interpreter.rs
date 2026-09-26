@@ -7,6 +7,8 @@ use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
 
+use expression::*;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance {
     class: Box<Value>,
@@ -91,16 +93,16 @@ impl Interpreter {
     pub fn evaluate_literal(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Literal{token} if token.kind == TokenKind::Nil => {
+            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Nil => {
                 return NodeResult::new(Value::Nil, Control::Continue);
             },
-            Expression::Literal{token} if token.kind == TokenKind::False => {
+            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::False => {
                 return NodeResult::new(Value::Boolean(false), Control::Continue);
             },
-            Expression::Literal{token} if token.kind == TokenKind::True  => {
+            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::True  => {
                 return NodeResult::new(Value::Boolean(true), Control::Continue);
             },
-            Expression::Literal{token} if token.kind == TokenKind::Number => {
+            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Number => {
                 return NodeResult::new (
                     Value::Number (
                         token.lexeme.parse().unwrap()
@@ -108,7 +110,7 @@ impl Interpreter {
                     Control::Continue
                 )
             },
-            Expression::Literal{token} if token.kind == TokenKind::String => {
+            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::String => {
                 return NodeResult::new (
                     Value::String (
                         token.lexeme[1..token.lexeme.len() - 1].to_string()
@@ -123,7 +125,7 @@ impl Interpreter {
     pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Variable { identifier: id, lookup_hop_count: hop_count } => {
+            Expression::Variable ( Variable { identifier: id, lookup_hop_count: hop_count } ) => {
                 let mut hop_count_mut_copy = *hop_count;
                 NodeResult::new (
                     self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
@@ -155,7 +157,7 @@ impl Interpreter {
 
         match expr {
 
-            Expression::Super { property, lookup_hop_count } => {
+            Expression::Super ( Super { property, lookup_hop_count } ) => {
 
                 let mut hop_count_mut_copy = *lookup_hop_count;
                 let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
@@ -196,7 +198,7 @@ impl Interpreter {
 
     pub fn evaluate_set(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::Set { instance, property, value } = expr {
+        if let Expression::Set ( Set { instance, property, value } ) = expr {
 
             let instance = self.evaluate_expression(instance.as_ref()).value;
             let value = self.evaluate_expression(value).value;
@@ -265,7 +267,7 @@ impl Interpreter {
 
     pub fn evaluate_get(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::Get { instance, property } = expr {
+        if let Expression::Get ( Get { instance, property } ) = expr {
             let instance_value = self.evaluate_expression(instance.as_ref()).value;
             return NodeResult::new (
                 self.evaluate_get_internal(&instance_value, property),
@@ -279,7 +281,7 @@ impl Interpreter {
 
     pub fn evaluate_unary(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::UnaryOperation { operator: op, right: rhs } = expr {
+        if let Expression::UnaryOperation ( UnaryOperation { operator: op, right: rhs } ) = expr {
             let rhs_result = self.evaluate_expression(rhs);
             match rhs_result.value {
                 Value::Number (v) if op.kind == TokenKind::Minus => {
@@ -304,7 +306,7 @@ impl Interpreter {
 
     pub fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::Parentheses { expression: e } = expr {
+        if let Expression::Parentheses ( Parentheses { expression: e } ) = expr {
             let expression_result = self.evaluate_expression(e);
             return NodeResult::new (
                 expression_result.value,
@@ -319,11 +321,13 @@ impl Interpreter {
     pub fn evaluate_assignment(self: &mut Self, expr: &Expression) -> NodeResult {
 
         match expr {
-            Expression::Assignment {
-                left: lhs,
-                expression: rhs,
-                lookup_hop_count: hop_count
-            } => {
+            Expression::Assignment (
+                Assignment {
+                    left: lhs,
+                    expression: rhs,
+                    lookup_hop_count: hop_count
+                }
+            ) => {
                 let rhs_result = self.evaluate_expression(rhs);
                 let mut hop_count_mut_copy = *hop_count;
                 self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut hop_count_mut_copy);
@@ -341,7 +345,7 @@ impl Interpreter {
 
     pub fn evaluate_binary(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr {
+        if let Expression::BinaryOperation ( BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
 
             let lhs_value = self.evaluate_expression(lhs).value;
             let rhs_value = self.evaluate_expression(rhs).value;
@@ -389,7 +393,7 @@ impl Interpreter {
 
     pub fn evaluate_logical_or(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::LogicalOr { left: lhs, right: rhs } = expr {
+        if let Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
 
             let lhs_result = self.evaluate_expression(lhs);
 
@@ -408,7 +412,7 @@ impl Interpreter {
 
     pub fn evaluate_logical_and(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::LogicalAnd { left: lhs, right: rhs } = expr {
+        if let Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
 
             let lhs_result = self.evaluate_expression(lhs);
 
@@ -466,7 +470,7 @@ impl Interpreter {
 
     pub fn evaluate_call(self: &mut Self, expr: &Expression) -> NodeResult {
 
-        if let Expression::Call { callee, arguments } = expr {
+        if let Expression::Call ( Call { callee, arguments } ) = expr {
 
             let callee = self.evaluate_expression(callee).value;
 

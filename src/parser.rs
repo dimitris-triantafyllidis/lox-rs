@@ -1,58 +1,102 @@
 use crate::lexer::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Expression {
-    Literal {
-        token: Token
-    },
-    Variable {
-        identifier: Token,
-        lookup_hop_count: Option<usize>
-    },
-    UnaryOperation {
-        operator: Token,
-        right:    Box<Expression>
-    },
-    BinaryOperation {
-        operator: Token,
-        left:     Box<Expression>,
-        right:    Box<Expression>
-    },
-    LogicalOr {
-        left:     Box<Expression>,
-        right:    Box<Expression>
-    },
-    LogicalAnd {
-        left:     Box<Expression>,
-        right:    Box<Expression>
-    },
-    Parentheses {
-        expression: Box<Expression>
-    },
-    Assignment {
-        left: Token,
-        lookup_hop_count: Option<usize>,
-        expression: Box<Expression>
-    },
-    Call {
-        callee: Box<Expression>,
-        arguments: Vec<Expression>
-    },
-    Set {
-        instance: Box<Expression>,
-        property: Token,
-        value:    Box<Expression>
-    },
-    Get {
-        instance: Box<Expression>,
-        property: Token
-    },
-    This,
-    Super {
-        property: Token,
-        lookup_hop_count: Option<usize>
+pub mod expression {
+
+    use crate::lexer::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Literal {
+        pub token: Token
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Variable {
+        pub identifier: Token,
+        pub lookup_hop_count: Option<usize>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnaryOperation {
+        pub operator: Token,
+        pub right:    Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BinaryOperation {
+        pub operator: Token,
+        pub left:     Box<Expression>,
+        pub right:    Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogicalOr {
+        pub left:     Box<Expression>,
+        pub right:    Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogicalAnd {
+        pub left:     Box<Expression>,
+        pub right:    Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Parentheses {
+        pub expression: Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Assignment {
+        pub left: Token,
+        pub lookup_hop_count: Option<usize>,
+        pub expression: Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Call {
+        pub callee: Box<Expression>,
+        pub arguments: Vec<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Set {
+        pub instance: Box<Expression>,
+        pub property: Token,
+        pub value:    Box<Expression>
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Get {
+        pub instance: Box<Expression>,
+        pub property: Token
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Super {
+        pub property: Token,
+        pub lookup_hop_count: Option<usize>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum Expression {
+        Literal (Literal),
+        Variable (Variable),
+        UnaryOperation (UnaryOperation),
+        BinaryOperation (BinaryOperation),
+        LogicalOr (LogicalOr),
+        LogicalAnd (LogicalAnd),
+        Parentheses (Parentheses),
+        Assignment (Assignment),
+        Call (Call),
+        Set (Set),
+        Get (Get),
+        This,
+        Super (Super)
+    }
+
 }
+
+use expression::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -223,10 +267,12 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                     panic!("Super class cannot be the same as the inheriting class");
                 }
                 super_class = Some (
-                    Expression::Variable {
-                        identifier: tokens[cursor].clone(),
-                        lookup_hop_count: None
-                    }
+                    Expression::Variable (
+                        Variable {
+                            identifier: tokens[cursor].clone(),
+                            lookup_hop_count: None
+                        }
+                    )
                 );
                 cursor += 1;
             }
@@ -573,23 +619,27 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
         (value_expr, cursor) = parse_assignment(tokens, cursor);
 
         match expr {
-            Expression::Variable { identifier: t, lookup_hop_count: None } => {
+            Expression::Variable ( Variable { identifier: t, lookup_hop_count: None } )=> {
                 return (
-                    Expression::Assignment {
-                        left: t,
-                        lookup_hop_count: None,
-                        expression: Box::<Expression>::new(value_expr)
-                    },
+                    Expression::Assignment (
+                        Assignment {
+                            left: t,
+                            lookup_hop_count: None,
+                            expression: Box::<Expression>::new(value_expr)
+                        }
+                    ),
                     cursor
                 );
             },
-            Expression::Get { instance, property } => {
+            Expression::Get ( Get { instance, property } ) => {
                 return (
-                    Expression::Set {
-                        instance: instance,
-                        property: property,
-                        value: Box::new(value_expr)
-                    },
+                    Expression::Set (
+                        Set {
+                            instance: instance,
+                            property: property,
+                            value: Box::new(value_expr)
+                        }
+                    ),
                     cursor
                 );
             }
@@ -616,7 +666,7 @@ pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
             cursor += 1;
             let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::LogicalOr { left, right };
+            expr = Expression::LogicalOr ( LogicalOr { left, right } );
             cursor = new_cursor;
         }
         else {
@@ -641,7 +691,7 @@ pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usiz
             cursor += 1;
             let (right_expr, new_cursor) = parse_equality(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::LogicalAnd { left, right };
+            expr = Expression::LogicalAnd ( LogicalAnd { left, right } );
             cursor = new_cursor;
         }
         else {
@@ -669,7 +719,7 @@ pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
             cursor += 1;
             let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation { left, operator, right };
+            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -699,7 +749,7 @@ pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
             cursor += 1;
             let (right_expr, new_cursor) = parse_term(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation { left, operator, right };
+            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -727,7 +777,7 @@ pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
             cursor += 1;
             let (right_expr, new_cursor) = parse_factor(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation { left, operator, right };
+            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -754,7 +804,7 @@ pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
             cursor += 1;
             let (right_expr, new_cursor) = parse_unary(tokens, cursor);
             let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation { left, operator, right };
+            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -784,7 +834,7 @@ pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) 
 
         cursor = new_cursor;
 
-        return (Expression::UnaryOperation { operator, right }, cursor);
+        return (Expression::UnaryOperation ( UnaryOperation { operator, right } ), cursor);
     }
 
     return parse_call(tokens, cursor);
@@ -805,10 +855,12 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
             loop {
                 if tokens[cursor].kind == TokenKind::RightParenthesis {
                     cursor += 1;
-                    expr = Expression::Call {
-                        callee: Box::new(expr),
-                        arguments
-                    };
+                    expr = Expression::Call (
+                        Call {
+                            callee: Box::new(expr),
+                            arguments
+                        }
+                    );
                     break;
                 }
                 else if arguments.len() < 255 {
@@ -820,10 +872,12 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
                     }
                     else if tokens[cursor].kind == TokenKind::RightParenthesis {
                         cursor += 1;
-                        expr = Expression::Call {
-                            callee: Box::new(expr),
-                            arguments
-                        };
+                        expr = Expression::Call (
+                            Call {
+                                callee: Box::new(expr),
+                                arguments
+                            }
+                        );
                         break;
                     }
                     else {
@@ -840,10 +894,12 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
             if tokens[cursor].kind == TokenKind::Identifier {
                 let identifier = tokens[cursor].clone();
                 cursor += 1;
-                expr = Expression::Get {
-                    instance: Box::new(expr),
-                    property: identifier
-                }
+                expr = Expression::Get (
+                    Get {
+                        instance: Box::new(expr),
+                        property: identifier
+                    }
+                )
             }
             else {
                 panic!("Expected property name after '.'.");
@@ -867,9 +923,11 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
         tokens[cursor].kind == TokenKind::String
     {
         return (
-            Expression::Literal {
-                token: tokens[cursor].clone()
-            },
+            Expression::Literal (
+                Literal {
+                    token: tokens[cursor].clone()
+                }
+            ),
             cursor + 1
         );
     }
@@ -894,10 +952,12 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
         if tokens[cursor].kind == TokenKind::Identifier {
             return (
-                Expression::Super {
-                    property: tokens[cursor].clone(),
-                    lookup_hop_count: None
-                },
+                Expression::Super (
+                    Super {
+                        property: tokens[cursor].clone(),
+                        lookup_hop_count: None
+                    }
+                ),
                 cursor + 1
             );
         }
@@ -909,10 +969,12 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
     if tokens[cursor].kind == TokenKind::Identifier {
         return (
-            Expression::Variable {
-                identifier: tokens[cursor].clone(),
-                lookup_hop_count: None
-            },
+            Expression::Variable (
+                Variable {
+                    identifier: tokens[cursor].clone(),
+                    lookup_hop_count: None
+                }
+            ),
             cursor + 1
         );
     }
@@ -929,7 +991,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
         cursor += 1;
 
-        return ( Expression::Parentheses { expression: Box::<Expression>::new(expr) }, cursor);
+        return ( Expression::Parentheses ( Parentheses { expression: Box::<Expression>::new(expr) } ), cursor);
     }
 
     panic!("Expected expression");
