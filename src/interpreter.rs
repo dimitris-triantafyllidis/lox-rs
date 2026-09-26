@@ -14,23 +14,27 @@ pub struct Instance {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub pars: Vec<Token>,
+    pub body: Statement,
+    pub closure_id: usize
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Class {
+    methods: HashMap<Token, Value>,
+    super_class: Option<Box<Value>>
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Nil,
     Boolean (bool),
     Number (f64),
     String (String),
-    Function  {
-        pars: Vec<Token>,
-        body: Statement,
-        closure_id: usize
-    },
-    Class {
-        methods: HashMap<Token, Value>,
-        super_class: Option<Box<Value>>
-    },
-    Instance {
-        instance: Rc<RefCell<Instance>>
-    }
+    Function (Function),
+    Class (Class),
+    Instance (Rc<RefCell<Instance>>)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -159,10 +163,10 @@ impl Interpreter {
 
                 let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&"super".to_string(), &mut hop_count_mut_copy).clone()));
                 while let Some(box_value) = method_lookup_class.clone() {
-                    if let Value::Class { methods, super_class } = box_value.as_ref() {
+                    if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
                         if methods.contains_key(&property) {
                             value = methods.get(&property).unwrap().clone();
-                            if let Value::Function { ref mut closure_id, .. } = value {
+                            if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol(&"this".to_string(), instance_value.clone());
                                 *closure_id = self.context.next_id - 1;
@@ -197,7 +201,7 @@ impl Interpreter {
             let instance = self.evaluate_expression(instance.as_ref()).value;
             let value = self.evaluate_expression(value).value;
 
-            if let Value::Instance { instance } = instance {
+            if let Value::Instance ( instance ) = instance {
                 let mut instance = instance.borrow_mut();
                 instance.properties.insert(property.clone(), value.clone());
                 return NodeResult::new (
@@ -217,7 +221,7 @@ impl Interpreter {
 
     pub fn evaluate_get_internal(self: &mut Self, instance_value: &Value, property: &Token) -> Value {
 
-        if let Value::Instance { instance } = instance_value.clone() {
+        if let Value::Instance ( instance ) = instance_value.clone() {
             let instance = instance.borrow_mut();
             let mut value: Value;
 
@@ -228,10 +232,10 @@ impl Interpreter {
             else {
                 let mut method_lookup_class = Some(instance.class.clone());
                 while let Some(box_value) = method_lookup_class {
-                    if let Value::Class { methods, super_class } = box_value.as_ref() {
+                    if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
                         if methods.contains_key(&property) {
                             value = methods.get(&property).unwrap().clone();
-                            if let Value::Function { ref mut closure_id, .. } = value {
+                            if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol(&"this".to_string(), instance_value.clone());
                                 *closure_id = self.context.next_id - 1;
@@ -423,7 +427,7 @@ impl Interpreter {
 
     pub fn evaluate_function_call(self: &mut Self, callee: Value, arguments: &Vec<Value>) -> Value {
 
-        if let Value::Function { pars, body, closure_id } = callee {
+        if let Value::Function ( Function { pars, body, closure_id } ) = callee {
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(closure_id));
@@ -466,7 +470,7 @@ impl Interpreter {
 
             let callee = self.evaluate_expression(callee).value;
 
-            if let Value::Function { ref pars, .. } = callee {
+            if let Value::Function ( Function { ref pars, .. } ) = callee {
                 if pars.len() == arguments.len() {
 
                     let mut argument_values = Vec::<Value>::new();
@@ -484,11 +488,11 @@ impl Interpreter {
                     panic!("Wrong number of arguments");
                 }
             }
-            else if let Value::Class { ref methods, .. } = callee {
+            else if let Value::Class ( Class { ref methods, .. } ) = callee {
 
                 let new_instance =
-                    Value::Instance {
-                        instance: Rc::new (
+                    Value::Instance (
+                        Rc::new (
                             RefCell::new (
                                 Instance {
                                     class:      Box::new(callee.clone()),
@@ -496,7 +500,7 @@ impl Interpreter {
                                 }
                             )
                         )
-                    };
+                    );
 
                 let init_token =
                     Token {
@@ -511,7 +515,7 @@ impl Interpreter {
                         &init_token
                     );
 
-                    if let Value::Function { ref pars, .. } = init_bound_function {
+                    if let Value::Function ( Function { ref pars, .. } ) = init_bound_function {
                         if pars.len() == arguments.len() {
 
                             let mut argument_values = Vec::<Value>::new();
@@ -739,11 +743,13 @@ impl Interpreter {
 
             self.context.insert_symbol (
                 &id.lexeme,
-                Value::Function {
-                    pars: pars.clone(),
-                    body: *body.clone(),
-                    closure_id: self.context.get_current_environment_id()
-                }
+                Value::Function (
+                    Function {
+                        pars: pars.clone(),
+                        body: *body.clone(),
+                        closure_id: self.context.get_current_environment_id()
+                    }
+                )
             );
 
             return NodeResult::new ( Value::Nil, Control::Continue );
@@ -781,11 +787,13 @@ impl Interpreter {
                 if let Statement::FunctionDeclaration { id, pars, body } = method_decl {
                     class_method_map.insert (
                         id.clone(),
-                        Value::Function {
-                            pars: pars.clone(),
-                            body: *body.clone(),
-                            closure_id: self.context.get_current_environment_id()
-                        }
+                        Value::Function (
+                            Function {
+                                pars: pars.clone(),
+                                body: *body.clone(),
+                                closure_id: self.context.get_current_environment_id()
+                            }
+                        )
                     );
                 }
             }
@@ -796,10 +804,12 @@ impl Interpreter {
 
             self.context.insert_symbol (
                 &id.lexeme,
-                Value::Class {
-                    methods: class_method_map,
-                    super_class: super_class_result
-                }
+                Value::Class (
+                    Class {
+                        methods: class_method_map,
+                        super_class: super_class_result
+                    }
+                )
             );
 
             return NodeResult::new ( Value::Nil, Control::Continue );

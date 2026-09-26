@@ -384,11 +384,13 @@ impl SemanticPass {
 
             self.context.insert_symbol (
                 &id.lexeme,
-                Value::Function {
-                    pars: pars.clone(),
-                    body: *body.clone(),
-                    closure_id
-                }
+                Value::Function (
+                    Function {
+                        pars: pars.clone(),
+                        body: *body.clone(),
+                        closure_id
+                    }
+                )
             );
 
             self.context.push_new_environment_auto();
