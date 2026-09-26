@@ -5,3 +5,11 @@ edition = "2024"
 
 [dependencies]
 rustyline = "18"
+
+[[bin]]
+name = "lox"
+path = "src/lox.rs"
+
+[[bin]]
+name = "loxc"
+path = "src/loxc.rs"

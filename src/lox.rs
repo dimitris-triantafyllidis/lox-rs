@@ -38,7 +38,7 @@ fn run_file(file_path: &String) {
         io::Result::Ok(s) => {
             let tokens = lexer_scan(&s);
             let mut parsed = parse(&tokens);
-            print!("{:#?}", parsed);
+            println!("{:#?}", parsed);
             let mut semantic_pass = SemanticPass::new();
             semantic_pass.visit(&mut parsed);
             let mut interpreter = Interpreter::new();
