@@ -242,7 +242,6 @@ impl SemanticPass {
             Expression::Get             {..} => self.visit_get(expr),
             Expression::Set             {..} => self.visit_set(expr),
             Expression::Super           {..} => self.visit_super(expr),
-            _ => panic!()
         }
 
     }
@@ -264,7 +263,6 @@ impl SemanticPass {
             Statement::ClassDeclaration    {..} => self.visit_class_declaration_statement(statement),
             Statement::Block               {..} => self.visit_block_statement(statement),
             Statement::If                  {..} => self.visit_if_statement(statement),
-            _ => panic!()
         }
 
     }

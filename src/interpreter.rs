@@ -52,6 +52,7 @@ impl NodeResult {
             control
         }
     }
+
     pub fn default() -> Self {
         return Self {
             value: Value::Nil,
@@ -500,12 +501,11 @@ impl Interpreter {
                 let init_token =
                     Token {
                         kind:TokenKind::Identifier,
-                        lexeme: "init".to_string()
+                        lexeme: "init".to_string(),
+                        line_number: 0
                     };
 
-                if methods.contains_key (
-                    &init_token
-                ) {
+                if methods.keys().any(|token| token.lexeme == "init")  {
                     let init_bound_function = self.evaluate_get_internal (
                         &new_instance,
                         &init_token
@@ -564,7 +564,6 @@ impl Interpreter {
             Expression::Get             {..} => return self.evaluate_get(expr),
             Expression::Set             {..} => return self.evaluate_set(expr),
             Expression::Super           {..} => return self.evaluate_super(expr),
-            _ => panic!()
         }
 
     }
@@ -582,7 +581,6 @@ impl Interpreter {
             Statement::ClassDeclaration    {..} => return self.execute_class_declaration_statement(statement),
             Statement::Block               {..} => return self.execute_block_statement(statement),
             Statement::If                  {..} => return self.execute_if_statement(statement),
-            _ => panic!()
         }
 
     }
@@ -625,9 +623,6 @@ impl Interpreter {
                 },
                 Value::Instance{..} => {
                     println!("<instance>")
-                }
-                _ => {
-                    panic!();
                 }
             }
 
