@@ -4,6 +4,7 @@ use crate::context::*;
 use crate::interpreter::*;
 
 use crate::parser::expression::*;
+use crate::parser::statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {
@@ -40,18 +41,18 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_literal(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_literal(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Literal {..} => { },
+            expression::Expression::Literal {..} => { },
             _ => panic!()
         }
     }
 
-    pub fn visit_variable(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_variable(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Variable (
+            expression::Expression::Variable (
                 Variable {
                     identifier: id,
                     lookup_hop_count: hop_count
@@ -68,10 +69,10 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_this(self: &Self, expr: &mut Expression) {
+    pub fn visit_this(self: &Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::This => {
+            expression::Expression::This => {
                 if self.class_context_stack.is_empty() {
                     panic!("Unexpected 'this' outside a class context");
                 }
@@ -85,11 +86,11 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_super(self: &Self, expr: &mut Expression) {
+    pub fn visit_super(self: &Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Super (
-                Super {
+            expression::Expression::Super (
+                expression::Super {
                     lookup_hop_count: hop_count,
                     ..
                 }
@@ -105,9 +106,9 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_unary(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_unary(self: &mut Self, expr: &mut expression::Expression) {
 
-        if let Expression::UnaryOperation ( UnaryOperation { operator: _, right: rhs } ) = expr {
+        if let expression::Expression::UnaryOperation ( expression::UnaryOperation { operator: _, right: rhs } ) = expr {
             self.visit_expression(rhs);
         }
         else {
@@ -115,9 +116,9 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_parentheses(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_parentheses(self: &mut Self, expr: &mut expression::Expression) {
 
-        if let Expression::Parentheses ( Parentheses { expression: e } ) = expr {
+        if let expression::Expression::Parentheses ( expression::Parentheses { expression: e } ) = expr {
             self.visit_expression(e);
         }
         else {
@@ -126,10 +127,10 @@ impl SemanticPass {
 
     }
 
-    pub fn visit_get(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_get(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Get ( Get { instance, .. } ) => {
+            expression::Expression::Get ( expression::Get { instance, .. } ) => {
                 self.visit_expression(instance);
             },
             _ => {
@@ -138,10 +139,10 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_set(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_set(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Set ( Set { instance, value, .. } ) => {
+            expression::Expression::Set ( expression::Set { instance, value, .. } ) => {
                 self.visit_expression(instance);
                 self.visit_expression(value);
             },
@@ -151,11 +152,11 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_assignment(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_assignment(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Assignment (
-                Assignment {
+            expression::Expression::Assignment (
+                expression::Assignment {
                     left: lhs,
                     expression: rhs,
                     lookup_hop_count: hop_count
@@ -171,9 +172,9 @@ impl SemanticPass {
 
     }
 
-    pub fn visit_binary(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_binary(self: &mut Self, expr: &mut expression::Expression) {
 
-        if let Expression::BinaryOperation ( BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
+        if let expression::Expression::BinaryOperation ( expression::BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
 
             self.visit_expression(lhs);
             self.visit_expression(rhs);
@@ -198,22 +199,9 @@ impl SemanticPass {
 
     }
 
-    pub fn visit_logical_or(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_logical_or(self: &mut Self, expr: &mut expression::Expression) {
 
-        if let Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
-
-            self.visit_expression(lhs);
-            self.visit_expression(rhs);
-        }
-        else {
-            panic!()
-        }
-
-    }
-
-    pub fn visit_logical_and(self: &mut Self, expr: &mut Expression) {
-
-        if let Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
+        if let expression::Expression::LogicalOr ( expression::LogicalOr { left: lhs, right: rhs } ) = expr {
 
             self.visit_expression(lhs);
             self.visit_expression(rhs);
@@ -224,9 +212,22 @@ impl SemanticPass {
 
     }
 
-    pub fn visit_call(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_logical_and(self: &mut Self, expr: &mut expression::Expression) {
 
-        if let Expression::Call ( Call { callee, arguments } ) = expr {
+        if let expression::Expression::LogicalAnd ( expression::LogicalAnd { left: lhs, right: rhs } ) = expr {
+
+            self.visit_expression(lhs);
+            self.visit_expression(rhs);
+        }
+        else {
+            panic!()
+        }
+
+    }
+
+    pub fn visit_call(self: &mut Self, expr: &mut expression::Expression) {
+
+        if let expression::Expression::Call ( expression::Call { callee, arguments } ) = expr {
             self.visit_expression(callee);
             for argument in arguments {
                 self.visit_expression(argument);
@@ -234,22 +235,22 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_expression(self: &mut Self, expr: &mut Expression) {
+    pub fn visit_expression(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            Expression::Literal         {..} => self.visit_literal(expr),
-            Expression::UnaryOperation  {..} => self.visit_unary(expr),
-            Expression::BinaryOperation {..} => self.visit_binary(expr),
-            Expression::Parentheses     {..} => self.visit_parentheses(expr),
-            Expression::Variable        {..} => self.visit_variable(expr),
-            Expression::This            {..} => self.visit_this(expr),
-            Expression::Assignment      {..} => self.visit_assignment(expr),
-            Expression::LogicalOr       {..} => self.visit_logical_or(expr),
-            Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
-            Expression::Call            {..} => self.visit_call(expr),
-            Expression::Get             {..} => self.visit_get(expr),
-            Expression::Set             {..} => self.visit_set(expr),
-            Expression::Super           {..} => self.visit_super(expr),
+            expression::Expression::Literal         {..} => self.visit_literal(expr),
+            expression::Expression::UnaryOperation  {..} => self.visit_unary(expr),
+            expression::Expression::BinaryOperation {..} => self.visit_binary(expr),
+            expression::Expression::Parentheses     {..} => self.visit_parentheses(expr),
+            expression::Expression::Variable        {..} => self.visit_variable(expr),
+            expression::Expression::This            {..} => self.visit_this(expr),
+            expression::Expression::Assignment      {..} => self.visit_assignment(expr),
+            expression::Expression::LogicalOr       {..} => self.visit_logical_or(expr),
+            expression::Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
+            expression::Expression::Call            {..} => self.visit_call(expr),
+            expression::Expression::Get             {..} => self.visit_get(expr),
+            expression::Expression::Set             {..} => self.visit_set(expr),
+            expression::Expression::Super           {..} => self.visit_super(expr),
         }
 
     }
@@ -277,7 +278,7 @@ impl SemanticPass {
 
     pub fn visit_expression_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Expression { expr } = statement {
+        if let Statement::Expression ( statement::Expression { expr } ) = statement {
             self.visit_expression(expr);
         }
         else {
@@ -288,7 +289,7 @@ impl SemanticPass {
 
     pub fn visit_print_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Print { expr } = statement {
+        if let Statement::Print ( Print { expr: statement::Expression { expr } } ) = statement {
             self.visit_expression(expr);
         }
         else {
@@ -299,7 +300,7 @@ impl SemanticPass {
 
     pub fn visit_return_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Return { expr: Some(expr) } = statement {
+        if let Statement::Return ( Return { expr: Some ( statement::Expression { expr } ) } ) = statement {
             if self.function_context_stack.is_empty() {
                 panic!("Unexpected 'return' outside a function context")
             }
@@ -307,7 +308,7 @@ impl SemanticPass {
                 self.visit_expression(expr);
             }
         }
-        else if let Statement::Return { expr: None } = statement {
+        else if let Statement::Return ( Return { expr: None } ) = statement {
             if self.function_context_stack.is_empty() {
                 panic!("Unexpected 'return' outside a function context")
             }
@@ -320,8 +321,10 @@ impl SemanticPass {
 
     pub fn visit_while_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::While { condition, body } = statement {
-            self.visit_expression(condition);
+        if let Statement::While (
+            While { condition: statement::Expression { expr }, body }
+        ) = statement {
+            self.visit_expression(expr);
             self.visit_statement(body);
         }
         else {
@@ -331,27 +334,29 @@ impl SemanticPass {
 
     pub fn visit_for_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::For {
-            init: initializer_statement,
-            cond: condition_expression,
-            incr: increment_expression,
-            body: body_statement,
-        } = statement {
+        if let Statement::For (
+            For {
+                init: initializer_statement,
+                cond: condition_expression,
+                incr: increment_expression,
+                body: body_statement,
+            }
+        ) = statement {
 
             self.context.push_new_environment_auto();
 
-            if let Some(statement) = initializer_statement {
+            if let Some ( statement ) = initializer_statement {
                 self.visit_statement(statement);
             }
 
-            if let Some(ce) = condition_expression {
-                self.visit_expression(ce);
+            if let Some ( statement::Expression { expr } ) = condition_expression {
+                self.visit_expression(expr);
             }
 
             self.visit_statement(body_statement);
 
-            if let Some(ie) = increment_expression {
-                self.visit_expression(ie);
+            if let Some ( statement::Expression { expr } ) = increment_expression {
+                self.visit_expression(expr);
             }
 
             self.context.pop_environment();
@@ -364,8 +369,8 @@ impl SemanticPass {
 
     pub fn visit_if_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::If { condition, then_statement, else_statement } = statement {
-            self.visit_expression(condition);
+        if let Statement::If ( If { condition: statement::Expression { expr }, then_statement, else_statement } ) = statement {
+            self.visit_expression(expr);
             self.visit_statement(then_statement);
             if let Some(statement) = else_statement {
                 self.visit_statement(statement);
@@ -379,7 +384,7 @@ impl SemanticPass {
 
     pub fn visit_function_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::FunctionDeclaration { id, pars, body } = statement {
+        if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = statement {
 
             let function_context = self.function_context_stack.last().cloned().unwrap();
             let mut closure_id = self.context.get_current_environment_id();
@@ -410,7 +415,7 @@ impl SemanticPass {
                 );
             }
 
-            if let Statement::Block { statements } = body.as_mut() {
+            if let Statement::Block ( Block { statements } ) = body.as_mut() {
                 for ref mut statement in statements {
                     self.visit_statement(statement);
                 }
@@ -434,9 +439,9 @@ impl SemanticPass {
 
     pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::ClassDeclaration { id, method_decls, super_class } = statement {
+        if let Statement::ClassDeclaration ( ClassDeclaration { id, method_decls, super_class } ) = statement {
 
-            if let Some(expr) = super_class {
+            if let Some ( statement::Expression { expr } ) = super_class {
                 self.visit_variable(expr);
             }
 
@@ -453,7 +458,7 @@ impl SemanticPass {
             }
 
             for method_decl in method_decls {
-                if let Statement::FunctionDeclaration { id, .. } = method_decl {
+                if let Statement::FunctionDeclaration ( FunctionDeclaration { id, .. } ) = method_decl {
                     if id.lexeme == "init" {
                         self.function_context_stack.push(FunctionContext::Initializer);
                     }
@@ -482,10 +487,10 @@ impl SemanticPass {
 
     pub fn visit_variable_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::VariableDeclaration { id, init } = statement {
+        if let Statement::VariableDeclaration ( VariableDeclaration { id, init } ) = statement {
 
-            if let Some(e) = init {
-                self.visit_expression(e);
+            if let Some ( statement::Expression { expr } ) = init {
+                self.visit_expression(expr);
             }
 
             self.context.insert_symbol(&id.lexeme, Value::Nil);
@@ -498,7 +503,7 @@ impl SemanticPass {
 
     pub fn visit_block_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::Block { statements } = statement {
+        if let Statement::Block ( Block { statements } ) = statement {
             self.context.push_new_environment_auto();
             for statement in statements {
                 self.visit_statement(statement);

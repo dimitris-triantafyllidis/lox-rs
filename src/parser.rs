@@ -98,50 +98,87 @@ pub mod expression {
 
 use expression::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Statement {
-    Expression {
-        expr: Expression
-    },
-    If {
-        condition: Expression,
-        then_statement: Box<Statement>,
-        else_statement: Option<Box<Statement>>
-    },
-    While {
-        condition: Expression,
-        body: Box<Statement>
-    },
-    For {
-        init: Option<Box<Statement>>,
-        cond: Option<Expression>,
-        incr: Option<Expression>,
-        body: Box<Statement>
-    },
-    Print {
-        expr: Expression
-    },
-    Return {
-        expr: Option<Expression>
-    },
-    FunctionDeclaration {
-        id: Token,
-        pars: Vec<Token>,
-        body: Box<Statement>
-    },
-    ClassDeclaration {
-        id: Token,
-        method_decls: Vec<Statement>,
-        super_class: Option<Expression>
-    },
-    VariableDeclaration {
-        id: Token,
-        init: Option<Expression>
-    },
-    Block {
-        statements: Vec<Statement>
+pub mod statement {
+
+    use crate::lexer::*;
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Expression {
+        pub expr: super::expression::Expression
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct If {
+        pub condition: Expression,
+        pub then_statement: Box<Statement>,
+        pub else_statement: Option<Box<Statement>>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct While {
+        pub condition: Expression,
+        pub body: Box<Statement>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct For {
+        pub init: Option<Box<Statement>>,
+        pub cond: Option<Expression>,
+        pub incr: Option<Expression>,
+        pub body: Box<Statement>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Print {
+        pub expr: Expression
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Return {
+        pub expr: Option<Expression>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct FunctionDeclaration {
+        pub id: Token,
+        pub pars: Vec<Token>,
+        pub body: Box<Statement>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct ClassDeclaration {
+        pub id: Token,
+        pub method_decls: Vec<Statement>,
+        pub super_class: Option<Expression>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct VariableDeclaration {
+        pub id: Token,
+        pub init: Option<Expression>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Block {
+        pub statements: Vec<Statement>
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum Statement {
+        Expression (Expression),
+        If (If),
+        While (While),
+        For (For),
+        Print (Print),
+        Return (Return),
+        FunctionDeclaration (FunctionDeclaration),
+        ClassDeclaration (ClassDeclaration),
+        VariableDeclaration (VariableDeclaration),
+        Block (Block)
     }
 }
+
+use statement::*;
 
 pub fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
 
@@ -227,11 +264,13 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                 cursor += 1;
                 let (body, cursor) = parse_block(tokens, cursor);
                 return (
-                    Statement::FunctionDeclaration {
-                        id: identifier,
-                        pars: parameters,
-                        body: Box::new(body)
-                    },
+                    Statement::FunctionDeclaration (
+                        FunctionDeclaration {
+                            id: identifier,
+                            pars: parameters,
+                            body: Box::new(body)
+                        }
+                    ),
                     cursor
                 )
             }
@@ -258,7 +297,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
         let identifier = tokens[cursor].clone();
         cursor += 1;
 
-        let super_class: Option<Expression>;
+        let super_class: Option<expression::Expression>;
 
         if tokens[cursor].kind == TokenKind::Less {
             cursor += 1;
@@ -267,7 +306,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                     panic!("Super class cannot be the same as the inheriting class");
                 }
                 super_class = Some (
-                    Expression::Variable (
+                    expression::Expression::Variable (
                         Variable {
                             identifier: tokens[cursor].clone(),
                             lookup_hop_count: None
@@ -292,11 +331,13 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
             loop {
                 if tokens[cursor].kind == TokenKind::RightBrace {
                     return (
-                        Statement::ClassDeclaration {
-                            id: identifier,
-                            method_decls: methods,
-                            super_class: super_class
-                        },
+                        Statement::ClassDeclaration (
+                            ClassDeclaration {
+                                id: identifier,
+                                method_decls: methods,
+                                super_class: Some ( statement::Expression { expr: super_class.unwrap() } )
+                            }
+                        ),
                         cursor + 1
                     );
                 }
@@ -321,7 +362,7 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
     let mut cursor = cursor;
     let id: Token;
-    let expr: Expression;
+    let expr: expression::Expression;
 
     if tokens[cursor].kind == TokenKind::Identifier {
         id = tokens[cursor].clone();
@@ -330,7 +371,7 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
             (expr, cursor) = parse_expression(tokens, cursor + 1);
             if tokens[cursor].kind == TokenKind::Semicolon {
                 return (
-                    Statement::VariableDeclaration { id: id, init: Some(expr) },
+                    Statement::VariableDeclaration ( VariableDeclaration { id: id, init: Some(statement::Expression { expr }) } ),
                     cursor + 1
                 );
             }
@@ -341,7 +382,7 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
         else {
             if tokens[cursor].kind == TokenKind::Semicolon {
                 return (
-                    Statement::VariableDeclaration { id: id, init: None },
+                    Statement::VariableDeclaration ( VariableDeclaration { id: id, init: None } ),
                     cursor + 1
                 );
             }
@@ -402,10 +443,12 @@ pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     let (body_statement, cursor) = parse_statement(tokens, cursor);
 
     return (
-        Statement::While {
-            condition: condition_expression,
-            body: Box::new(body_statement)
-        },
+        Statement::While (
+            While {
+                condition: statement::Expression { expr: condition_expression },
+                body: Box::new(body_statement)
+            },
+        ),
         cursor
     );
 }
@@ -415,8 +458,8 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
     let mut cursor = cursor;
 
     let initializer_statement: Option<Box<Statement>>;
-    let condition_expression: Option<Expression>;
-    let increment_expression: Option<Expression>;
+    let condition_expression: Option<statement::Expression>;
+    let increment_expression: Option<statement::Expression>;
     let body_statement: Box<Statement>;
 
     if tokens[cursor].kind != TokenKind::LeftParenthesis {
@@ -439,9 +482,9 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
         condition_expression = None;
     }
     else {
-        let ce: Expression;
+        let ce: expression::Expression;
         (ce, cursor) = parse_expression(tokens, cursor);
-        condition_expression = Some(ce);
+        condition_expression = Some ( statement::Expression { expr: ce } );
     }
 
     cursor += 1;
@@ -450,9 +493,9 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
         increment_expression = None;
     }
     else {
-        let ie: Expression;
+        let ie: expression::Expression;
         (ie, cursor) = parse_expression(tokens, cursor);
-        increment_expression = Some(ie);
+        increment_expression = Some ( statement::Expression { expr: ie } );
     }
 
     cursor += 1;
@@ -462,12 +505,14 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
     body_statement = Box::new(bs);
 
     return (
-        Statement::For {
-            init: initializer_statement,
-            cond: condition_expression,
-            incr: increment_expression,
-            body: body_statement
-        },
+        Statement::For (
+            For {
+                init: initializer_statement,
+                cond: condition_expression,
+                incr: increment_expression,
+                body: body_statement
+            }
+        ),
         cursor
     );
 
@@ -479,7 +524,7 @@ pub fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Expression { expr },
+            Statement::Expression ( statement::Expression { expr } ),
             cursor + 1
         );
     } else {
@@ -513,7 +558,7 @@ pub fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
     }
 
     return (
-        Statement::Block { statements },
+        Statement::Block ( Block { statements } ),
         cursor
     )
 
@@ -525,7 +570,7 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Print { expr },
+            Statement::Print ( Print { expr: statement::Expression { expr } } ),
             cursor + 1
         );
     } else {
@@ -538,7 +583,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Return { expr: None },
+            Statement::Return ( Return { expr: None } ),
             cursor + 1
         );
     }
@@ -547,7 +592,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Return { expr: Some(expr) },
+            Statement::Return ( Return { expr: Some(statement::Expression { expr }) } ),
             cursor + 1
         );
     } else {
@@ -583,57 +628,61 @@ pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usi
         let (else_statement, cursor) = parse_statement(tokens, cursor);
 
         return (
-            Statement::If {
-                condition: condition_expression,
-                then_statement: Box::new(then_statement),
-                else_statement: Some(Box::new(else_statement))
-            },
+            Statement::If (
+                If {
+                    condition: statement::Expression { expr: condition_expression },
+                    then_statement: Box::new(then_statement),
+                    else_statement: Some(Box::new(else_statement))
+                }
+            ),
             cursor
         );
     }
     else {
         return (
-            Statement::If {
-                condition: condition_expression,
-                then_statement: Box::new(then_statement),
-                else_statement: None
-            },
+            Statement::If (
+                If {
+                    condition: statement::Expression { expr: condition_expression },
+                    then_statement: Box::new(then_statement),
+                    else_statement: None
+                }
+            ),
             cursor
         );
     }
 
 }
 
-pub fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
     return parse_assignment(tokens, cursor);
 }
 
-pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
     if tokens[cursor].kind == TokenKind::Equal {
         cursor += 1;
-        let value_expr: Expression;
+        let value_expr: expression::Expression;
 
         (value_expr, cursor) = parse_assignment(tokens, cursor);
 
         match expr {
-            Expression::Variable ( Variable { identifier: t, lookup_hop_count: None } )=> {
+            expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count: None } )=> {
                 return (
-                    Expression::Assignment (
+                    expression::Expression::Assignment (
                         Assignment {
                             left: t,
                             lookup_hop_count: None,
-                            expression: Box::<Expression>::new(value_expr)
+                            expression: Box::<expression::Expression>::new(value_expr)
                         }
                     ),
                     cursor
                 );
             },
-            Expression::Get ( Get { instance, property } ) => {
+            expression::Expression::Get ( Get { instance, property } ) => {
                 return (
-                    Expression::Set (
+                    expression::Expression::Set (
                         Set {
                             instance: instance,
                             property: property,
@@ -654,7 +703,7 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
 
 }
 
-pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
@@ -662,11 +711,11 @@ pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
 
         if tokens[cursor].kind == TokenKind::Or
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             cursor += 1;
             let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::LogicalOr ( LogicalOr { left, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::LogicalOr ( LogicalOr { left, right } );
             cursor = new_cursor;
         }
         else {
@@ -679,7 +728,7 @@ pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
 
 }
 
-pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
@@ -687,11 +736,11 @@ pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usiz
 
         if tokens[cursor].kind == TokenKind::And
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             cursor += 1;
             let (right_expr, new_cursor) = parse_equality(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::LogicalAnd ( LogicalAnd { left, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::LogicalAnd ( LogicalAnd { left, right } );
             cursor = new_cursor;
         }
         else {
@@ -704,7 +753,7 @@ pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usiz
 
 }
 
-pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
@@ -714,12 +763,12 @@ pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
             tokens[cursor].kind == TokenKind::EqualEqual ||
             tokens[cursor].kind == TokenKind::BangEqual
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             let operator = tokens[cursor].clone();
             cursor += 1;
             let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -732,7 +781,7 @@ pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize
 
 }
 
-pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
@@ -744,12 +793,12 @@ pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
             tokens[cursor].kind == TokenKind::Less         ||
             tokens[cursor].kind == TokenKind::LessEqual
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             let operator = tokens[cursor].clone();
             cursor += 1;
             let (right_expr, new_cursor) = parse_term(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -762,7 +811,7 @@ pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usi
 
 }
 
-pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_factor(tokens, cursor);
 
@@ -772,12 +821,12 @@ pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
             tokens[cursor].kind == TokenKind::Plus  ||
             tokens[cursor].kind == TokenKind::Minus
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             let operator = tokens[cursor].clone();
             cursor += 1;
             let (right_expr, new_cursor) = parse_factor(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -789,7 +838,7 @@ pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
     return (expr, cursor);
 }
 
-pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
@@ -799,12 +848,12 @@ pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
             tokens[cursor].kind == TokenKind::Star  ||
             tokens[cursor].kind == TokenKind::Slash
         {
-            let left = Box::<Expression>::new(expr);
+            let left = Box::<expression::Expression>::new(expr);
             let operator = tokens[cursor].clone();
             cursor += 1;
             let (right_expr, new_cursor) = parse_unary(tokens, cursor);
-            let right = Box::<Expression>::new(right_expr);
-            expr = Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+            let right = Box::<expression::Expression>::new(right_expr);
+            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
             cursor = new_cursor;
         }
         else {
@@ -817,7 +866,7 @@ pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize )
 
 }
 
-pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let mut cursor = cursor;
 
@@ -830,18 +879,18 @@ pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) 
         cursor += 1;
 
         let (right_expr, new_cursor) = parse_unary(tokens, cursor);
-        let right = Box::<Expression>::new(right_expr);
+        let right = Box::<expression::Expression>::new(right_expr);
 
         cursor = new_cursor;
 
-        return (Expression::UnaryOperation ( UnaryOperation { operator, right } ), cursor);
+        return (expression::Expression::UnaryOperation ( UnaryOperation { operator, right } ), cursor);
     }
 
     return parse_call(tokens, cursor);
 
 }
 
-pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
+pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
 
     let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
@@ -850,12 +899,12 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
         if tokens[cursor].kind == TokenKind::LeftParenthesis {
 
             cursor += 1;
-            let mut arguments = Vec::<Expression>::new();
+            let mut arguments = Vec::<expression::Expression>::new();
 
             loop {
                 if tokens[cursor].kind == TokenKind::RightParenthesis {
                     cursor += 1;
-                    expr = Expression::Call (
+                    expr = expression::Expression::Call (
                         Call {
                             callee: Box::new(expr),
                             arguments
@@ -864,7 +913,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
                     break;
                 }
                 else if arguments.len() < 255 {
-                    let argument: Expression;
+                    let argument: expression::Expression;
                     (argument, cursor) = parse_expression(tokens, cursor);
                     arguments.push(argument);
                     if tokens[cursor].kind == TokenKind::Comma {
@@ -872,7 +921,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
                     }
                     else if tokens[cursor].kind == TokenKind::RightParenthesis {
                         cursor += 1;
-                        expr = Expression::Call (
+                        expr = expression::Expression::Call (
                             Call {
                                 callee: Box::new(expr),
                                 arguments
@@ -894,7 +943,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
             if tokens[cursor].kind == TokenKind::Identifier {
                 let identifier = tokens[cursor].clone();
                 cursor += 1;
-                expr = Expression::Get (
+                expr = expression::Expression::Get (
                     Get {
                         instance: Box::new(expr),
                         property: identifier
@@ -913,7 +962,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( Expression, usize ) {
     return (expr, cursor);
 }
 
-pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usize) {
+pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Expression, usize ) {
 
     if
         tokens[cursor].kind == TokenKind::Nil    ||
@@ -923,7 +972,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
         tokens[cursor].kind == TokenKind::String
     {
         return (
-            Expression::Literal (
+            expression::Expression::Literal (
                 Literal {
                     token: tokens[cursor].clone()
                 }
@@ -934,7 +983,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
     if tokens[cursor].kind == TokenKind::This {
         return (
-            Expression::This,
+            expression::Expression::This,
             cursor + 1
         );
     }
@@ -952,7 +1001,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
         if tokens[cursor].kind == TokenKind::Identifier {
             return (
-                Expression::Super (
+                expression::Expression::Super (
                     Super {
                         property: tokens[cursor].clone(),
                         lookup_hop_count: None
@@ -969,7 +1018,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
     if tokens[cursor].kind == TokenKind::Identifier {
         return (
-            Expression::Variable (
+            expression::Expression::Variable (
                 Variable {
                     identifier: tokens[cursor].clone(),
                     lookup_hop_count: None
@@ -991,7 +1040,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> (Expression, usi
 
         cursor += 1;
 
-        return ( Expression::Parentheses ( Parentheses { expression: Box::<Expression>::new(expr) } ), cursor);
+        return ( expression::Expression::Parentheses ( Parentheses { expression: Box::<expression::Expression>::new(expr) } ), cursor);
     }
 
     panic!("Expected expression");

@@ -8,6 +8,7 @@ use crate::parser::*;
 use crate::context::*;
 
 use expression::*;
+use statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance {
@@ -90,19 +91,19 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_literal(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_literal(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Nil => {
+            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Nil => {
                 return NodeResult::new(Value::Nil, Control::Continue);
             },
-            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::False => {
+            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::False => {
                 return NodeResult::new(Value::Boolean(false), Control::Continue);
             },
-            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::True  => {
+            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::True  => {
                 return NodeResult::new(Value::Boolean(true), Control::Continue);
             },
-            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Number => {
+            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Number => {
                 return NodeResult::new (
                     Value::Number (
                         token.lexeme.parse().unwrap()
@@ -110,7 +111,7 @@ impl Interpreter {
                     Control::Continue
                 )
             },
-            Expression::Literal ( Literal { token } ) if token.kind == TokenKind::String => {
+            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::String => {
                 return NodeResult::new (
                     Value::String (
                         token.lexeme[1..token.lexeme.len() - 1].to_string()
@@ -122,10 +123,10 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_variable(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_variable(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            Expression::Variable ( Variable { identifier: id, lookup_hop_count: hop_count } ) => {
+            expression::Expression::Variable ( Variable { identifier: id, lookup_hop_count: hop_count } ) => {
                 let mut hop_count_mut_copy = *hop_count;
                 NodeResult::new (
                     self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
@@ -138,10 +139,10 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_this(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_this(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            Expression::This => {
+            expression::Expression::This => {
                 NodeResult::new (
                     self.context.get_symbol_value(&"this".to_string(), &mut None).clone(),
                     Control::Continue
@@ -153,11 +154,11 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_super(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_super(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
 
-            Expression::Super ( Super { property, lookup_hop_count } ) => {
+            expression::Expression::Super ( expression::Super { property, lookup_hop_count } ) => {
 
                 let mut hop_count_mut_copy = *lookup_hop_count;
                 let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
@@ -196,9 +197,9 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_set(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_set(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::Set ( Set { instance, property, value } ) = expr {
+        if let expression::Expression::Set ( Set { instance, property, value } ) = expr {
 
             let instance = self.evaluate_expression(instance.as_ref()).value;
             let value = self.evaluate_expression(value).value;
@@ -265,9 +266,9 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_get(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_get(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::Get ( Get { instance, property } ) = expr {
+        if let expression::Expression::Get ( Get { instance, property } ) = expr {
             let instance_value = self.evaluate_expression(instance.as_ref()).value;
             return NodeResult::new (
                 self.evaluate_get_internal(&instance_value, property),
@@ -279,9 +280,9 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_unary(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_unary(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::UnaryOperation ( UnaryOperation { operator: op, right: rhs } ) = expr {
+        if let expression::Expression::UnaryOperation ( UnaryOperation { operator: op, right: rhs } ) = expr {
             let rhs_result = self.evaluate_expression(rhs);
             match rhs_result.value {
                 Value::Number (v) if op.kind == TokenKind::Minus => {
@@ -304,9 +305,9 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_parentheses(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_parentheses(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::Parentheses ( Parentheses { expression: e } ) = expr {
+        if let expression::Expression::Parentheses ( expression::Parentheses { expression: e } ) = expr {
             let expression_result = self.evaluate_expression(e);
             return NodeResult::new (
                 expression_result.value,
@@ -318,11 +319,11 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_assignment(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_assignment(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            Expression::Assignment (
-                Assignment {
+            expression::Expression::Assignment (
+                expression::Assignment {
                     left: lhs,
                     expression: rhs,
                     lookup_hop_count: hop_count
@@ -343,9 +344,9 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_binary(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_binary(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::BinaryOperation ( BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
+        if let expression::Expression::BinaryOperation ( expression::BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
 
             let lhs_value = self.evaluate_expression(lhs).value;
             let rhs_value = self.evaluate_expression(rhs).value;
@@ -391,9 +392,9 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_logical_or(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_logical_or(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
+        if let expression::Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
 
             let lhs_result = self.evaluate_expression(lhs);
 
@@ -410,9 +411,9 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_logical_and(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_logical_and(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
+        if let expression::Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
 
             let lhs_result = self.evaluate_expression(lhs);
 
@@ -443,7 +444,7 @@ impl Interpreter {
                     );
                 }
 
-                if let Statement::Block { statements } = body {
+                if let Statement::Block ( Block { statements } ) = body {
                     for statement in statements {
                         let statement_result = self.execute_statement(&statement);
                         if statement_result.control == Control::FunctionReturn {
@@ -468,9 +469,9 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_call(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_call(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
-        if let Expression::Call ( Call { callee, arguments } ) = expr {
+        if let expression::Expression::Call ( Call { callee, arguments } ) = expr {
 
             let callee = self.evaluate_expression(callee).value;
 
@@ -556,22 +557,22 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_expression(self: &mut Self, expr: &Expression) -> NodeResult {
+    pub fn evaluate_expression(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            Expression::Literal         {..} => return self.evaluate_literal(expr),
-            Expression::UnaryOperation  {..} => return self.evaluate_unary(expr),
-            Expression::BinaryOperation {..} => return self.evaluate_binary(expr),
-            Expression::Parentheses     {..} => return self.evaluate_parentheses(expr),
-            Expression::Variable        {..} => return self.evaluate_variable(expr),
-            Expression::This            {..} => return self.evaluate_this(expr),
-            Expression::Assignment      {..} => return self.evaluate_assignment(expr),
-            Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
-            Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),
-            Expression::Call            {..} => return self.evaluate_call(expr),
-            Expression::Get             {..} => return self.evaluate_get(expr),
-            Expression::Set             {..} => return self.evaluate_set(expr),
-            Expression::Super           {..} => return self.evaluate_super(expr),
+            expression::Expression::Literal         {..} => return self.evaluate_literal(expr),
+            expression::Expression::UnaryOperation  {..} => return self.evaluate_unary(expr),
+            expression::Expression::BinaryOperation {..} => return self.evaluate_binary(expr),
+            expression::Expression::Parentheses     {..} => return self.evaluate_parentheses(expr),
+            expression::Expression::Variable        {..} => return self.evaluate_variable(expr),
+            expression::Expression::This            {..} => return self.evaluate_this(expr),
+            expression::Expression::Assignment      {..} => return self.evaluate_assignment(expr),
+            expression::Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
+            expression::Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),
+            expression::Expression::Call            {..} => return self.evaluate_call(expr),
+            expression::Expression::Get             {..} => return self.evaluate_get(expr),
+            expression::Expression::Set             {..} => return self.evaluate_set(expr),
+            expression::Expression::Super           {..} => return self.evaluate_super(expr),
         }
 
     }
@@ -595,7 +596,7 @@ impl Interpreter {
 
     pub fn execute_expression_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Expression { expr } = statement {
+        if let Statement::Expression ( statement::Expression { expr } ) = statement {
             let expr_result = self.evaluate_expression(&expr);
             return NodeResult::new ( Value::Nil, expr_result.control );
         }
@@ -606,9 +607,9 @@ impl Interpreter {
 
     pub fn execute_print_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Print { expr } = statement {
+        if let Statement::Print ( Print { expr: statement::Expression { expr } } ) = statement {
 
-            let expr_result = self.evaluate_expression(&expr);
+            let expr_result = self.evaluate_expression(expr);
 
             match expr_result.value {
                 Value::Boolean(b) => {
@@ -643,11 +644,11 @@ impl Interpreter {
 
     pub fn execute_return_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Return { expr: Some(expr) } = statement {
-            let expr_result = self.evaluate_expression(&expr);
+        if let Statement::Return ( Return { expr: Some (statement::Expression { expr }) } ) = statement {
+            let expr_result = self.evaluate_expression(expr);
             return NodeResult::new ( expr_result.value, Control::FunctionReturn );
         }
-        else if let Statement::Return { expr: None } = statement {
+        else if let Statement::Return ( Return { expr: None } ) = statement {
             return NodeResult::new ( Value::Nil, Control::FunctionReturn );
         }
 
@@ -657,10 +658,10 @@ impl Interpreter {
 
     pub fn execute_while_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::While { condition, body } = statement {
+        if let Statement::While ( While { condition: statement::Expression { expr }, body } ) = statement {
 
             loop {
-                let expr_value = self.evaluate_expression(&condition).value;
+                let expr_value = self.evaluate_expression(expr).value;
                 if is_truthy(&expr_value) {
                     let statement_result = self.execute_statement(body);
                     if statement_result.control == Control::FunctionReturn {
@@ -681,12 +682,14 @@ impl Interpreter {
 
     pub fn execute_for_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::For {
-            init: initializer_statement,
-            cond: condition_expression,
-            incr: increment_expression,
-            body: body_statement,
-        } = statement {
+        if let Statement::For (
+            For {
+                init: initializer_statement,
+                cond: condition_expression,
+                incr: increment_expression,
+                body: body_statement
+            }
+        ) = statement {
 
             self.context.push_new_environment_auto();
 
@@ -695,8 +698,8 @@ impl Interpreter {
             }
 
             loop {
-                if let Some(ce) = condition_expression {
-                    let expr_value = self.evaluate_expression(ce).value;
+                if let Some(statement::Expression { expr }) = condition_expression {
+                    let expr_value = self.evaluate_expression(expr).value;
                     if is_truthy(&expr_value) {
                         let statement_result = self.execute_statement(body_statement);
                         if statement_result.control == Control::FunctionReturn {
@@ -709,8 +712,8 @@ impl Interpreter {
                     }
                 }
 
-                if let Some(ie) = increment_expression {
-                    self.evaluate_expression(ie);
+                if let Some ( statement::Expression { expr } ) = increment_expression {
+                    self.evaluate_expression(expr);
                 }
             }
 
@@ -724,8 +727,8 @@ impl Interpreter {
 
     pub fn execute_if_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::If { condition, then_statement, else_statement } = statement {
-            let condition_expression_value = self.evaluate_expression(condition).value;
+        if let Statement::If ( If { condition: statement::Expression { expr }, then_statement, else_statement } ) = statement {
+            let condition_expression_value = self.evaluate_expression(expr).value;
             if is_truthy(&condition_expression_value) {
                 return self.execute_statement(then_statement);
             }
@@ -743,7 +746,7 @@ impl Interpreter {
 
     pub fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::FunctionDeclaration { id, pars, body } = statement {
+        if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = statement {
 
             self.context.insert_symbol (
                 &id.lexeme,
@@ -765,11 +768,11 @@ impl Interpreter {
 
     pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::ClassDeclaration { id, method_decls, super_class } = statement {
+        if let Statement::ClassDeclaration ( ClassDeclaration { id, method_decls, super_class } ) = statement {
 
             let super_class_result: Option<Box<Value>>;
 
-            if let Some(expr) = super_class {
+            if let Some ( statement::Expression { expr } ) = super_class {
                 let super_class_value = self.evaluate_variable(expr).value;
                 if let Value::Class {..} = super_class_value {
                     super_class_result = Some(Box::new(super_class_value.clone()));
@@ -788,7 +791,7 @@ impl Interpreter {
             let mut class_method_map = HashMap::<Token, Value>::new();
 
             for method_decl in method_decls {
-                if let Statement::FunctionDeclaration { id, pars, body } = method_decl {
+                if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = method_decl {
                     class_method_map.insert (
                         id.clone(),
                         Value::Function (
@@ -825,11 +828,11 @@ impl Interpreter {
 
     pub fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::VariableDeclaration { id, init } = statement {
+        if let Statement::VariableDeclaration ( VariableDeclaration { id, init } ) = statement {
 
             let expr_value = match init {
                 None => Value::Nil,
-                Some(expr) => self.evaluate_expression(&expr).value
+                Some ( statement::Expression { expr } ) => self.evaluate_expression(expr).value
             };
 
             self.context.insert_symbol(&id.lexeme, expr_value.clone());
@@ -843,7 +846,7 @@ impl Interpreter {
 
     pub fn execute_block_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Block { statements } = statement {
+        if let Statement::Block ( Block { statements } ) = statement {
             self.context.push_new_environment_auto();
             for statement in statements {
                 let statement_result = self.execute_statement(&statement);
