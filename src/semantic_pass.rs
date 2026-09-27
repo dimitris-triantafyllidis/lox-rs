@@ -258,261 +258,206 @@ impl SemanticPass {
     pub fn visit_statement(self: &mut Self, statement: &mut Statement) {
 
         match statement {
-            Statement::Expression          {..} => self.visit_expression_statement(statement),
-            Statement::Print               {..} => self.visit_print_statement(statement),
-            Statement::Return              {..} => self.visit_return_statement(statement),
-            Statement::While               {..} => self.visit_while_statement(statement),
-            Statement::For                 {..} => self.visit_for_statement(statement),
-            Statement::VariableDeclaration {..} => self.visit_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration {..} => {
+            Statement::Expression(stmt)          => self.visit_expression_statement(stmt),
+            Statement::Print(stmt)               => self.visit_print_statement(stmt),
+            Statement::Return(stmt)              => self.visit_return_statement(stmt),
+            Statement::While(stmt)               => self.visit_while_statement(stmt),
+            Statement::For(stmt)                 => self.visit_for_statement(stmt),
+            Statement::VariableDeclaration(stmt) => self.visit_variable_declaration_statement(stmt),
+            Statement::FunctionDeclaration(stmt) => {
                 self.function_context_stack.push(FunctionContext::Function);
-                self.visit_function_declaration_statement(statement);
+                self.visit_function_declaration_statement(stmt);
                 self.function_context_stack.pop();
             },
-            Statement::ClassDeclaration    {..} => self.visit_class_declaration_statement(statement),
-            Statement::Block               {..} => self.visit_block_statement(statement),
-            Statement::If                  {..} => self.visit_if_statement(statement),
+            Statement::ClassDeclaration(stmt)   => self.visit_class_declaration_statement(stmt),
+            Statement::Block(stmt)              => self.visit_block_statement(stmt),
+            Statement::If(stmt)                 => self.visit_if_statement(stmt),
         }
 
     }
 
-    pub fn visit_expression_statement(self: &mut Self, statement: &mut Statement) {
-
-        if let Statement::Expression ( statement::Expression { expr } ) = statement {
-            self.visit_expression(expr);
-        }
-        else {
-            panic!();
-        }
-
+    pub fn visit_expression_statement(self: &mut Self, stmt: &mut statement::Expression) {
+        let statement::Expression { expr } = stmt;
+        self.visit_expression(expr);
     }
 
-    pub fn visit_print_statement(self: &mut Self, statement: &mut Statement) {
-
-        if let Statement::Print ( Print { expr: statement::Expression { expr } } ) = statement {
-            self.visit_expression(expr);
-        }
-        else {
-            panic!();
-        }
-
+    pub fn visit_print_statement(self: &mut Self, stmt: &mut statement::Print) {
+        let statement::Print { expr } = stmt;
+        self.visit_expression(expr);
     }
 
-    pub fn visit_return_statement(self: &mut Self, statement: &mut Statement) {
+    pub fn visit_return_statement(self: &mut Self, stmt: &mut statement::Return) {
 
-        if let Statement::Return ( Return { expr: Some ( statement::Expression { expr } ) } ) = statement {
-            if self.function_context_stack.is_empty() {
-                panic!("Unexpected 'return' outside a function context")
-            }
-            else {
+        if self.function_context_stack.is_empty() {
+            panic!("Unexpected 'return' outside a function context")
+        }
+
+        let statement::Return { expr } = stmt;
+
+        match expr {
+            Some ( statement::Expression { expr } ) => {
                 self.visit_expression(expr);
-            }
-        }
-        else if let Statement::Return ( Return { expr: None } ) = statement {
-            if self.function_context_stack.is_empty() {
-                panic!("Unexpected 'return' outside a function context")
-            }
-        }
-        else {
-            panic!();
+            },
+            None => { }
         }
 
     }
 
-    pub fn visit_while_statement(self: &mut Self, statement: &mut Statement) {
+    pub fn visit_while_statement(self: &mut Self, stmt: &mut statement::While) {
+        let While { condition: statement::Expression { expr }, body } = stmt;
+        self.visit_expression(expr);
+        self.visit_statement(body);
+    }
 
-        if let Statement::While (
-            While { condition: statement::Expression { expr }, body }
-        ) = statement {
+    pub fn visit_for_statement(self: &mut Self, stmt: &mut statement::For) {
+
+        let statement::For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement,
+        } = stmt;
+
+        self.context.push_new_environment_auto();
+
+        if let Some ( statement ) = initializer_statement {
+            self.visit_statement(statement);
+        }
+
+        if let Some ( statement::Expression { expr } ) = condition_expression {
             self.visit_expression(expr);
-            self.visit_statement(body);
-        }
-        else {
-            panic!();
-        }
-    }
-
-    pub fn visit_for_statement(self: &mut Self, statement: &mut Statement) {
-
-        if let Statement::For (
-            For {
-                init: initializer_statement,
-                cond: condition_expression,
-                incr: increment_expression,
-                body: body_statement,
-            }
-        ) = statement {
-
-            self.context.push_new_environment_auto();
-
-            if let Some ( statement ) = initializer_statement {
-                self.visit_statement(statement);
-            }
-
-            if let Some ( statement::Expression { expr } ) = condition_expression {
-                self.visit_expression(expr);
-            }
-
-            self.visit_statement(body_statement);
-
-            if let Some ( statement::Expression { expr } ) = increment_expression {
-                self.visit_expression(expr);
-            }
-
-            self.context.pop_environment();
-        }
-        else {
-            panic!();
         }
 
-    }
+        self.visit_statement(body_statement);
 
-    pub fn visit_if_statement(self: &mut Self, statement: &mut Statement) {
-
-        if let Statement::If ( If { condition: statement::Expression { expr }, then_statement, else_statement } ) = statement {
+        if let Some ( statement::Expression { expr } ) = increment_expression {
             self.visit_expression(expr);
-            self.visit_statement(then_statement);
-            if let Some(statement) = else_statement {
-                self.visit_statement(statement);
-            }
         }
-        else {
-            panic!();
+
+        self.context.pop_environment();
+    }
+
+    pub fn visit_if_statement(self: &mut Self, stmt: &mut statement::If) {
+
+        let If { condition: statement::Expression { expr }, then_statement, else_statement } = stmt;
+        self.visit_expression(expr);
+        self.visit_statement(then_statement);
+        if let Some(statement) = else_statement {
+            self.visit_statement(statement);
         }
 
     }
 
-    pub fn visit_function_declaration_statement(self: &mut Self, statement: &mut Statement) {
+    pub fn visit_function_declaration_statement(self: &mut Self, stmt: &mut statement::FunctionDeclaration) {
 
-        if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = statement {
+        let FunctionDeclaration { id, pars, body } = stmt;
 
-            let function_context = self.function_context_stack.last().cloned().unwrap();
-            let mut closure_id = self.context.get_current_environment_id();
+        let function_context = self.function_context_stack.last().cloned().unwrap();
+        let mut closure_id = self.context.get_current_environment_id();
 
-            if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
-                self.context.push_new_environment(Some(closure_id));
-                self.context.insert_symbol(&"this".to_string(), Value::Nil);
-                closure_id = self.context.next_id - 1;
-            }
+        if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
+            self.context.push_new_environment(Some(closure_id));
+            self.context.insert_symbol(&"this".to_string(), Value::Nil);
+            closure_id = self.context.next_id - 1;
+        }
 
-            self.context.insert_symbol (
-                &id.lexeme,
-                Value::Function (
-                    Function {
-                        pars: pars.clone(),
-                        body: *body.clone(),
-                        closure_id
-                    }
-                )
-            );
-
-            self.context.push_new_environment_auto();
-
-            for i in 0..pars.len() {
-                self.context.insert_symbol (
-                    &pars[i].lexeme,
-                    Value::Nil
-                );
-            }
-
-            if let Statement::Block ( Block { statements } ) = body.as_mut() {
-                for ref mut statement in statements {
-                    self.visit_statement(statement);
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Function (
+                Function {
+                    pars: pars.clone(),
+                    body: *body.clone(),
+                    closure_id
                 }
+            )
+        );
 
-                if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
-                    self.context.pop_environment();
-                }
+        self.context.push_new_environment_auto();
 
-            }
-            else {
-                panic!("Expected block statement");
-            }
-
-            self.context.pop_environment();
-        }
-        else {
-            panic!();
-        }
-
-    }
-
-    pub fn visit_class_declaration_statement(self: &mut Self, statement: &mut Statement) {
-
-        if let Statement::ClassDeclaration ( ClassDeclaration { id, method_decls, super_class } ) = statement {
-
-            if let Some ( statement::Expression { expr } ) = super_class {
-                self.visit_variable(expr);
-            }
-
-            self.class_context_stack.push(ClassContext::Class);
-
+        for i in 0..pars.len() {
             self.context.insert_symbol (
-                &id.lexeme,
+                &pars[i].lexeme,
                 Value::Nil
             );
+        }
 
-            if let Some(..) = super_class {
-                self.context.push_new_environment_auto();
-                self.context.insert_symbol(&"super".to_string(), Value::Nil);
+        if let Statement::Block ( Block { statements } ) = body.as_mut() {
+            for ref mut statement in statements {
+                self.visit_statement(statement);
             }
 
-            for method_decl in method_decls {
-                if let Statement::FunctionDeclaration ( FunctionDeclaration { id, .. } ) = method_decl {
-                    if id.lexeme == "init" {
-                        self.function_context_stack.push(FunctionContext::Initializer);
-                    }
-                    else {
-                        self.function_context_stack.push(FunctionContext::Method);
-                    }
-                    self.visit_function_declaration_statement(method_decl);
-                    self.function_context_stack.pop();
-                }
-                else {
-                    panic!("Expected function declaration statement");
-                }
-            }
-
-            if let Some(..) = super_class {
+            if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
                 self.context.pop_environment();
             }
 
-            self.class_context_stack.pop();
         }
         else {
-            panic!();
+            panic!("Expected block statement");
         }
 
+        self.context.pop_environment();
     }
 
-    pub fn visit_variable_declaration_statement(self: &mut Self, statement: &mut Statement) {
 
-        if let Statement::VariableDeclaration ( VariableDeclaration { id, init } ) = statement {
+    pub fn visit_class_declaration_statement(self: &mut Self, stmt: &mut statement::ClassDeclaration) {
 
-            if let Some ( statement::Expression { expr } ) = init {
-                self.visit_expression(expr);
-            }
+        let ClassDeclaration { id, method_decls, super_class } = stmt;
 
-            self.context.insert_symbol(&id.lexeme, Value::Nil);
-        }
-        else {
-            panic!();
+        if let Some ( statement::Expression { expr } ) = super_class {
+            self.visit_variable(expr);
         }
 
-    }
+        self.class_context_stack.push(ClassContext::Class);
 
-    pub fn visit_block_statement(self: &mut Self, statement: &mut Statement) {
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Nil
+        );
 
-        if let Statement::Block ( Block { statements } ) = statement {
+        if let Some(..) = super_class {
             self.context.push_new_environment_auto();
-            for statement in statements {
-                self.visit_statement(statement);
+            self.context.insert_symbol(&"super".to_string(), Value::Nil);
+        }
+
+        for method_decl in method_decls {
+            let FunctionDeclaration { id, .. } = method_decl;
+            if id.lexeme == "init" {
+                self.function_context_stack.push(FunctionContext::Initializer);
             }
+            else {
+                self.function_context_stack.push(FunctionContext::Method);
+            }
+            self.visit_function_declaration_statement(method_decl);
+            self.function_context_stack.pop();
+        }
+
+        if let Some(..) = super_class {
             self.context.pop_environment();
         }
-        else {
-            panic!();
+
+        self.class_context_stack.pop();
+
+    }
+
+    pub fn visit_variable_declaration_statement(self: &mut Self, stmt: &mut statement::VariableDeclaration) {
+
+        let VariableDeclaration { id, init } = stmt;
+
+        if let Some ( statement::Expression { expr } ) = init {
+            self.visit_expression(expr);
         }
+
+        self.context.insert_symbol(&id.lexeme, Value::Nil);
+    }
+
+    pub fn visit_block_statement(self: &mut Self, stmt: &mut statement::Block) {
+
+        let Block { statements } = stmt;
+        self.context.push_new_environment_auto();
+        for statement in statements {
+            self.visit_statement(statement);
+        }
+        self.context.pop_environment();
     }
 
     pub fn visit(self: &mut Self, statements: &mut Vec<Statement>) {

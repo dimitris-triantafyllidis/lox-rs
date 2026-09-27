@@ -607,7 +607,7 @@ impl Interpreter {
 
     pub fn execute_print_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
-        if let Statement::Print ( Print { expr: statement::Expression { expr } } ) = statement {
+        if let Statement::Print ( Print { expr } ) = statement {
 
             let expr_result = self.evaluate_expression(expr);
 
@@ -791,18 +791,17 @@ impl Interpreter {
             let mut class_method_map = HashMap::<Token, Value>::new();
 
             for method_decl in method_decls {
-                if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = method_decl {
-                    class_method_map.insert (
-                        id.clone(),
-                        Value::Function (
-                            Function {
-                                pars: pars.clone(),
-                                body: *body.clone(),
-                                closure_id: self.context.get_current_environment_id()
-                            }
-                        )
-                    );
-                }
+                let FunctionDeclaration { id, pars, body } = method_decl;
+                class_method_map.insert (
+                    id.clone(),
+                    Value::Function (
+                        Function {
+                            pars: pars.clone(),
+                            body: *body.clone(),
+                            closure_id: self.context.get_current_environment_id()
+                        }
+                    )
+                );
             }
 
             if let Some(..) = super_class {

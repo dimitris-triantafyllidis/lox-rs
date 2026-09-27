@@ -18,26 +18,26 @@ pub mod expression {
     #[derive(Debug, Clone, PartialEq)]
     pub struct UnaryOperation {
         pub operator: Token,
-        pub right:    Box<Expression>
+        pub right: Box<Expression>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct BinaryOperation {
         pub operator: Token,
-        pub left:     Box<Expression>,
-        pub right:    Box<Expression>
+        pub left: Box<Expression>,
+        pub right: Box<Expression>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct LogicalOr {
-        pub left:     Box<Expression>,
-        pub right:    Box<Expression>
+        pub left: Box<Expression>,
+        pub right: Box<Expression>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct LogicalAnd {
-        pub left:     Box<Expression>,
-        pub right:    Box<Expression>
+        pub left: Box<Expression>,
+        pub right: Box<Expression>
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -62,7 +62,7 @@ pub mod expression {
     pub struct Set {
         pub instance: Box<Expression>,
         pub property: Token,
-        pub value:    Box<Expression>
+        pub value: Box<Expression>
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -100,7 +100,7 @@ use expression::*;
 
 pub mod statement {
 
-    use crate::lexer::*;
+    use crate::{lexer::*, parser::statement};
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct Expression {
@@ -130,7 +130,7 @@ pub mod statement {
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct Print {
-        pub expr: Expression
+        pub expr: super::expression::Expression
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -148,7 +148,7 @@ pub mod statement {
     #[derive(Debug, PartialEq, Clone)]
     pub struct ClassDeclaration {
         pub id: Token,
-        pub method_decls: Vec<Statement>,
+        pub method_decls: Vec<statement::FunctionDeclaration>,
         pub super_class: Option<Expression>
     }
 
@@ -325,7 +325,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
 
         if tokens[cursor].kind == TokenKind::LeftBrace {
 
-            let mut methods = Vec::<Statement>::new();
+            let mut methods = Vec::<statement::FunctionDeclaration>::new();
             cursor += 1;
 
             loop {
@@ -344,7 +344,10 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                 else {
                     let method: Statement;
                     (method, cursor) = parse_function_declaration(tokens, cursor);
-                    methods.push(method);
+
+                    if let Statement::FunctionDeclaration (m) = method {
+                        methods.push(m);
+                    }
                 }
             }
         }
@@ -570,7 +573,7 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Print ( Print { expr: statement::Expression { expr } } ),
+            Statement::Print ( Print { expr } ),
             cursor + 1
         );
     } else {
