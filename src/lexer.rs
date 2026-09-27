@@ -253,8 +253,7 @@ pub fn lexer_scan(s: &String) -> Vec<Token> {
         }
         else
         {
-            eprintln!("lexical error: unrecognizable token at character {}", cursor);
-            break;
+            panic!("Lexical error in line {}: Unrecognizable token", line_number);
         }
 
     }

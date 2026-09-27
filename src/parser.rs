@@ -242,7 +242,7 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                         cursor += 1;
                     }
                     else {
-                        panic!("Expected identifier");
+                        panic!("Syntax error in line {}: Expected identifier", tokens[cursor].line_number);
                     }
                     if tokens[cursor].kind == TokenKind::Comma {
                         cursor += 1;
@@ -252,11 +252,11 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                         break;
                     }
                     else {
-                        panic!("Expected ')' or ','");
+                        panic!("Syntax error in line {}: Expected ')' or ','", tokens[cursor].line_number);
                     }
                 }
                 else {
-                    panic!("Can't have more than 255 arguments in a function call");
+                    panic!("Syntax error in line {}: Can't have more than 255 arguments in a function call", tokens[cursor].line_number);
                 }
             }
 
@@ -275,15 +275,15 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                 )
             }
             else {
-                panic!("Expected '{{'");
+                panic!("Syntax error in line {}: Expected '{{'", tokens[cursor].line_number);
             }
         }
         else {
-            panic!("Expected '('");
+            panic!("Syntax error in line {}: Expected '('", tokens[cursor].line_number);
         }
     }
     else {
-        panic!("Expected identifier");
+        panic!("Syntax error in line {}: Expected identifier", tokens[cursor].line_number);
     }
 
 }
@@ -303,7 +303,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
             cursor += 1;
             if tokens[cursor].kind == TokenKind::Identifier {
                 if tokens[cursor] == identifier {
-                    panic!("Super class cannot be the same as the inheriting class");
+                    panic!("Syntax error in line {}: Super class cannot be the same as the inheriting class", tokens[cursor].line_number);
                 }
                 super_class = Some (
                     expression::Expression::Variable (
@@ -316,7 +316,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
                 cursor += 1;
             }
             else {
-                panic!("Expected super class identifier after '<' in class declaration");
+                panic!("Syntax error in line {}: Expected super class identifier after '<' in class declaration", tokens[cursor].line_number);
             }
         }
         else {
@@ -352,11 +352,11 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
             }
         }
         else {
-            panic!("Expected '{{'")
+            panic!("Syntax error in line {}: Expected '{{'", tokens[cursor].line_number);
         }
     }
     else {
-        panic!("Expected identifier");
+        panic!("Syntax error in line {}: Expected identifier", tokens[cursor].line_number);
     }
 
 }
@@ -379,7 +379,7 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                 );
             }
             else {
-                panic!("Expected ';'");
+                panic!("Syntax error in line {}: Expected ';'", tokens[cursor].line_number);
             }
         }
         else {
@@ -390,12 +390,12 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
                 );
             }
             else {
-                panic!("Expected ';'");
+                panic!("Syntax error in line {}: Expected ';'", tokens[cursor].line_number);
             }
         }
     }
     else {
-        panic!("Expected identifier");
+        panic!("Syntax error in line {}: Expected identifier", tokens[cursor].line_number);
     }
 
 }
@@ -430,7 +430,7 @@ pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     let mut cursor = cursor;
 
     if tokens[cursor].kind != TokenKind::LeftParenthesis {
-        panic!("Expected '('");
+        panic!("Syntax error in line {}: Expected '('", tokens[cursor].line_number);
     }
 
     cursor += 1;
@@ -438,7 +438,7 @@ pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
 
     if tokens[cursor].kind != TokenKind::RightParenthesis {
-        panic!("Expected ')'");
+        panic!("Syntax error in line {}: Expected ')'", tokens[cursor].line_number);
     }
 
     cursor += 1;
@@ -466,7 +466,7 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
     let body_statement: Box<Statement>;
 
     if tokens[cursor].kind != TokenKind::LeftParenthesis {
-        panic!("Expected '('");
+        panic!("Syntax error in line {}: Expected '('", tokens[cursor].line_number);
     }
 
     cursor += 1;
@@ -531,7 +531,7 @@ pub fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statem
             cursor + 1
         );
     } else {
-        panic!("Expected ';'");
+        panic!("Syntax error in line {}: Expected ';'", tokens[cursor].line_number);
     }
 
 }
@@ -549,7 +549,7 @@ pub fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
         }
 
         if tokens[cursor].kind == TokenKind::EOF {
-            panic!("Expected '}}'");
+            panic!("Syntax error in line {}: Expected '}}'", tokens[cursor].line_number);
         }
 
         let statement: Statement;
@@ -577,7 +577,7 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
             cursor + 1
         );
     } else {
-        panic!("Expected ';'");
+        panic!("Syntax error in line {}: Expected ';'", tokens[cursor].line_number);
     }
 
 }
@@ -599,7 +599,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
             cursor + 1
         );
     } else {
-        panic!("Expected ';'");
+        panic!("Syntax error in line {}: Expected ';'", tokens[cursor].line_number);
     }
 
 }
@@ -609,7 +609,7 @@ pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usi
     let mut cursor = cursor;
 
     if tokens[cursor].kind != TokenKind::LeftParenthesis {
-        panic!("Expected '('");
+        panic!("Syntax error in line {}: Expected '('", tokens[cursor].line_number);
     }
 
     cursor += 1;
@@ -617,7 +617,7 @@ pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usi
     let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
 
     if tokens[cursor].kind != TokenKind::RightParenthesis {
-        panic!("Expected ')'");
+        panic!("Syntax error in line {}: Expected ')'", tokens[cursor].line_number);
     }
 
     cursor += 1;
@@ -696,7 +696,7 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( expression::Exp
                 );
             }
             _ => {
-                panic!("Invalid assignment target");
+                panic!("Syntax error in line {}: Invalid assignment target", tokens[cursor].line_number);
             }
         }
     }
@@ -933,11 +933,11 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expressio
                         break;
                     }
                     else {
-                        panic!("Expected ')' or ','");
+                        panic!("Syntax error in line {}: Expected ')' or ','", tokens[cursor].line_number);
                     }
                 }
                 else {
-                    panic!("Can't have more than 255 arguments in a function call");
+                    panic!("Syntax error in line {}: Can't have more than 255 arguments in a function call", tokens[cursor].line_number);
                 }
             }
         }
@@ -954,7 +954,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expressio
                 )
             }
             else {
-                panic!("Expected property name after '.'.");
+                panic!("Syntax error in line {}: Expected property name after '.'", tokens[cursor].line_number);
             }
         }
         else {
@@ -999,7 +999,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Ex
             cursor += 1;
         }
         else {
-            panic!("Expected '.' after 'super'");
+            panic!("Syntax error in line {}: Expected '.' after 'super'", tokens[cursor].line_number);
         }
 
         if tokens[cursor].kind == TokenKind::Identifier {
@@ -1014,7 +1014,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Ex
             );
         }
         else {
-            panic!("Expected property name after 'super.'");
+            panic!("Syntax error in line {}: Expected property name after 'super.'", tokens[cursor].line_number);
         }
 
     }
@@ -1038,7 +1038,7 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Ex
         cursor = new_cursor;
 
         if tokens[cursor].kind != TokenKind::RightParenthesis {
-            panic!("Expected ')'");
+            panic!("Syntax error in line {}: Expected ')'", tokens[cursor].line_number);
         }
 
         cursor += 1;
@@ -1046,5 +1046,5 @@ pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Ex
         return ( expression::Expression::Parentheses ( Parentheses { expression: Box::<expression::Expression>::new(expr) } ), cursor);
     }
 
-    panic!("Expected expression");
+    panic!("Syntax error in line {}: Expected expression", tokens[cursor].line_number);
 }
