@@ -91,19 +91,21 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_literal(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_literal(self: &mut Self, expr: &expression::Literal) -> NodeResult {
 
-        match expr {
-            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Nil => {
+        let Literal { token } = expr;
+
+        match token.kind {
+            TokenKind::Nil => {
                 return NodeResult::new(Value::Nil, Control::Continue);
             },
-            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::False => {
+            TokenKind::False => {
                 return NodeResult::new(Value::Boolean(false), Control::Continue);
             },
-            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::True  => {
+            TokenKind::True  => {
                 return NodeResult::new(Value::Boolean(true), Control::Continue);
             },
-            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::Number => {
+            TokenKind::Number => {
                 return NodeResult::new (
                     Value::Number (
                         token.lexeme.parse().unwrap()
@@ -111,7 +113,7 @@ impl Interpreter {
                     Control::Continue
                 )
             },
-            expression::Expression::Literal ( Literal { token } ) if token.kind == TokenKind::String => {
+            TokenKind::String => {
                 return NodeResult::new (
                     Value::String (
                         token.lexeme[1..token.lexeme.len() - 1].to_string()
@@ -123,103 +125,80 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_variable(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_variable(self: &mut Self, expr: &expression::Variable) -> NodeResult {
 
-        match expr {
-            expression::Expression::Variable ( Variable { identifier: id, lookup_hop_count: hop_count } ) => {
-                let mut hop_count_mut_copy = *hop_count;
-                NodeResult::new (
-                    self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
-                    Control::Continue
-                )
-            },
-            _ => {
-                panic!()
-            }
-        }
+        let Variable { identifier: id, lookup_hop_count: hop_count } = expr;
+        let mut hop_count_mut_copy = *hop_count;
+        NodeResult::new (
+            self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
+            Control::Continue
+        )
     }
 
-    pub fn evaluate_this(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_this(self: &mut Self) -> NodeResult {
 
-        match expr {
-            expression::Expression::This => {
-                NodeResult::new (
-                    self.context.get_symbol_value(&"this".to_string(), &mut None).clone(),
-                    Control::Continue
-                )
-            },
-            _ => {
-                panic!()
-            }
-        }
+        NodeResult::new (
+            self.context.get_symbol_value(&"this".to_string(), &mut None).clone(),
+            Control::Continue
+        )
+
     }
 
-    pub fn evaluate_super(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_super(self: &mut Self, expr: &expression::Super) -> NodeResult {
 
-        match expr {
+        let Super { property, lookup_hop_count } = expr;
 
-            expression::Expression::Super ( expression::Super { property, lookup_hop_count } ) => {
+        let mut hop_count_mut_copy = *lookup_hop_count;
+        let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
+        let mut value: Value;
 
-                let mut hop_count_mut_copy = *lookup_hop_count;
-                let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
-                let mut value: Value;
-
-                let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&"super".to_string(), &mut hop_count_mut_copy).clone()));
-                while let Some(box_value) = method_lookup_class.clone() {
-                    if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
-                        if methods.contains_key(&property) {
-                            value = methods.get(&property).unwrap().clone();
-                            if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
-                                self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol(&"this".to_string(), instance_value.clone());
-                                *closure_id = self.context.next_id - 1;
-                                self.context.pop_environment();
-                                return NodeResult { value, control: Control::Continue };
-                            }
-                            else {
-                                panic!("Expected function value");
-                            }
-                        }
-                        else {
-                            method_lookup_class = super_class.clone();
-                            continue;
-                        }
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&"super".to_string(), &mut hop_count_mut_copy).clone()));
+        while let Some(box_value) = method_lookup_class.clone() {
+            if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
+                if methods.contains_key(&property) {
+                    value = methods.get(&property).unwrap().clone();
+                    if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
+                        self.context.push_new_environment(Some(*closure_id));
+                        self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                        *closure_id = self.context.next_id - 1;
+                        self.context.pop_environment();
+                        return NodeResult { value, control: Control::Continue };
                     }
                     else {
-                        panic!("Expected class value");
+                        panic!("Expected function value");
                     }
                 }
-                panic!("Undefined property");
-            },
-            _ => {
-                panic!();
-            }
-        }
-    }
-
-    pub fn evaluate_set(self: &mut Self, expr: &expression::Expression) -> NodeResult {
-
-        if let expression::Expression::Set ( Set { instance, property, value } ) = expr {
-
-            let instance = self.evaluate_expression(instance.as_ref()).value;
-            let value = self.evaluate_expression(value).value;
-
-            if let Value::Instance ( instance ) = instance {
-                let mut instance = instance.borrow_mut();
-                instance.properties.insert(property.clone(), value.clone());
-                return NodeResult::new (
-                    value.clone(),
-                    Control::Continue
-                );
+                else {
+                    method_lookup_class = super_class.clone();
+                    continue;
+                }
             }
             else {
-                panic!("Expected instance value");
+                panic!("Expected class value");
             }
+        }
+        panic!("Undefined property");
+    }
 
+    pub fn evaluate_set(self: &mut Self, expr: &expression::Set) -> NodeResult {
+
+        let Set { instance, property, value } = expr;
+
+        let instance = self.evaluate_expression(instance.as_ref()).value;
+        let value = self.evaluate_expression(value).value;
+
+        if let Value::Instance ( instance ) = instance {
+            let mut instance = instance.borrow_mut();
+            instance.properties.insert(property.clone(), value.clone());
+            return NodeResult::new (
+                value.clone(),
+                Control::Continue
+            );
         }
         else {
-            panic!("Expected set expression");
+            panic!("Expected instance value");
         }
+
     }
 
     pub fn evaluate_get_internal(self: &mut Self, instance_value: &Value, property: &Token) -> Value {
@@ -266,167 +245,138 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_get(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_get(self: &mut Self, expr: &expression::Get) -> NodeResult {
 
-        if let expression::Expression::Get ( Get { instance, property } ) = expr {
-            let instance_value = self.evaluate_expression(instance.as_ref()).value;
-            return NodeResult::new (
-                self.evaluate_get_internal(&instance_value, property),
-                Control::Continue
-            );
-        }
-        else {
-            panic!("Expected get expression");
-        }
+        let Get { instance, property } = expr;
+        let instance_value = self.evaluate_expression(instance.as_ref()).value;
+        return NodeResult::new (
+            self.evaluate_get_internal(&instance_value, property),
+            Control::Continue
+        );
     }
 
-    pub fn evaluate_unary(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_unary(self: &mut Self, expr: &expression::UnaryOperation) -> NodeResult {
 
-        if let expression::Expression::UnaryOperation ( UnaryOperation { operator: op, right: rhs } ) = expr {
-            let rhs_result = self.evaluate_expression(rhs);
-            match rhs_result.value {
-                Value::Number (v) if op.kind == TokenKind::Minus => {
-                    return NodeResult::new (
-                        Value::Number (-v),
-                        Control::Continue
-                    )
-                }
-                _ if op.kind == TokenKind::Bang => {
-                    return NodeResult::new (
-                        Value::Boolean (!is_truthy(&rhs_result.value)),
-                        Control::Continue
-                    )
-                }
+        let expression::UnaryOperation { operator: op, right: rhs } = expr;
+        let rhs_result = self.evaluate_expression(rhs);
+        match rhs_result.value {
+            Value::Number (v) if op.kind == TokenKind::Minus => {
+                return NodeResult::new (
+                    Value::Number (-v),
+                    Control::Continue
+                )
+            }
+            _ if op.kind == TokenKind::Bang => {
+                return NodeResult::new (
+                    Value::Boolean (!is_truthy(&rhs_result.value)),
+                    Control::Continue
+                )
+            }
+            _ => panic!()
+        }
+
+    }
+
+    pub fn evaluate_parentheses(self: &mut Self, expr: &expression::Parentheses) -> NodeResult {
+
+        let expression::Parentheses { expression: e } = expr;
+        let expression_result = self.evaluate_expression(e);
+        return NodeResult::new (
+            expression_result.value,
+            Control::Continue
+        )
+
+    }
+
+    pub fn evaluate_assignment(self: &mut Self, expr: &expression::Assignment) -> NodeResult {
+
+        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
+        let rhs_result = self.evaluate_expression(rhs);
+        let mut hop_count_mut_copy = *hop_count;
+        self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut hop_count_mut_copy);
+        return NodeResult::new (
+            rhs_result.value,
+            Control::Continue
+        )
+
+    }
+
+    pub fn evaluate_binary(self: &mut Self, expr: &expression::BinaryOperation) -> NodeResult {
+
+        let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
+
+        let lhs_value = self.evaluate_expression(lhs).value;
+        let rhs_value = self.evaluate_expression(rhs).value;
+
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+            match op.kind {
+                TokenKind::Plus         => { return NodeResult::new ( Value::Number ( vl + vr),   Control::Continue ) },
+                TokenKind::Minus        => { return NodeResult::new ( Value::Number ( vl - vr),   Control::Continue ) },
+                TokenKind::Star         => { return NodeResult::new ( Value::Number ( vl * vr),   Control::Continue ) },
+                TokenKind::Slash        => { return NodeResult::new ( Value::Number ( vl / vr),   Control::Continue ) },
+                TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean ( vl == vr), Control::Continue ) },
+                TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean ( vl != vr), Control::Continue ) },
+                TokenKind::Less         => { return NodeResult::new ( Value::Boolean ( vl <  vr), Control::Continue ) },
+                TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean ( vl <= vr), Control::Continue ) },
+                TokenKind::Greater      => { return NodeResult::new ( Value::Boolean ( vl >  vr), Control::Continue ) },
+                TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean ( vl >= vr), Control::Continue ) },
                 _ => panic!()
             }
         }
 
-        panic!()
-
-    }
-
-    pub fn evaluate_parentheses(self: &mut Self, expr: &expression::Expression) -> NodeResult {
-
-        if let expression::Expression::Parentheses ( expression::Parentheses { expression: e } ) = expr {
-            let expression_result = self.evaluate_expression(e);
-            return NodeResult::new (
-                expression_result.value,
-                Control::Continue
-            )
+        if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+            match op.kind {
+                TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl + &vr.clone()), Control::Continue ) },
+                TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean (vl == vr),         Control::Continue ) },
+                TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean (vl != vr),         Control::Continue ) },
+                TokenKind::Less         => { return NodeResult::new ( Value::Boolean (vl <  vr),         Control::Continue ) },
+                TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean (vl <= vr),         Control::Continue ) },
+                TokenKind::Greater      => { return NodeResult::new ( Value::Boolean (vl >  vr),         Control::Continue ) },
+                TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean (vl >= vr),         Control::Continue ) },
+                _ => panic!()
+            }
         }
 
-        panic!()
+        if op.kind == TokenKind::EqualEqual {
+            return NodeResult::new ( Value::Boolean(lhs_value == rhs_value), Control::Continue );
+        }
 
+        if op.kind == TokenKind::BangEqual {
+            return NodeResult::new ( Value::Boolean(lhs_value != rhs_value), Control::Continue );
+        }
+
+        panic!();
     }
 
-    pub fn evaluate_assignment(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_logical_or(self: &mut Self, expr: &expression::LogicalOr) -> NodeResult {
 
-        match expr {
-            expression::Expression::Assignment (
-                expression::Assignment {
-                    left: lhs,
-                    expression: rhs,
-                    lookup_hop_count: hop_count
-                }
-            ) => {
-                let rhs_result = self.evaluate_expression(rhs);
-                let mut hop_count_mut_copy = *hop_count;
-                self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut hop_count_mut_copy);
-                return NodeResult::new (
-                    rhs_result.value,
-                    Control::Continue
-                )
-            },
-            _ => {
-                panic!()
-            }
+        let LogicalOr { left: lhs, right: rhs } = expr;
+
+        let lhs_result = self.evaluate_expression(lhs);
+
+        if is_truthy(&lhs_result.value) {
+            return NodeResult::new ( lhs_result.value, Control::Continue );
+        }
+        else {
+            let rhs_result = self.evaluate_expression(rhs);
+            return NodeResult::new ( rhs_result.value, Control::Continue );
         }
 
     }
 
-    pub fn evaluate_binary(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_logical_and(self: &mut Self, expr: &expression::LogicalAnd) -> NodeResult {
 
-        if let expression::Expression::BinaryOperation ( expression::BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
+        let LogicalAnd { left: lhs, right: rhs } = expr;
 
-            let lhs_value = self.evaluate_expression(lhs).value;
-            let rhs_value = self.evaluate_expression(rhs).value;
+        let lhs_result = self.evaluate_expression(lhs);
 
-            if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
-                match op.kind {
-                    TokenKind::Plus         => { return NodeResult::new ( Value::Number ( vl + vr),   Control::Continue ) },
-                    TokenKind::Minus        => { return NodeResult::new ( Value::Number ( vl - vr),   Control::Continue ) },
-                    TokenKind::Star         => { return NodeResult::new ( Value::Number ( vl * vr),   Control::Continue ) },
-                    TokenKind::Slash        => { return NodeResult::new ( Value::Number ( vl / vr),   Control::Continue ) },
-                    TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean ( vl == vr), Control::Continue ) },
-                    TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean ( vl != vr), Control::Continue ) },
-                    TokenKind::Less         => { return NodeResult::new ( Value::Boolean ( vl <  vr), Control::Continue ) },
-                    TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean ( vl <= vr), Control::Continue ) },
-                    TokenKind::Greater      => { return NodeResult::new ( Value::Boolean ( vl >  vr), Control::Continue ) },
-                    TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean ( vl >= vr), Control::Continue ) },
-                    _ => panic!()
-                }
-            }
-
-            if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
-                match op.kind {
-                    TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl + &vr.clone()), Control::Continue ) },
-                    TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean (vl == vr),         Control::Continue ) },
-                    TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean (vl != vr),         Control::Continue ) },
-                    TokenKind::Less         => { return NodeResult::new ( Value::Boolean (vl <  vr),         Control::Continue ) },
-                    TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean (vl <= vr),         Control::Continue ) },
-                    TokenKind::Greater      => { return NodeResult::new ( Value::Boolean (vl >  vr),         Control::Continue ) },
-                    TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean (vl >= vr),         Control::Continue ) },
-                    _ => panic!()
-                }
-            }
-
-            if op.kind == TokenKind::EqualEqual {
-                return NodeResult::new ( Value::Boolean(lhs_value == rhs_value), Control::Continue );
-            }
-            else if op.kind == TokenKind::BangEqual {
-                return NodeResult::new ( Value::Boolean(lhs_value != rhs_value), Control::Continue );
-            }
+        if !is_truthy(&lhs_result.value) {
+            return NodeResult::new ( lhs_result.value, Control::Continue );
         }
-
-        panic!()
-
-    }
-
-    pub fn evaluate_logical_or(self: &mut Self, expr: &expression::Expression) -> NodeResult {
-
-        if let expression::Expression::LogicalOr ( LogicalOr { left: lhs, right: rhs } ) = expr {
-
-            let lhs_result = self.evaluate_expression(lhs);
-
-            if is_truthy(&lhs_result.value) {
-                return NodeResult::new ( lhs_result.value, Control::Continue );
-            }
-            else {
-                let rhs_result = self.evaluate_expression(rhs);
-                return NodeResult::new ( rhs_result.value, Control::Continue );
-            }
+        else {
+            let rhs_result = self.evaluate_expression(rhs);
+            return NodeResult::new ( rhs_result.value, Control::Continue );
         }
-
-        panic!()
-
-    }
-
-    pub fn evaluate_logical_and(self: &mut Self, expr: &expression::Expression) -> NodeResult {
-
-        if let expression::Expression::LogicalAnd ( LogicalAnd { left: lhs, right: rhs } ) = expr {
-
-            let lhs_result = self.evaluate_expression(lhs);
-
-            if !is_truthy(&lhs_result.value) {
-                return NodeResult::new ( lhs_result.value, Control::Continue );
-            }
-            else {
-                let rhs_result = self.evaluate_expression(rhs);
-                return NodeResult::new ( rhs_result.value, Control::Continue );
-            }
-        }
-
-        panic!()
 
     }
 
@@ -469,90 +419,86 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_call(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_call(self: &mut Self, expr: &expression::Call) -> NodeResult {
 
-        if let expression::Expression::Call ( Call { callee, arguments } ) = expr {
+        let Call { callee, arguments }= expr;
 
-            let callee = self.evaluate_expression(callee).value;
+        let callee = self.evaluate_expression(callee).value;
 
-            if let Value::Function ( Function { ref pars, .. } ) = callee {
-                if pars.len() == arguments.len() {
+        if let Value::Function ( Function { ref pars, .. } ) = callee {
+            if pars.len() == arguments.len() {
 
-                    let mut argument_values = Vec::<Value>::new();
+                let mut argument_values = Vec::<Value>::new();
 
-                    for i in 0..pars.len() {
-                        argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
-                    }
-
-                    return NodeResult::new (
-                        self.evaluate_function_call(callee, &argument_values),
-                        Control::Continue
-                    );
-                }
-                else {
-                    panic!("Wrong number of arguments");
-                }
-            }
-            else if let Value::Class ( Class { ref methods, .. } ) = callee {
-
-                let new_instance =
-                    Value::Instance (
-                        Rc::new (
-                            RefCell::new (
-                                Instance {
-                                    class:      Box::new(callee.clone()),
-                                    properties: HashMap::<Token, Value>::new()
-                                }
-                            )
-                        )
-                    );
-
-                let init_token =
-                    Token {
-                        kind:TokenKind::Identifier,
-                        lexeme: "init".to_string(),
-                        line_number: 0
-                    };
-
-                if methods.keys().any(|token| token.lexeme == "init")  {
-                    let init_bound_function = self.evaluate_get_internal (
-                        &new_instance,
-                        &init_token
-                    );
-
-                    if let Value::Function ( Function { ref pars, .. } ) = init_bound_function {
-                        if pars.len() == arguments.len() {
-
-                            let mut argument_values = Vec::<Value>::new();
-
-                            for i in 0..pars.len() {
-                                argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
-                            }
-
-                            self.evaluate_function_call(init_bound_function, &argument_values);
-                        }
-                        else {
-                            panic!("Wrong number of class arguments");
-                        }
-                    }
-                }
-                else {
-                    if arguments.len() != 0 {
-                        panic!("Cannot pass arguments to class without a user-defined init method");
-                    }
+                for i in 0..pars.len() {
+                    argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
                 }
 
                 return NodeResult::new (
-                    new_instance,
+                    self.evaluate_function_call(callee, &argument_values),
                     Control::Continue
-                )
+                );
             }
             else {
-                panic!("Expected function value or class value");
+                panic!("Wrong number of arguments");
             }
         }
+        else if let Value::Class ( Class { ref methods, .. } ) = callee {
+
+            let new_instance =
+                Value::Instance (
+                    Rc::new (
+                        RefCell::new (
+                            Instance {
+                                class:      Box::new(callee.clone()),
+                                properties: HashMap::<Token, Value>::new()
+                            }
+                        )
+                    )
+                );
+
+            let init_token =
+                Token {
+                    kind:TokenKind::Identifier,
+                    lexeme: "init".to_string(),
+                    line_number: 0
+                };
+
+            if methods.keys().any(|token| token.lexeme == "init")  {
+                let init_bound_function = self.evaluate_get_internal (
+                    &new_instance,
+                    &init_token
+                );
+
+                if let Value::Function ( Function { ref pars, .. } ) = init_bound_function {
+                    if pars.len() == arguments.len() {
+
+                        let mut argument_values = Vec::<Value>::new();
+
+                        for i in 0..pars.len() {
+                            argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
+                        }
+
+                        self.evaluate_function_call(init_bound_function, &argument_values);
+                    }
+                    else {
+                        panic!("Wrong number of class arguments");
+                    }
+                }
+            }
+            else {
+                if arguments.len() != 0 {
+                    panic!("Cannot pass arguments to class without a user-defined init method");
+                }
+            }
+
+            return NodeResult::new (
+                new_instance,
+                Control::Continue
+            )
+        }
         else {
-            panic!("Expected call expression")
+            panic!("Expected function value or class value");
         }
 
     }
@@ -560,19 +506,19 @@ impl Interpreter {
     pub fn evaluate_expression(self: &mut Self, expr: &expression::Expression) -> NodeResult {
 
         match expr {
-            expression::Expression::Literal         {..} => return self.evaluate_literal(expr),
-            expression::Expression::UnaryOperation  {..} => return self.evaluate_unary(expr),
-            expression::Expression::BinaryOperation {..} => return self.evaluate_binary(expr),
-            expression::Expression::Parentheses     {..} => return self.evaluate_parentheses(expr),
-            expression::Expression::Variable        {..} => return self.evaluate_variable(expr),
-            expression::Expression::This            {..} => return self.evaluate_this(expr),
-            expression::Expression::Assignment      {..} => return self.evaluate_assignment(expr),
-            expression::Expression::LogicalOr       {..} => return self.evaluate_logical_or(expr),
-            expression::Expression::LogicalAnd      {..} => return self.evaluate_logical_and(expr),
-            expression::Expression::Call            {..} => return self.evaluate_call(expr),
-            expression::Expression::Get             {..} => return self.evaluate_get(expr),
-            expression::Expression::Set             {..} => return self.evaluate_set(expr),
-            expression::Expression::Super           {..} => return self.evaluate_super(expr),
+            expression::Expression::Literal         (expr) => return self.evaluate_literal(expr),
+            expression::Expression::UnaryOperation  (expr) => return self.evaluate_unary(expr),
+            expression::Expression::BinaryOperation (expr) => return self.evaluate_binary(expr),
+            expression::Expression::Parentheses     (expr) => return self.evaluate_parentheses(expr),
+            expression::Expression::Variable        (expr) => return self.evaluate_variable(expr),
+            expression::Expression::This                   => return self.evaluate_this(),
+            expression::Expression::Assignment      (expr) => return self.evaluate_assignment(expr),
+            expression::Expression::LogicalOr       (expr) => return self.evaluate_logical_or(expr),
+            expression::Expression::LogicalAnd      (expr) => return self.evaluate_logical_and(expr),
+            expression::Expression::Call            (expr) => return self.evaluate_call(expr),
+            expression::Expression::Get             (expr) => return self.evaluate_get(expr),
+            expression::Expression::Set             (expr) => return self.evaluate_set(expr),
+            expression::Expression::Super           (expr) => return self.evaluate_super(expr),
         }
 
     }
@@ -773,7 +719,13 @@ impl Interpreter {
             let super_class_result: Option<Box<Value>>;
 
             if let Some ( statement::Expression { expr } ) = super_class {
-                let super_class_value = self.evaluate_variable(expr).value;
+                let super_class_value: Value;
+                if let expression::Expression::Variable(expr) = expr {
+                    super_class_value = self.evaluate_variable(expr).value;
+                }
+                else {
+                    panic!()
+                }
                 if let Value::Class {..} = super_class_value {
                     super_class_result = Some(Box::new(super_class_value.clone()));
                     self.context.push_new_environment_auto();

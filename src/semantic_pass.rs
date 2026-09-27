@@ -161,7 +161,7 @@ impl SemanticPass {
             expression::Expression::BinaryOperation (expr) => self.visit_binary(expr),
             expression::Expression::Parentheses     (expr) => self.visit_parentheses(expr),
             expression::Expression::Variable        (expr) => self.visit_variable(expr),
-            expression::Expression::This            {..} => self.visit_this(),
+            expression::Expression::This                   => self.visit_this(),
             expression::Expression::Assignment      (expr) => self.visit_assignment(expr),
             expression::Expression::LogicalOr       (expr) => self.visit_logical_or(expr),
             expression::Expression::LogicalAnd      (expr) => self.visit_logical_and(expr),
@@ -324,6 +324,9 @@ impl SemanticPass {
         if let Some ( statement::Expression { expr } ) = super_class {
             if let expression::Expression::Variable(expr) = expr {
                 self.visit_variable(expr);
+            }
+            else {
+                panic!("Expected variable expression");
             }
         }
 
