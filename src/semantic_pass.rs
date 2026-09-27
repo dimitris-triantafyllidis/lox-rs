@@ -1,4 +1,5 @@
 use crate::lexer::*;
+use crate::parser::statement::Expression;
 use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
@@ -41,216 +42,133 @@ impl SemanticPass {
         }
     }
 
-    pub fn visit_literal(self: &mut Self, expr: &mut expression::Expression) {
+    pub fn visit_literal(self: &mut Self, _: &mut expression::Literal) { }
 
-        match expr {
-            expression::Expression::Literal {..} => { },
+    pub fn visit_variable(self: &mut Self, expr: &mut expression::Variable) {
+
+        let Variable { identifier: id, lookup_hop_count: hop_count } = expr;
+        if !hop_count.is_none() {
+            panic!();
+        }
+        self.context.get_symbol_value(&id.lexeme, hop_count);
+    }
+
+    pub fn visit_this(self: &Self) {
+        if self.class_context_stack.is_empty() {
+            panic!("Unexpected 'this' outside a class context");
+        }
+        else {
+            self.context.get_symbol_value(&"this".to_string(), &mut None);
+        }
+    }
+
+    pub fn visit_super(self: &Self, expr: &mut expression::Super) {
+
+        let expression::Super { lookup_hop_count: hop_count, .. } = expr;
+        if !hop_count.is_none() {
+            panic!();
+        }
+        self.context.get_symbol_value(&"super".to_string(), &mut None);
+    }
+
+    pub fn visit_unary(self: &mut Self, expr: &mut expression::UnaryOperation) {
+
+        let expression::UnaryOperation { operator: _, right: rhs } = expr;
+        self.visit_expression(rhs);
+
+    }
+
+    pub fn visit_parentheses(self: &mut Self, expr: &mut expression::Parentheses) {
+
+        let expression::Parentheses { expression: e } = expr;
+        self.visit_expression(e);
+
+    }
+
+    pub fn visit_get(self: &mut Self, expr: &mut expression::Get) {
+
+        let expression::Get { instance, .. } = expr;
+        self.visit_expression(instance);
+    }
+
+    pub fn visit_set(self: &mut Self, expr: &mut expression::Set) {
+
+        let expression::Set { instance, value, .. } = expr;
+        self.visit_expression(instance);
+        self.visit_expression(value);
+    }
+
+    pub fn visit_assignment(self: &mut Self, expr: &mut expression::Assignment) {
+
+        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
+        self.visit_expression(rhs);
+        self.context.set_symbol_value(&lhs.lexeme, Value::Nil, hop_count);
+    }
+
+    pub fn visit_binary(self: &mut Self, expr: &mut expression::BinaryOperation) {
+
+        let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
+
+        self.visit_expression(lhs);
+        self.visit_expression(rhs);
+
+        match op.kind {
+            TokenKind::Plus         => { },
+            TokenKind::Minus        => { },
+            TokenKind::Star         => { },
+            TokenKind::Slash        => { },
+            TokenKind::EqualEqual   => { },
+            TokenKind::BangEqual    => { },
+            TokenKind::Less         => { },
+            TokenKind::LessEqual    => { },
+            TokenKind::Greater      => { },
+            TokenKind::GreaterEqual => { },
             _ => panic!()
         }
-    }
-
-    pub fn visit_variable(self: &mut Self, expr: &mut expression::Expression) {
-
-        match expr {
-            expression::Expression::Variable (
-                Variable {
-                    identifier: id,
-                    lookup_hop_count: hop_count
-                }
-            ) => {
-                if !hop_count.is_none() {
-                    panic!();
-                }
-                self.context.get_symbol_value(&id.lexeme, hop_count);
-            },
-            _ => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn visit_this(self: &Self, expr: &mut expression::Expression) {
-
-        match expr {
-            expression::Expression::This => {
-                if self.class_context_stack.is_empty() {
-                    panic!("Unexpected 'this' outside a class context");
-                }
-                else {
-                    self.context.get_symbol_value(&"this".to_string(), &mut None);
-                }
-            },
-            _ => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn visit_super(self: &Self, expr: &mut expression::Expression) {
-
-        match expr {
-            expression::Expression::Super (
-                expression::Super {
-                    lookup_hop_count: hop_count,
-                    ..
-                }
-            ) => {
-                if !hop_count.is_none() {
-                    panic!();
-                }
-                self.context.get_symbol_value(&"super".to_string(), hop_count);
-            },
-            _ => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn visit_unary(self: &mut Self, expr: &mut expression::Expression) {
-
-        if let expression::Expression::UnaryOperation ( expression::UnaryOperation { operator: _, right: rhs } ) = expr {
-            self.visit_expression(rhs);
-        }
-        else {
-            panic!()
-        }
-    }
-
-    pub fn visit_parentheses(self: &mut Self, expr: &mut expression::Expression) {
-
-        if let expression::Expression::Parentheses ( expression::Parentheses { expression: e } ) = expr {
-            self.visit_expression(e);
-        }
-        else {
-            panic!()
-        }
 
     }
 
-    pub fn visit_get(self: &mut Self, expr: &mut expression::Expression) {
+    pub fn visit_logical_or(self: &mut Self, expr: &mut expression::LogicalOr) {
 
-        match expr {
-            expression::Expression::Get ( expression::Get { instance, .. } ) => {
-                self.visit_expression(instance);
-            },
-            _ => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn visit_set(self: &mut Self, expr: &mut expression::Expression) {
-
-        match expr {
-            expression::Expression::Set ( expression::Set { instance, value, .. } ) => {
-                self.visit_expression(instance);
-                self.visit_expression(value);
-            },
-            _ => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn visit_assignment(self: &mut Self, expr: &mut expression::Expression) {
-
-        match expr {
-            expression::Expression::Assignment (
-                expression::Assignment {
-                    left: lhs,
-                    expression: rhs,
-                    lookup_hop_count: hop_count
-                }
-            ) => {
-                self.visit_expression(rhs);
-                self.context.set_symbol_value(&lhs.lexeme, Value::Nil, hop_count);
-            },
-            _ => {
-                panic!()
-            }
-        }
+        let expression::LogicalOr { left: lhs, right: rhs } = expr;
+        self.visit_expression(lhs);
+        self.visit_expression(rhs);
 
     }
 
-    pub fn visit_binary(self: &mut Self, expr: &mut expression::Expression) {
+    pub fn visit_logical_and(self: &mut Self, expr: &mut expression::LogicalAnd) {
 
-        if let expression::Expression::BinaryOperation ( expression::BinaryOperation { operator: op, left: lhs, right: rhs } ) = expr {
-
-            self.visit_expression(lhs);
-            self.visit_expression(rhs);
-
-            match op.kind {
-                TokenKind::Plus         => { },
-                TokenKind::Minus        => { },
-                TokenKind::Star         => { },
-                TokenKind::Slash        => { },
-                TokenKind::EqualEqual   => { },
-                TokenKind::BangEqual    => { },
-                TokenKind::Less         => { },
-                TokenKind::LessEqual    => { },
-                TokenKind::Greater      => { },
-                TokenKind::GreaterEqual => { },
-                _ => panic!()
-            }
-        }
-        else {
-            panic!()
-        }
+        let expression::LogicalAnd { left: lhs, right: rhs } = expr;
+        self.visit_expression(lhs);
+        self.visit_expression(rhs);
 
     }
 
-    pub fn visit_logical_or(self: &mut Self, expr: &mut expression::Expression) {
+    pub fn visit_call(self: &mut Self, expr: &mut expression::Call) {
 
-        if let expression::Expression::LogicalOr ( expression::LogicalOr { left: lhs, right: rhs } ) = expr {
-
-            self.visit_expression(lhs);
-            self.visit_expression(rhs);
-        }
-        else {
-            panic!()
-        }
-
-    }
-
-    pub fn visit_logical_and(self: &mut Self, expr: &mut expression::Expression) {
-
-        if let expression::Expression::LogicalAnd ( expression::LogicalAnd { left: lhs, right: rhs } ) = expr {
-
-            self.visit_expression(lhs);
-            self.visit_expression(rhs);
-        }
-        else {
-            panic!()
-        }
-
-    }
-
-    pub fn visit_call(self: &mut Self, expr: &mut expression::Expression) {
-
-        if let expression::Expression::Call ( expression::Call { callee, arguments } ) = expr {
-            self.visit_expression(callee);
-            for argument in arguments {
-                self.visit_expression(argument);
-            }
+        let expression::Call { callee, arguments } = expr;
+        self.visit_expression(callee);
+        for argument in arguments {
+            self.visit_expression(argument);
         }
     }
 
     pub fn visit_expression(self: &mut Self, expr: &mut expression::Expression) {
 
         match expr {
-            expression::Expression::Literal         {..} => self.visit_literal(expr),
-            expression::Expression::UnaryOperation  {..} => self.visit_unary(expr),
-            expression::Expression::BinaryOperation {..} => self.visit_binary(expr),
-            expression::Expression::Parentheses     {..} => self.visit_parentheses(expr),
-            expression::Expression::Variable        {..} => self.visit_variable(expr),
-            expression::Expression::This            {..} => self.visit_this(expr),
-            expression::Expression::Assignment      {..} => self.visit_assignment(expr),
-            expression::Expression::LogicalOr       {..} => self.visit_logical_or(expr),
-            expression::Expression::LogicalAnd      {..} => self.visit_logical_and(expr),
-            expression::Expression::Call            {..} => self.visit_call(expr),
-            expression::Expression::Get             {..} => self.visit_get(expr),
-            expression::Expression::Set             {..} => self.visit_set(expr),
-            expression::Expression::Super           {..} => self.visit_super(expr),
+            expression::Expression::Literal         (expr) => self.visit_literal(expr),
+            expression::Expression::UnaryOperation  (expr) => self.visit_unary(expr),
+            expression::Expression::BinaryOperation (expr) => self.visit_binary(expr),
+            expression::Expression::Parentheses     (expr) => self.visit_parentheses(expr),
+            expression::Expression::Variable        (expr) => self.visit_variable(expr),
+            expression::Expression::This            {..} => self.visit_this(),
+            expression::Expression::Assignment      (expr) => self.visit_assignment(expr),
+            expression::Expression::LogicalOr       (expr) => self.visit_logical_or(expr),
+            expression::Expression::LogicalAnd      (expr) => self.visit_logical_and(expr),
+            expression::Expression::Call            (expr) => self.visit_call(expr),
+            expression::Expression::Get             (expr) => self.visit_get(expr),
+            expression::Expression::Set             (expr) => self.visit_set(expr),
+            expression::Expression::Super           (expr) => self.visit_super(expr),
         }
 
     }
@@ -404,7 +322,9 @@ impl SemanticPass {
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
         if let Some ( statement::Expression { expr } ) = super_class {
-            self.visit_variable(expr);
+            if let expression::Expression::Variable(expr) = expr {
+                self.visit_variable(expr);
+            }
         }
 
         self.class_context_stack.push(ClassContext::Class);

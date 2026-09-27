@@ -149,7 +149,7 @@ pub mod statement {
     pub struct ClassDeclaration {
         pub id: Token,
         pub method_decls: Vec<statement::FunctionDeclaration>,
-        pub super_class: Option<Expression>
+        pub super_class: Option<super::statement::Expression>
     }
 
     #[derive(Debug, PartialEq, Clone)]
