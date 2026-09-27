@@ -526,91 +526,118 @@ impl Interpreter {
     pub fn execute_statement(self: &mut Self, statement: &Statement) -> NodeResult {
 
         match statement {
-            Statement::Expression          {..} => return self.execute_expression_statement(statement),
-            Statement::Print               {..} => return self.execute_print_statement(statement),
-            Statement::Return              {..} => return self.execute_return_statement(statement),
-            Statement::While               {..} => return self.execute_while_statement(statement),
-            Statement::For                 {..} => return self.execute_for_statement(statement),
-            Statement::VariableDeclaration {..} => return self.execute_variable_declaration_statement(statement),
-            Statement::FunctionDeclaration {..} => return self.execute_function_declaration_statement(statement),
-            Statement::ClassDeclaration    {..} => return self.execute_class_declaration_statement(statement),
-            Statement::Block               {..} => return self.execute_block_statement(statement),
-            Statement::If                  {..} => return self.execute_if_statement(statement),
+            Statement::Expression (stmt)          => return self.execute_expression_statement(stmt),
+            Statement::Print (stmt)               => return self.execute_print_statement(stmt),
+            Statement::Return (stmt)              => return self.execute_return_statement(stmt),
+            Statement::While (stmt)               => return self.execute_while_statement(stmt),
+            Statement::For (stmt)                 => return self.execute_for_statement(stmt),
+            Statement::VariableDeclaration (stmt) => return self.execute_variable_declaration_statement(stmt),
+            Statement::FunctionDeclaration (stmt) => return self.execute_function_declaration_statement(stmt),
+            Statement::ClassDeclaration (stmt)    => return self.execute_class_declaration_statement(stmt),
+            Statement::Block (stmt)               => return self.execute_block_statement(stmt),
+            Statement::If (stmt)                  => return self.execute_if_statement(stmt),
         }
 
     }
 
-    pub fn execute_expression_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_expression_statement(self: &mut Self, stmt: &statement::Expression) -> NodeResult {
 
-        if let Statement::Expression ( statement::Expression { expr } ) = statement {
-            let expr_result = self.evaluate_expression(&expr);
-            return NodeResult::new ( Value::Nil, expr_result.control );
-        }
-
-        panic!();
+        let statement::Expression { expr } = stmt;
+        let expr_result = self.evaluate_expression(&expr);
+        return NodeResult::new ( Value::Nil, expr_result.control );
 
     }
 
-    pub fn execute_print_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_print_statement(self: &mut Self, stmt: &statement::Print) -> NodeResult {
 
-        if let Statement::Print ( Print { expr } ) = statement {
+        let Print { expr } = stmt;
 
-            let expr_result = self.evaluate_expression(expr);
+        let expr_result = self.evaluate_expression(expr);
 
-            match expr_result.value {
-                Value::Boolean(b) => {
-                    println!("{b}");
-                },
-                Value::Number(n) => {
-                    println!("{n}");
-                },
-                Value::Nil => {
-                    println!("nil");
-                },
-                Value::String(s) => {
-                    println!("\"{s}\"");
-                },
-                Value::Function{..} => {
-                    println!("<fn>");
-                },
-                Value::Class{..} => {
-                    println!("<class>")
-                },
-                Value::Instance{..} => {
-                    println!("<instance>")
+        match expr_result.value {
+            Value::Boolean(b) => {
+                println!("{b}");
+            },
+            Value::Number(n) => {
+                println!("{n}");
+            },
+            Value::Nil => {
+                println!("nil");
+            },
+            Value::String(s) => {
+                println!("\"{s}\"");
+            },
+            Value::Function{..} => {
+                println!("<fn>");
+            },
+            Value::Class{..} => {
+                println!("<class>")
+            },
+            Value::Instance{..} => {
+                println!("<instance>")
+            }
+        }
+
+        return NodeResult::new ( Value::Nil, expr_result.control );
+    }
+
+    pub fn execute_return_statement(self: &mut Self, stmt: &statement::Return) -> NodeResult {
+
+        let statement::Return { expr } = stmt;
+
+        match expr {
+            Some ( statement::Expression { expr } ) => {
+                let expr_result = self.evaluate_expression(expr);
+                return NodeResult::new ( expr_result.value, Control::FunctionReturn );
+            },
+            None => {
+                return NodeResult::new ( Value::Nil, Control::FunctionReturn );
+            }
+        }
+    }
+
+    pub fn execute_while_statement(self: &mut Self, stmt: &statement::While) -> NodeResult {
+
+        let While { condition: statement::Expression { expr }, body } = stmt;
+
+        loop {
+            let expr_value = self.evaluate_expression(expr).value;
+            if is_truthy(&expr_value) {
+                let statement_result = self.execute_statement(body);
+                if statement_result.control == Control::FunctionReturn {
+                    return statement_result;
                 }
             }
-
-            return NodeResult::new ( Value::Nil, expr_result.control );
+            else {
+                break;
+            }
         }
 
-        panic!();
-
+        return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_return_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_for_statement(self: &mut Self, stmt: &statement::For) -> NodeResult {
 
-        if let Statement::Return ( Return { expr: Some (statement::Expression { expr }) } ) = statement {
-            let expr_result = self.evaluate_expression(expr);
-            return NodeResult::new ( expr_result.value, Control::FunctionReturn );
+        let For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement
+        } = stmt;
+
+        self.context.push_new_environment_auto();
+
+        if let Some(statement) = initializer_statement {
+            self.execute_statement(statement.as_ref());
         }
-        else if let Statement::Return ( Return { expr: None } ) = statement {
-            return NodeResult::new ( Value::Nil, Control::FunctionReturn );
-        }
 
-        panic!();
-
-    }
-
-    pub fn execute_while_statement(self: &mut Self, statement: &Statement) -> NodeResult {
-
-        if let Statement::While ( While { condition: statement::Expression { expr }, body } ) = statement {
-
-            loop {
+        loop {
+            if let Some(statement::Expression { expr }) = condition_expression {
                 let expr_value = self.evaluate_expression(expr).value;
                 if is_truthy(&expr_value) {
-                    let statement_result = self.execute_statement(body);
+                    let statement_result = self.execute_statement(body_statement);
                     if statement_result.control == Control::FunctionReturn {
+                        self.context.pop_environment();
                         return statement_result;
                     }
                 }
@@ -619,83 +646,83 @@ impl Interpreter {
                 }
             }
 
-            return NodeResult::new ( Value::Nil, Control::Continue );
+            if let Some ( statement::Expression { expr } ) = increment_expression {
+                self.evaluate_expression(expr);
+            }
         }
 
-        panic!();
+        self.context.pop_environment();
+        return NodeResult::new ( Value::Nil, Control::Continue );
 
     }
 
-    pub fn execute_for_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_if_statement(self: &mut Self, stmt: &statement::If) -> NodeResult {
 
-        if let Statement::For (
-            For {
-                init: initializer_statement,
-                cond: condition_expression,
-                incr: increment_expression,
-                body: body_statement
-            }
-        ) = statement {
-
-            self.context.push_new_environment_auto();
-
-            if let Some(statement) = initializer_statement {
-                self.execute_statement(statement.as_ref());
-            }
-
-            loop {
-                if let Some(statement::Expression { expr }) = condition_expression {
-                    let expr_value = self.evaluate_expression(expr).value;
-                    if is_truthy(&expr_value) {
-                        let statement_result = self.execute_statement(body_statement);
-                        if statement_result.control == Control::FunctionReturn {
-                            self.context.pop_environment();
-                            return statement_result;
-                        }
-                    }
-                    else {
-                        break;
-                    }
-                }
-
-                if let Some ( statement::Expression { expr } ) = increment_expression {
-                    self.evaluate_expression(expr);
-                }
-            }
-
-            self.context.pop_environment();
+        let If { condition: statement::Expression { expr }, then_statement, else_statement } = stmt;
+        let condition_expression_value = self.evaluate_expression(expr).value;
+        if is_truthy(&condition_expression_value) {
+            return self.execute_statement(then_statement);
+        }
+        else if let Some(statement) = else_statement {
+            return self.execute_statement(statement);
+        }
+        else {
             return NodeResult::new ( Value::Nil, Control::Continue );
         }
-
-        panic!();
-
     }
 
-    pub fn execute_if_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_function_declaration_statement(self: &mut Self, stmt: &statement::FunctionDeclaration) -> NodeResult {
 
-        if let Statement::If ( If { condition: statement::Expression { expr }, then_statement, else_statement } ) = statement {
-            let condition_expression_value = self.evaluate_expression(expr).value;
-            if is_truthy(&condition_expression_value) {
-                return self.execute_statement(then_statement);
-            }
-            else if let Some(statement) = else_statement {
-                return self.execute_statement(statement);
+        let FunctionDeclaration { id, pars, body } = stmt;
+
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Function (
+                Function {
+                    pars: pars.clone(),
+                    body: *body.clone(),
+                    closure_id: self.context.get_current_environment_id()
+                }
+            )
+        );
+
+        return NodeResult::new ( Value::Nil, Control::Continue );
+    }
+
+    pub fn execute_class_declaration_statement(self: &mut Self, stmt: &statement::ClassDeclaration) -> NodeResult {
+
+        let ClassDeclaration { id, method_decls, super_class } = stmt;
+
+        let super_class_result: Option<Box<Value>>;
+
+        if let Some ( statement::Expression { expr } ) = super_class {
+            let super_class_value: Value;
+            if let expression::Expression::Variable(expr) = expr {
+                super_class_value = self.evaluate_variable(expr).value;
             }
             else {
-                return NodeResult::new ( Value::Nil, Control::Continue );
+                panic!("Expected variable expression");
+            }
+            if let Value::Class {..} = super_class_value {
+                super_class_result = Some(Box::new(super_class_value.clone()));
+                self.context.push_new_environment_auto();
+                self.context.insert_symbol(&"super".to_string(), super_class_value.clone());
+                println!("{:#?}", super_class_value.clone());
+            }
+            else {
+                panic!("Superclass must be a class");
             }
         }
+        else {
+            super_class_result = None;
+        }
 
-        panic!();
+        let mut class_method_map = HashMap::<Token, Value>::new();
 
-    }
-
-    pub fn execute_function_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
-
-        if let Statement::FunctionDeclaration ( FunctionDeclaration { id, pars, body } ) = statement {
-
-            self.context.insert_symbol (
-                &id.lexeme,
+        for method_decl in method_decls {
+            let FunctionDeclaration { id, pars, body } = method_decl;
+            class_method_map.insert (
+                id.clone(),
                 Value::Function (
                     Function {
                         pars: pars.clone(),
@@ -704,113 +731,50 @@ impl Interpreter {
                     }
                 )
             );
-
-            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
-        panic!();
-
-    }
-
-    pub fn execute_class_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
-
-        if let Statement::ClassDeclaration ( ClassDeclaration { id, method_decls, super_class } ) = statement {
-
-            let super_class_result: Option<Box<Value>>;
-
-            if let Some ( statement::Expression { expr } ) = super_class {
-                let super_class_value: Value;
-                if let expression::Expression::Variable(expr) = expr {
-                    super_class_value = self.evaluate_variable(expr).value;
-                }
-                else {
-                    panic!()
-                }
-                if let Value::Class {..} = super_class_value {
-                    super_class_result = Some(Box::new(super_class_value.clone()));
-                    self.context.push_new_environment_auto();
-                    self.context.insert_symbol(&"super".to_string(), super_class_value.clone());
-                    println!("{:#?}", super_class_value.clone());
-                }
-                else {
-                    panic!("Superclass must be a class");
-                }
-            }
-            else {
-                super_class_result = None;
-            }
-
-            let mut class_method_map = HashMap::<Token, Value>::new();
-
-            for method_decl in method_decls {
-                let FunctionDeclaration { id, pars, body } = method_decl;
-                class_method_map.insert (
-                    id.clone(),
-                    Value::Function (
-                        Function {
-                            pars: pars.clone(),
-                            body: *body.clone(),
-                            closure_id: self.context.get_current_environment_id()
-                        }
-                    )
-                );
-            }
-
-            if let Some(..) = super_class {
-                self.context.pop_environment();
-            }
-
-            self.context.insert_symbol (
-                &id.lexeme,
-                Value::Class (
-                    Class {
-                        methods: class_method_map,
-                        super_class: super_class_result
-                    }
-                )
-            );
-
-            return NodeResult::new ( Value::Nil, Control::Continue );
-        }
-
-        panic!();
-
-    }
-
-    pub fn execute_variable_declaration_statement(self: &mut Self, statement: &Statement) -> NodeResult {
-
-        if let Statement::VariableDeclaration ( VariableDeclaration { id, init } ) = statement {
-
-            let expr_value = match init {
-                None => Value::Nil,
-                Some ( statement::Expression { expr } ) => self.evaluate_expression(expr).value
-            };
-
-            self.context.insert_symbol(&id.lexeme, expr_value.clone());
-
-            return NodeResult::new ( Value::Nil, Control::Continue );
-        }
-
-        panic!();
-
-    }
-
-    pub fn execute_block_statement(self: &mut Self, statement: &Statement) -> NodeResult {
-
-        if let Statement::Block ( Block { statements } ) = statement {
-            self.context.push_new_environment_auto();
-            for statement in statements {
-                let statement_result = self.execute_statement(&statement);
-                if statement_result.control == Control::FunctionReturn {
-                    self.context.pop_environment();
-                    return statement_result;
-                }
-            }
+        if let Some(..) = super_class {
             self.context.pop_environment();
-            return NodeResult::new ( Value::Nil, Control::Continue );
         }
 
-        panic!();
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Class (
+                Class {
+                    methods: class_method_map,
+                    super_class: super_class_result
+                }
+            )
+        );
+
+        return NodeResult::new ( Value::Nil, Control::Continue );
+
+    }
+
+    pub fn execute_variable_declaration_statement(self: &mut Self, stmt: &statement::VariableDeclaration) -> NodeResult {
+
+        let VariableDeclaration { id, init } = stmt;
+
+        let expr_value = match init {
+            None => Value::Nil,
+            Some ( statement::Expression { expr } ) => self.evaluate_expression(expr).value
+        };
+
+        self.context.insert_symbol(&id.lexeme, expr_value.clone());
+
+        return NodeResult::new ( Value::Nil, Control::Continue );
+
+    }
+
+    pub fn execute_block_statement(self: &mut Self, stmt: &statement::Block) -> NodeResult {
+
+        let statement_result = self.execute_block_statement(&stmt);
+        if statement_result.control == Control::FunctionReturn {
+            self.context.pop_environment();
+            return statement_result;
+        }
+        self.context.pop_environment();
+        return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
     pub fn execute(self: &mut Self, statements: &Vec<Statement>) {
