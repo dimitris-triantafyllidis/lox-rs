@@ -4,14 +4,16 @@ use crate::interpreter::*;
 
 pub struct Environment {
     pub symbols: HashMap<String, Value>,
-    pub parent_key: Option<usize>
+    pub parent_key: Option<usize>,
+    pub reachable: bool
 }
 
 impl Environment {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
             symbols: HashMap::<String, Value>::new(),
-            parent_key: parent_key
+            parent_key: parent_key,
+            reachable: false
         }
     }
 }
@@ -39,6 +41,11 @@ impl Context {
         );
         self.environment_stack.push(self.next_id);
         self.next_id += 1;
+
+        if self.next_id % 512 == 0 {
+            self.gc_collect();
+        };
+
     }
 
     pub fn push_new_environment_auto(self: &mut Self) {
@@ -48,6 +55,11 @@ impl Context {
         );
         self.environment_stack.push(self.next_id);
         self.next_id += 1;
+
+        if self.next_id % 512 == 0 {
+            self.gc_collect();
+        };
+
     }
 
     pub fn pop_environment(self: &mut Self) {
@@ -156,7 +168,32 @@ impl Context {
             .environment_stack
             .last()
             .expect("Interpreter context is empty");
-
     }
 
+    pub fn gc_collect(self: &mut Self) {
+
+        for (_, env) in &mut self.environments {
+            env.reachable = false;
+        }
+
+        for env_chain_root_id in &mut self.environment_stack {
+
+            let mut env_id = *env_chain_root_id;
+            loop {
+                let env = self.environments.get_mut(&env_id).unwrap();
+                env.reachable = true;
+                match env.parent_key {
+                    Some(key) => { env_id = key; },
+                    None => { break; }
+                }
+            }
+
+        }
+
+        self.environments.retain (
+            |_, env|  {
+                env.reachable
+            }
+        );
+    }
 }
