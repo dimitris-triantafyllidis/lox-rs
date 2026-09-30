@@ -155,7 +155,7 @@ impl Context {
             .get_mut(&id)
             .expect("Environment id does not exist");
 
-        if env.symbols.contains_key(identifier) {
+        if env.symbols.contains_key(identifier) && self.environment_stack.len() > 1 {
             panic!("Symbol already exists");
         }
 

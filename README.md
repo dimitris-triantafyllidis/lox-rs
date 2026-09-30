@@ -2,7 +2,6 @@ The tree-walk interpreter is now finished, and whatever tests I have run produce
 A few things that need to be done:
 
 - Implement clock()
-- Allow redeclarations in the global scope
 - Better error reporting
 - Some actual test suite (integrate the test sets from the book's repository)
 - Better code as I am still pretty new to Rust

@@ -768,13 +768,20 @@ impl Interpreter {
 
     pub fn execute_block_statement(self: &mut Self, stmt: &statement::Block) -> NodeResult {
 
-        let statement_result = self.execute_block_statement(&stmt);
-        if statement_result.control == Control::FunctionReturn {
-            self.context.pop_environment();
-            return statement_result;
+        let Block { statements } = stmt;
+
+        self.context.push_new_environment_auto();
+        for statement in statements {
+            let statement_result = self.execute_statement(statement);
+            if statement_result.control == Control::FunctionReturn {
+                self.context.pop_environment();
+                return statement_result;
+            }
         }
         self.context.pop_environment();
+
         return NodeResult::new ( Value::Nil, Control::Continue );
+
     }
 
     pub fn execute(self: &mut Self, statements: &Vec<Statement>) {
