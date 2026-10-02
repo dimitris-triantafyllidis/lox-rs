@@ -422,8 +422,8 @@ impl Interpreter {
                                 let seconds = SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
                                     .unwrap()
-                                    .as_secs();
-                            return Value::Number(seconds as f64);
+                                    .as_millis();
+                            return Value::Number((seconds as f64) / 1000.0);
                         },
                         NativeFunction::None => {
                             panic!()
