@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -17,10 +19,18 @@ pub struct Instance {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum NativeFunction {
+    None,
+    Clock
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub pars: Vec<Token>,
     pub body: Statement,
-    pub closure_id: usize
+    pub closure_id: usize,
+    pub is_native: bool,
+    pub native_function: NativeFunction
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -85,6 +95,23 @@ impl Interpreter {
 
         let mut context = Context::new();
         context.push_new_environment_auto();
+
+        context.insert_symbol (
+            &"clock".to_string(),
+            Value::Function (
+                Function {
+                    pars: Vec::new(),
+                    body: Statement::Block (
+                        Block {
+                            statements: Vec::new()
+                        }
+                    ),
+                    closure_id: 0,
+                    is_native: true,
+                    native_function: NativeFunction::Clock
+                }
+            )
+        );
 
         Self {
             context
@@ -382,10 +409,27 @@ impl Interpreter {
 
     pub fn evaluate_function_call(self: &mut Self, callee: Value, arguments: &Vec<Value>) -> Value {
 
-        if let Value::Function ( Function { pars, body, closure_id } ) = callee {
+        if let Value::Function ( Function { pars, body, closure_id, is_native, native_function } ) = callee {
+
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(closure_id));
+
+                if is_native {
+                    match native_function {
+                        NativeFunction::Clock => {
+                            self.context.pop_environment();
+                                let seconds = SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs();
+                            return Value::Number(seconds as f64);
+                        },
+                        NativeFunction::None => {
+                            panic!()
+                        }
+                    }
+                }
 
                 for i in 0..pars.len() {
                     self.context.insert_symbol (
@@ -681,7 +725,9 @@ impl Interpreter {
                 Function {
                     pars: pars.clone(),
                     body: *body.clone(),
-                    closure_id: self.context.get_current_environment_id()
+                    closure_id: self.context.get_current_environment_id(),
+                    is_native: false,
+                    native_function: NativeFunction::None,
                 }
             )
         );
@@ -727,7 +773,9 @@ impl Interpreter {
                     Function {
                         pars: pars.clone(),
                         body: *body.clone(),
-                        closure_id: self.context.get_current_environment_id()
+                        closure_id: self.context.get_current_environment_id(),
+                        is_native: false,
+                        native_function: NativeFunction::Clock
                     }
                 )
             );

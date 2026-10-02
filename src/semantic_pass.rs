@@ -1,5 +1,4 @@
 use crate::lexer::*;
-use crate::parser::statement::Expression;
 use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
@@ -32,6 +31,11 @@ impl SemanticPass {
         let mut context = Context::new();
         context.push_new_environment_auto();
 
+        context.insert_symbol (
+            &"clock".to_string(),
+            Value::Nil
+        );
+
         let function_context_stack = Vec::<FunctionContext>::new();
         let class_context_stack = Vec::<ClassContext>::new();
 
@@ -54,6 +58,7 @@ impl SemanticPass {
     }
 
     pub fn visit_this(self: &Self) {
+
         if self.class_context_stack.is_empty() {
             panic!("Unexpected 'this' outside a class context");
         }
@@ -285,7 +290,9 @@ impl SemanticPass {
                 Function {
                     pars: pars.clone(),
                     body: *body.clone(),
-                    closure_id
+                    closure_id,
+                    is_native: false,
+                    native_function: NativeFunction::None
                 }
             )
         );
