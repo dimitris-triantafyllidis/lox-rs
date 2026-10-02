@@ -419,11 +419,11 @@ impl Interpreter {
                     match native_function {
                         NativeFunction::Clock => {
                             self.context.pop_environment();
-                                let seconds = SystemTime::now()
+                                let ms = SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
                                     .unwrap()
                                     .as_millis();
-                            return Value::Number((seconds as f64) / 1000.0);
+                            return Value::Number((ms as f64) / 1000.0);
                         },
                         NativeFunction::None => {
                             panic!()
