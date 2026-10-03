@@ -5,6 +5,11 @@ use crate::semantic_pass::*;
 
 pub const OP_CONSTANT:  u8 = 0;
 pub const OP_RETURN:    u8 = 1;
+pub const OP_NEGATE:    u8 = 2;
+pub const OP_ADD:       u8 = 3;
+pub const OP_SUBTRACT:  u8 = 4;
+pub const OP_MULTIPLY:  u8 = 5;
+pub const OP_DIVIDE:    u8 = 6;
 
 pub enum InterpretResult {
     Ok,
@@ -43,6 +48,8 @@ impl VirtualMachine {
         while offset < self.code.len() {
             offset = self.disassemble_instruction(offset);
         }
+
+        println!();
     }
 
     pub fn disassemble_instruction(self: &Self, offset: usize) -> usize {
@@ -57,6 +64,21 @@ impl VirtualMachine {
             },
             OP_RETURN => {
                 return self.simple_instruction("OP_RETURN", offset);
+            },
+            OP_NEGATE => {
+                return self.simple_instruction("OP_NEGATE", offset);
+            },
+            OP_ADD => {
+                return self.simple_instruction("OP_ADD", offset);
+            },
+            OP_SUBTRACT => {
+                return self.simple_instruction("OP_SUBTRACT", offset);
+            },
+            OP_MULTIPLY => {
+                return self.simple_instruction("OP_MULTIPLY", offset);
+            },
+            OP_DIVIDE => {
+                return self.simple_instruction("OP_DIVIDE", offset);
             },
             _ => {
                 println!("Unknown opcode: {insn}");
@@ -106,12 +128,49 @@ impl VirtualMachine {
                 OP_RETURN => {
                     let value = self.pop();
                     self.print_value(&value);
+                    println!();
                     return InterpretResult::Ok
                 },
                 OP_CONSTANT => {
                     let value = self.read_constant();
                     self.push(value);
-                }
+                },
+                OP_NEGATE => {
+                    if let Value::Number(n) = self.pop() {
+                        self.push(Value::Number(-n));
+                    }
+                    else {
+                        panic!("Invalid operand type for OP_NEGATE");
+                    }
+                },
+                OP_ADD => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
+                        self.push(Value::Number(l + r));
+                    }
+                },
+                OP_SUBTRACT => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
+                        self.push(Value::Number(l - r));
+                    }
+                },
+                OP_MULTIPLY => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
+                        self.push(Value::Number(l * r));
+                    }
+                },
+                OP_DIVIDE => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
+                        self.push(Value::Number(l / r));
+                    }
+                },
                 _ => {
                     panic!()
                 }
