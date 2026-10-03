@@ -9,48 +9,59 @@ mod interpreter;
 mod context;
 mod semantic_pass;
 mod vm;
+mod compiler;
 
 use crate::lexer::*;
 use crate::parser::*;
 use crate::interpreter::*;
 use crate::semantic_pass::*;
 use crate::vm::*;
+use crate::compiler::*;
 
 fn main() -> ExitCode {
 
-    let mut vm = VirtualMachine::new();
+    let args: Vec<String> = env::args().collect();
 
-    vm.write_code(OP_CONSTANT, 1);
-    let c_idx = vm.write_constant(Value::Number(5.0));
-    vm.write_code(c_idx as u8, 1);
-
-    vm.write_code(OP_CONSTANT, 1);
-    let c_idx = vm.write_constant(Value::Number(6.0));
-    vm.write_code(c_idx as u8, 1);
-
-    vm.write_code(OP_CONSTANT, 1);
-    let c_idx = vm.write_constant(Value::Number(7.0));
-    vm.write_code(c_idx as u8, 1);
-
-    vm.write_code(OP_CONSTANT, 1);
-    let c_idx = vm.write_constant(Value::Number(8.0));
-    vm.write_code(c_idx as u8, 1);
-
-    vm.write_code(OP_CONSTANT, 1);
-    let c_idx = vm.write_constant(Value::Number(8.0));
-    vm.write_code(c_idx as u8, 1);
-
-    vm.write_code(OP_NEGATE, 1);
-
-    vm.write_code(OP_ADD, 1);
-    vm.write_code(OP_SUBTRACT, 1);
-    vm.write_code(OP_MULTIPLY, 1);
-    vm.write_code(OP_DIVIDE, 1);
-
-    vm.write_code(OP_RETURN, 1);
-
-    vm.interpret();
+    if args.len() > 2 {
+        println!("Usage: loxc [script]");
+        return ExitCode::from(64);
+    }
+    else if args.len() == 2 {
+        run_file(&args[1]);
+    }
+    else {
+        run_repl();
+    }
 
     return ExitCode::from(0);
 }
+
+fn run_file(file_path: &String) {
+
+}
+
+fn run_repl() {
+
+    let mut rl = DefaultEditor::new().unwrap();
+
+    loop {
+        match rl.readline("lox > ") {
+
+            Ok(line) => {
+                let tokens = lexer_scan(&line);
+                let parsed = parse(&tokens);
+            }
+            Err(ReadlineError::Interrupted) => {
+                continue;
+            }
+            Err(ReadlineError::Eof) => {
+                break;
+            }
+            Err(e) => {
+                eprintln!("rustyline error: {}", e);
+            }
+        }
+    }
+}
+
 
