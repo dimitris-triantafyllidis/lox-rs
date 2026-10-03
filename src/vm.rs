@@ -6,7 +6,11 @@ use crate::semantic_pass::*;
 pub const OP_CONSTANT:  u8 = 0;
 pub const OP_RETURN:    u8 = 1;
 
-
+pub enum InterpretResult {
+    Ok,
+    CompileError,
+    RuntimeError
+}
 
 pub struct VirtualMachine {
     pub code: Vec<u8>,
@@ -65,6 +69,50 @@ impl VirtualMachine {
     pub fn write_constant(self: &mut Self, value: Value) -> usize {
         self.values.push(value);
         return self.values.len() - 1;
+    }
+
+    pub fn interpret(self: &mut Self) -> InterpretResult {
+        return self.run(true);
+    }
+
+    pub fn read_code(self: &mut Self) -> u8 {
+        let byte = self.code[self.ip];
+        self.ip += 1;
+        return byte;
+    }
+
+    pub fn read_constant(self: &mut Self) -> Value {
+        let value = self.values[self.code[self.ip] as usize].clone();
+        self.ip += 1;
+        return value;
+    }
+
+    pub fn run(self: &mut Self, trace: bool) -> InterpretResult {
+
+        loop {
+
+            if trace {
+                self.disassemble_instruction(self.ip);
+            }
+
+            let instruction = self.read_code();
+
+            match instruction {
+                OP_RETURN => {
+                    return InterpretResult::Ok
+                },
+                OP_CONSTANT => {
+                    let value = self.read_constant();
+                    self.print_value(&value);
+                    println!();
+                }
+                _ => {
+                    panic!()
+                }
+            }
+        }
+
+        return InterpretResult::Ok;
     }
 
     pub fn simple_instruction(self: &Self, name: &str, offset: usize) -> usize {

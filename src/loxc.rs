@@ -20,14 +20,25 @@ fn main() -> ExitCode {
 
     let mut vm = VirtualMachine::new();
 
-    vm.write_code(OP_RETURN, 1);
     vm.write_code(OP_CONSTANT, 1);
-
     let c_idx = vm.write_constant(Value::Number(5.0));
-
     vm.write_code(c_idx as u8, 1);
 
-    vm.disassemble_chunk("test chunk".to_string());
+    vm.write_code(OP_CONSTANT, 1);
+    let c_idx = vm.write_constant(Value::Number(6.0));
+    vm.write_code(c_idx as u8, 1);
+
+    vm.write_code(OP_CONSTANT, 1);
+    let c_idx = vm.write_constant(Value::Number(7.0));
+    vm.write_code(c_idx as u8, 1);
+
+    vm.write_code(OP_CONSTANT, 1);
+    let c_idx = vm.write_constant(Value::Number(8.0));
+    vm.write_code(c_idx as u8, 1);
+
+    vm.write_code(OP_RETURN, 1);
+
+    vm.interpret();
 
     return ExitCode::from(0);
 }
