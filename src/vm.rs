@@ -16,7 +16,9 @@ pub struct VirtualMachine {
     pub code: Vec<u8>,
     pub values: Vec<Value>,
     pub lines: Vec<usize>,
-    pub ip: usize
+    pub stack: Vec<Value>,
+    pub ip: usize,
+    pub trace: bool
 }
 
 impl VirtualMachine {
@@ -26,7 +28,9 @@ impl VirtualMachine {
             code: Vec::<u8>::new(),
             values: Vec::<Value>::new(),
             lines: Vec::<usize>::new(),
-            ip: 0
+            stack: Vec::<Value>::new(),
+            ip: 0,
+            trace: true
         }
     }
 
@@ -72,7 +76,7 @@ impl VirtualMachine {
     }
 
     pub fn interpret(self: &mut Self) -> InterpretResult {
-        return self.run(true);
+        return self.run();
     }
 
     pub fn read_code(self: &mut Self) -> u8 {
@@ -87,11 +91,12 @@ impl VirtualMachine {
         return value;
     }
 
-    pub fn run(self: &mut Self, trace: bool) -> InterpretResult {
+    pub fn run(self: &mut Self) -> InterpretResult {
 
         loop {
 
-            if trace {
+            if self.trace {
+                println!("        {:?}", self.stack);
                 self.disassemble_instruction(self.ip);
             }
 
@@ -99,12 +104,13 @@ impl VirtualMachine {
 
             match instruction {
                 OP_RETURN => {
+                    let value = self.pop();
+                    self.print_value(&value);
                     return InterpretResult::Ok
                 },
                 OP_CONSTANT => {
                     let value = self.read_constant();
-                    self.print_value(&value);
-                    println!();
+                    self.push(value);
                 }
                 _ => {
                     panic!()
@@ -137,6 +143,14 @@ impl VirtualMachine {
             Value::Number(n) => print!("'{n}'"),
             _ => panic!()
         }
+    }
+
+    pub fn push(self: &mut Self, value: Value) {
+        self.stack.push(value);
+    }
+
+    pub fn pop(self: &mut Self) -> Value {
+        return self.stack.pop().unwrap();
     }
 
 }
