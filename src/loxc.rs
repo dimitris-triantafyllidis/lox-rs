@@ -20,13 +20,12 @@ fn main() -> ExitCode {
 
     let mut vm = VirtualMachine::new();
 
-    vm.values.push(Value::Number(10.0));
+    vm.write_code(OP_RETURN, 1);
+    vm.write_code(OP_CONSTANT, 1);
 
-    vm.code = vec! [
-       OP_RETURN,
-       OP_CONSTANT,
-       0
-    ];
+    let c_idx = vm.write_constant(Value::Number(5.0));
+
+    vm.write_code(c_idx as u8, 1);
 
     vm.disassemble_chunk("test chunk".to_string());
 

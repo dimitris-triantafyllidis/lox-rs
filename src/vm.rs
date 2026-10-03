@@ -57,6 +57,16 @@ impl VirtualMachine {
         }
     }
 
+    pub fn write_code(self: &mut Self, byte: u8, line: usize) {
+        self.code.push(byte);
+        self.lines.push(line);
+    }
+
+    pub fn write_constant(self: &mut Self, value: Value) -> usize {
+        self.values.push(value);
+        return self.values.len() - 1;
+    }
+
     pub fn simple_instruction(self: &Self, name: &str, offset: usize) -> usize {
 
         println!("{name}");
