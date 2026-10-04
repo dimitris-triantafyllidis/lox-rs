@@ -3,7 +3,7 @@ A few things that need to be done:
 
 - Better error reporting
 - Some actual test suite (integrate the test sets from the book's repository)
-- Better code as I am still pretty new to Rust
+- Better and faster code as I am still pretty new to Rust
 
 I decided to start working on the bytecode VM before necessarily fixing all of the above.
 

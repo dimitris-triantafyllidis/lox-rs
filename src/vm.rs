@@ -2,14 +2,15 @@ use crate::lexer::*;
 use crate::parser::*;
 use crate::interpreter::*;
 use crate::semantic_pass::*;
+use crate::compiler::*;
 
-pub const OP_CONSTANT:  u8 = 0;
-pub const OP_RETURN:    u8 = 1;
-pub const OP_NEGATE:    u8 = 2;
-pub const OP_ADD:       u8 = 3;
-pub const OP_SUBTRACT:  u8 = 4;
-pub const OP_MULTIPLY:  u8 = 5;
-pub const OP_DIVIDE:    u8 = 6;
+pub const OP_CONSTANT: u8 = 0;
+pub const OP_RETURN:   u8 = 1;
+pub const OP_NEGATE:   u8 = 2;
+pub const OP_ADD:      u8 = 3;
+pub const OP_SUBTRACT: u8 = 4;
+pub const OP_MULTIPLY: u8 = 5;
+pub const OP_DIVIDE:   u8 = 6;
 
 pub enum InterpretResult {
     Ok,
@@ -17,10 +18,25 @@ pub enum InterpretResult {
     RuntimeError
 }
 
-pub struct VirtualMachine {
+pub struct Bytecode {
     pub code: Vec<u8>,
     pub values: Vec<Value>,
-    pub lines: Vec<usize>,
+    pub lines: Vec<usize>
+}
+
+impl Bytecode {
+
+    pub fn new() -> Self {
+        Self {
+            code: Vec::<u8>::new(),
+            values: Vec::<Value>::new(),
+            lines: Vec::<usize>::new()
+        }
+    }
+}
+
+pub struct VirtualMachine {
+    pub program: Bytecode,
     pub stack: Vec<Value>,
     pub ip: usize,
     pub trace: bool
@@ -30,9 +46,7 @@ impl VirtualMachine {
 
     pub fn new() -> Self {
         Self {
-            code: Vec::<u8>::new(),
-            values: Vec::<Value>::new(),
-            lines: Vec::<usize>::new(),
+            program: Bytecode::new(),
             stack: Vec::<Value>::new(),
             ip: 0,
             trace: true
@@ -45,7 +59,7 @@ impl VirtualMachine {
 
         let mut offset: usize = 0;
 
-        while offset < self.code.len() {
+        while offset < self.program.code.len() {
             offset = self.disassemble_instruction(offset);
         }
 
@@ -56,7 +70,7 @@ impl VirtualMachine {
 
         print!("{:04} ", offset);
 
-        let insn = self.code[offset];
+        let insn = self.program.code[offset];
 
         match insn {
             OP_CONSTANT => {
@@ -88,13 +102,13 @@ impl VirtualMachine {
     }
 
     pub fn write_code(self: &mut Self, byte: u8, line: usize) {
-        self.code.push(byte);
-        self.lines.push(line);
+        self.program.code.push(byte);
+        self.program.lines.push(line);
     }
 
     pub fn write_constant(self: &mut Self, value: Value) -> usize {
-        self.values.push(value);
-        return self.values.len() - 1;
+        self.program.values.push(value);
+        return self.program.values.len() - 1;
     }
 
     pub fn interpret(self: &mut Self) -> InterpretResult {
@@ -102,13 +116,13 @@ impl VirtualMachine {
     }
 
     pub fn read_code(self: &mut Self) -> u8 {
-        let byte = self.code[self.ip];
+        let byte = self.program.code[self.ip];
         self.ip += 1;
         return byte;
     }
 
     pub fn read_constant(self: &mut Self) -> Value {
-        let value = self.values[self.code[self.ip] as usize].clone();
+        let value = self.program.values[self.program.code[self.ip] as usize].clone();
         self.ip += 1;
         return value;
     }
@@ -188,9 +202,9 @@ impl VirtualMachine {
 
     pub fn constant_instruction(self: &Self, name: &str, offset: usize) -> usize {
 
-        let constant_idx = self.code[offset + 1];
+        let constant_idx = self.program.code[offset + 1];
         print!("{:<-16} {:>4} ", name, constant_idx);
-        self.print_value(&self.values[constant_idx as usize]);
+        self.print_value(&self.program.values[constant_idx as usize]);
         println!();
 
         return offset + 2;
