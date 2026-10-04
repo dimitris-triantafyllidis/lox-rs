@@ -38,6 +38,25 @@ fn main() -> ExitCode {
 
 fn run_file(file_path: &String) {
 
+    match fs::read_to_string(file_path) {
+        io::Result::Ok(s) => {
+            let tokens = lexer_scan(&s);
+            let mut parsed = parse(&tokens);
+            // println!("{:#?}", parsed);
+            let mut semantic_pass = SemanticPass::new();
+            semantic_pass.visit(&mut parsed);
+            let mut compiler = Compiler::new(parsed);
+            compiler.compile();
+            println!("{:#?}", compiler.bytecode);
+            let mut vm = vm::VirtualMachine::new();
+            vm.program = compiler.bytecode;
+            vm.interpret();
+        },
+        io::Result::Err(e) => {
+            eprintln!("io error: {}", e);
+        }
+    }
+
 }
 
 fn run_repl() {

@@ -12,12 +12,14 @@ pub const OP_SUBTRACT: u8 = 4;
 pub const OP_MULTIPLY: u8 = 5;
 pub const OP_DIVIDE:   u8 = 6;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum InterpretResult {
     Ok,
     CompileError,
     RuntimeError
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bytecode {
     pub code: Vec<u8>,
     pub values: Vec<Value>,

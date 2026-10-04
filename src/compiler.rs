@@ -4,6 +4,7 @@ use crate::interpreter::*;
 use crate::semantic_pass::*;
 use crate::vm::Bytecode;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Compiler {
     pub ast: Vec<statement::Statement>,
     pub bytecode: Bytecode
@@ -288,10 +289,14 @@ impl Compiler {
         }
     }
 
-    pub fn compile(self: &mut Self, statements: &mut Vec<statement::Statement>) {
-        for statement in statements {
+    pub fn compile(self: &mut Self) {
+
+        for ref mut statement in self.ast.clone() {
             self.visit_statement(statement);
         }
+
+        self.emit_return();
+
         return;
     }
 
