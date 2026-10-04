@@ -22,4 +22,22 @@ impl Compiler {
 
     }
 
+    pub fn emit_byte(self: &mut Self, byte: u8) {
+        self.bytecode.code.push(byte);
+    }
+
+    pub fn emit_return(self: &mut Self) {
+        self.emit_byte(crate::OP_RETURN);
+    }
+
+    pub fn emit_bytes(self: &mut Self, byte1: u8, byte2: u8) {
+        self.emit_byte(byte1);
+        self.emit_byte(byte2);
+    }
+
+    pub fn emit_constant(self: &mut Self, value: &Value) {
+        let constant_idx = self.bytecode.write_constant(value.clone()) as u8;
+        self.emit_bytes(crate::OP_CONSTANT, constant_idx);
+    }
+
 }

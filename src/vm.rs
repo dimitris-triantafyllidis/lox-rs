@@ -35,23 +35,7 @@ impl Bytecode {
     }
 }
 
-pub struct VirtualMachine {
-    pub program: Bytecode,
-    pub stack: Vec<Value>,
-    pub ip: usize,
-    pub trace: bool
-}
-
-impl VirtualMachine {
-
-    pub fn new() -> Self {
-        Self {
-            program: Bytecode::new(),
-            stack: Vec::<Value>::new(),
-            ip: 0,
-            trace: true
-        }
-    }
+impl Bytecode {
 
     pub fn disassemble_chunk(self: &Self, name: String) {
 
@@ -59,7 +43,7 @@ impl VirtualMachine {
 
         let mut offset: usize = 0;
 
-        while offset < self.program.code.len() {
+        while offset < self.code.len() {
             offset = self.disassemble_instruction(offset);
         }
 
@@ -70,7 +54,7 @@ impl VirtualMachine {
 
         print!("{:04} ", offset);
 
-        let insn = self.program.code[offset];
+        let insn = self.code[offset];
 
         match insn {
             OP_CONSTANT => {
@@ -102,13 +86,57 @@ impl VirtualMachine {
     }
 
     pub fn write_code(self: &mut Self, byte: u8, line: usize) {
-        self.program.code.push(byte);
-        self.program.lines.push(line);
+        self.code.push(byte);
+        self.lines.push(line);
     }
 
     pub fn write_constant(self: &mut Self, value: Value) -> usize {
-        self.program.values.push(value);
-        return self.program.values.len() - 1;
+        self.values.push(value);
+        return self.values.len() - 1;
+    }
+
+    pub fn simple_instruction(self: &Self, name: &str, offset: usize) -> usize {
+
+        println!("{name}");
+        return offset + 1;
+    }
+
+    pub fn constant_instruction(self: &Self, name: &str, offset: usize) -> usize {
+
+        let constant_idx = self.code[offset + 1];
+        print!("{:<-16} {:>4} ", name, constant_idx);
+        self.print_value(&self.values[constant_idx as usize]);
+        println!();
+
+        return offset + 2;
+    }
+
+    pub fn print_value(self: &Self, value: &Value) {
+
+        match value {
+            Value::Number(n) => print!("'{n}'"),
+            _ => panic!()
+        }
+    }
+
+}
+
+pub struct VirtualMachine {
+    pub program: Bytecode,
+    pub stack: Vec<Value>,
+    pub ip: usize,
+    pub trace: bool
+}
+
+impl VirtualMachine {
+
+    pub fn new() -> Self {
+        Self {
+            program: Bytecode::new(),
+            stack: Vec::<Value>::new(),
+            ip: 0,
+            trace: true
+        }
     }
 
     pub fn interpret(self: &mut Self) -> InterpretResult {
@@ -133,7 +161,7 @@ impl VirtualMachine {
 
             if self.trace {
                 println!("        {:?}", self.stack);
-                self.disassemble_instruction(self.ip);
+                self.program.disassemble_instruction(self.ip);
             }
 
             let instruction = self.read_code();
@@ -141,7 +169,7 @@ impl VirtualMachine {
             match instruction {
                 OP_RETURN => {
                     let value = self.pop();
-                    self.print_value(&value);
+                    self.program.print_value(&value);
                     println!();
                     return InterpretResult::Ok
                 },
@@ -192,30 +220,6 @@ impl VirtualMachine {
         }
 
         return InterpretResult::Ok;
-    }
-
-    pub fn simple_instruction(self: &Self, name: &str, offset: usize) -> usize {
-
-        println!("{name}");
-        return offset + 1;
-    }
-
-    pub fn constant_instruction(self: &Self, name: &str, offset: usize) -> usize {
-
-        let constant_idx = self.program.code[offset + 1];
-        print!("{:<-16} {:>4} ", name, constant_idx);
-        self.print_value(&self.program.values[constant_idx as usize]);
-        println!();
-
-        return offset + 2;
-    }
-
-    pub fn print_value(self: &Self, value: &Value) {
-
-        match value {
-            Value::Number(n) => print!("'{n}'"),
-            _ => panic!()
-        }
     }
 
     pub fn push(self: &mut Self, value: Value) {
