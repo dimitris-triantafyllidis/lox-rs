@@ -11,6 +11,13 @@ pub const OP_ADD:      u8 = 3;
 pub const OP_SUBTRACT: u8 = 4;
 pub const OP_MULTIPLY: u8 = 5;
 pub const OP_DIVIDE:   u8 = 6;
+pub const OP_NIL:      u8 = 7;
+pub const OP_TRUE:     u8 = 8;
+pub const OP_FALSE:    u8 = 9;
+pub const OP_NOT:      u8 = 10;
+pub const OP_EQUAL:    u8 = 11;
+pub const OP_GREATER:  u8 = 12;
+pub const OP_LESS:     u8 = 13;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpretResult {
@@ -79,6 +86,15 @@ impl Bytecode {
             },
             OP_DIVIDE => {
                 return self.simple_instruction("OP_DIVIDE", offset);
+            },
+            OP_NIL => {
+                return self.simple_instruction("OP_NIL", offset);
+            },
+            OP_TRUE => {
+                return self.simple_instruction("OP_TRUE", offset);
+            },
+            OP_FALSE => {
+                return self.simple_instruction("OP_FALSE", offset);
             },
             _ => {
                 println!("Unknown opcode: {insn}");
@@ -196,6 +212,15 @@ impl VirtualMachine {
                 OP_CONSTANT => {
                     let value = self.read_constant();
                     self.push(value);
+                },
+                OP_NIL => {
+                    self.push(Value::Nil);
+                },
+                OP_FALSE => {
+                    self.push(Value::Boolean(false));
+                },
+                OP_TRUE => {
+                    self.push(Value::Boolean(true));
                 },
                 OP_NEGATE => {
                     if let Value::Number(n) = self.pop() {

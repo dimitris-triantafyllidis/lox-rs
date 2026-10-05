@@ -43,13 +43,13 @@ impl Compiler {
 
         match token.kind {
             TokenKind::Nil => {
-                self.emit_constant(&Value::Nil);
+                self.emit_byte(crate::OP_NIL);
             },
             TokenKind::False => {
-                self.emit_constant(&Value::Boolean(false));
+                self.emit_byte(crate::OP_FALSE);
             },
             TokenKind::True  => {
-                self.emit_constant(&Value::Boolean(true));
+                self.emit_byte(crate::OP_TRUE);
             },
             TokenKind::Number => {
                 self.emit_constant(&Value::Number(token.lexeme.parse().unwrap()));
@@ -75,9 +75,21 @@ impl Compiler {
 
     pub fn visit_unary(self: &mut Self, expr: &mut expression::UnaryOperation) {
 
-        let expression::UnaryOperation { operator: _, right: rhs } = expr;
+        let expression::UnaryOperation { operator: op, right: rhs } = expr;
+
         self.visit_expression(rhs);
 
+        match op {
+            Token { kind: TokenKind::Minus, .. } => {
+                self.emit_byte(crate::OP_NEGATE)
+            },
+            Token { kind: TokenKind::Bang, .. } => {
+                panic!();
+            },
+            _ => {
+                panic!();
+            }
+        }
     }
 
     pub fn visit_parentheses(self: &mut Self, expr: &mut expression::Parentheses) {
@@ -114,10 +126,18 @@ impl Compiler {
         self.visit_expression(rhs);
 
         match op.kind {
-            TokenKind::Plus         => { },
-            TokenKind::Minus        => { },
-            TokenKind::Star         => { },
-            TokenKind::Slash        => { },
+            TokenKind::Plus => {
+                self.emit_byte(crate::OP_ADD);
+            },
+            TokenKind::Minus => {
+                self.emit_byte(crate::OP_SUBTRACT);
+            },
+            TokenKind::Star => {
+                self.emit_byte(crate::OP_MULTIPLY);
+            },
+            TokenKind::Slash => {
+                self.emit_byte(crate::OP_DIVIDE);
+            },
             TokenKind::EqualEqual   => { },
             TokenKind::BangEqual    => { },
             TokenKind::Less         => { },
