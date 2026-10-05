@@ -37,8 +37,28 @@ impl Compiler {
         self.emit_bytes(crate::OP_CONSTANT, constant_idx);
     }
 
-    pub fn visit_literal(self: &mut Self, _: &mut expression::Literal) {
+    pub fn visit_literal(self: &mut Self, expr: &mut expression::Literal) {
 
+        let expression::Literal { token } = expr;
+
+        match token.kind {
+            TokenKind::Nil => {
+                self.emit_constant(&Value::Nil);
+            },
+            TokenKind::False => {
+                self.emit_constant(&Value::Boolean(false));
+            },
+            TokenKind::True  => {
+                self.emit_constant(&Value::Boolean(true));
+            },
+            TokenKind::Number => {
+                self.emit_constant(&Value::Number(token.lexeme.parse().unwrap()));
+            },
+            TokenKind::String => {
+                self.emit_constant(&Value::String(token.lexeme[1..token.lexeme.len() - 1].to_string()));
+            },
+            _ => panic!()
+        }
     }
 
     pub fn visit_variable(self: &mut Self, expr: &mut expression::Variable) {

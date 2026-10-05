@@ -116,11 +116,29 @@ impl Bytecode {
     pub fn print_value(self: &Self, value: &Value) {
 
         match value {
-            Value::Number(n) => print!("'{n}'"),
-            _ => panic!()
+            Value::Boolean(b) => {
+                println!("{b}");
+            },
+            Value::Number(n) => {
+                println!("{n}");
+            },
+            Value::Nil => {
+                println!("nil");
+            },
+            Value::String(s) => {
+                println!("\"{s}\"");
+            },
+            Value::Function{..} => {
+                println!("<fn>");
+            },
+            Value::Class{..} => {
+                println!("<class>")
+            },
+            Value::Instance{..} => {
+                println!("<instance>")
+            }
         }
     }
-
 }
 
 pub struct VirtualMachine {
