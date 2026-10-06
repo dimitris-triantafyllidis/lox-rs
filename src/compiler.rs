@@ -138,12 +138,24 @@ impl Compiler {
             TokenKind::Slash => {
                 self.emit_byte(crate::OP_DIVIDE);
             },
-            TokenKind::EqualEqual   => { },
-            TokenKind::BangEqual    => { },
-            TokenKind::Less         => { },
-            TokenKind::LessEqual    => { },
-            TokenKind::Greater      => { },
-            TokenKind::GreaterEqual => { },
+            TokenKind::EqualEqual   => {
+                self.emit_byte(crate::OP_EQUAL);
+            },
+            TokenKind::BangEqual    => {
+                self.emit_bytes(crate::OP_EQUAL, crate::OP_NOT);
+            },
+            TokenKind::Less         => {
+                self.emit_byte(crate::OP_LESS);
+            },
+            TokenKind::LessEqual    => {
+                self.emit_bytes(crate::OP_GREATER, crate::OP_NOT);
+            },
+            TokenKind::Greater      => {
+                self.emit_byte(crate::OP_GREATER);
+            },
+            TokenKind::GreaterEqual => {
+                self.emit_bytes(crate::OP_LESS, crate::OP_NOT);
+            },
             _ => panic!()
         }
 

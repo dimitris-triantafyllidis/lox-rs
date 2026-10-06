@@ -96,6 +96,18 @@ impl Bytecode {
             OP_FALSE => {
                 return self.simple_instruction("OP_FALSE", offset);
             },
+            OP_NOT => {
+                return self.simple_instruction("OP_NOT", offset);
+            },
+            OP_EQUAL => {
+                return self.simple_instruction("OP_EQUAL", offset);
+            },
+            OP_GREATER => {
+                return self.simple_instruction("OP_GREATER", offset);
+            },
+            OP_LESS => {
+                return self.simple_instruction("OP_LESS", offset);
+            },
             _ => {
                 println!("Unknown opcode: {insn}");
                 return offset + 1;
@@ -256,6 +268,46 @@ impl VirtualMachine {
                     let vl = self.pop();
                     if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
                         self.push(Value::Number(l / r));
+                    }
+                },
+                OP_NOT => {
+                    let v = self.pop();
+                    if is_truthy(&v) {
+                        self.push(Value::Boolean(false));
+                    }
+                    else {
+                        self.push(Value::Boolean(true));
+                    }
+                },
+                OP_EQUAL => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    self.push(Value::Boolean(vl == vr));
+                },
+                OP_GREATER => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (&vl, &vr) {
+                        self.push(Value::Boolean(l > r));
+                    }
+                    else if let (Value::String(l), Value::String(r)) = (&vl, &vr) {
+                        self.push(Value::Boolean(l > r));
+                    }
+                    else {
+                        panic!();
+                    }
+                },
+                OP_LESS => {
+                    let vr = self.pop();
+                    let vl = self.pop();
+                    if let (Value::Number(l), Value::Number(r)) = (&vl, &vr) {
+                        self.push(Value::Boolean(l < r));
+                    }
+                    else if let (Value::String(l), Value::String(r)) = (&vl, &vr) {
+                        self.push(Value::Boolean(l < r));
+                    }
+                    else {
+                        panic!();
                     }
                 },
                 _ => {
