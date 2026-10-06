@@ -231,6 +231,7 @@ impl Compiler {
     pub fn visit_print_statement(self: &mut Self, stmt: &mut statement::Print) {
         let statement::Print { expr } = stmt;
         self.visit_expression(expr);
+        self.emit_byte(crate::OP_PRINT);
     }
 
     pub fn visit_return_statement(self: &mut Self, stmt: &mut statement::Return) {
@@ -346,8 +347,6 @@ impl Compiler {
         for ref mut statement in self.ast.clone() {
             self.visit_statement(statement);
         }
-
-        self.emit_return();
 
         return;
     }

@@ -18,6 +18,7 @@ pub const OP_NOT:      u8 = 10;
 pub const OP_EQUAL:    u8 = 11;
 pub const OP_GREATER:  u8 = 12;
 pub const OP_LESS:     u8 = 13;
+pub const OP_PRINT:    u8 = 14;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpretResult {
@@ -107,6 +108,9 @@ impl Bytecode {
             },
             OP_LESS => {
                 return self.simple_instruction("OP_LESS", offset);
+            },
+            OP_PRINT => {
+                return self.simple_instruction("OP_PRINT", offset);
             },
             _ => {
                 println!("Unknown opcode: {insn}");
@@ -206,6 +210,10 @@ impl VirtualMachine {
     pub fn run(self: &mut Self) -> InterpretResult {
 
         loop {
+
+            if self.ip >= self.program.code.len() {
+                break;
+            }
 
             if self.trace {
                 println!("        {:?}", self.stack);
@@ -315,6 +323,10 @@ impl VirtualMachine {
                     else {
                         panic!();
                     }
+                },
+                OP_PRINT => {
+                    let v = self.pop();
+                    self.program.print_value(&v);
                 },
                 _ => {
                     panic!()
