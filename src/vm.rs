@@ -245,8 +245,14 @@ impl VirtualMachine {
                 OP_ADD => {
                     let vr = self.pop();
                     let vl = self.pop();
-                    if let (Value::Number(l), Value::Number(r)) = (vl, vr) {
+                    if let (Value::Number(l), Value::Number(r)) = (&vl, &vr) {
                         self.push(Value::Number(l + r));
+                    }
+                    else if let (Value::String(l), Value::String(r)) = (vl, &vr) {
+                        self.push(Value::String(l + r));
+                    }
+                    else {
+                        panic!();
                     }
                 },
                 OP_SUBTRACT => {
