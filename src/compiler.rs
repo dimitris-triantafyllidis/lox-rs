@@ -226,6 +226,7 @@ impl Compiler {
     pub fn visit_expression_statement(self: &mut Self, stmt: &mut statement::Expression) {
         let statement::Expression { expr } = stmt;
         self.visit_expression(expr);
+        self.emit_byte(crate::OP_POP);
     }
 
     pub fn visit_print_statement(self: &mut Self, stmt: &mut statement::Print) {

@@ -19,6 +19,7 @@ pub const OP_EQUAL:    u8 = 11;
 pub const OP_GREATER:  u8 = 12;
 pub const OP_LESS:     u8 = 13;
 pub const OP_PRINT:    u8 = 14;
+pub const OP_POP:      u8 = 15;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpretResult {
@@ -111,6 +112,9 @@ impl Bytecode {
             },
             OP_PRINT => {
                 return self.simple_instruction("OP_PRINT", offset);
+            },
+            OP_POP => {
+                return self.simple_instruction("OP_POP", offset);
             },
             _ => {
                 println!("Unknown opcode: {insn}");
@@ -327,6 +331,9 @@ impl VirtualMachine {
                 OP_PRINT => {
                     let v = self.pop();
                     self.program.print_value(&v);
+                },
+                OP_POP => {
+                    self.pop();
                 },
                 _ => {
                     panic!()
