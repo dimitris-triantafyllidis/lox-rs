@@ -88,8 +88,14 @@ impl Context {
                         return id;
                     }
 
-                    hop_count += 1;
-                    id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+                    if let Some(parent_id) = env.parent_key {
+                        id = parent_id;
+                        hop_count += 1;
+                    }
+                    else {
+                        *lookup_hop_count = Some(hop_count);
+                        return id;
+                    }
                 }
             }
             Some(hop_count) => {

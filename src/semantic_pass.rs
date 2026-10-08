@@ -54,7 +54,7 @@ impl SemanticPass {
         if !hop_count.is_none() {
             panic!();
         }
-        self.context.get_symbol_value(&id.lexeme, hop_count);
+        self.context.find_symbol(&id.lexeme, hop_count);
     }
 
     pub fn visit_this(self: &Self) {
@@ -63,7 +63,7 @@ impl SemanticPass {
             panic!("Unexpected 'this' outside a class context");
         }
         else {
-            self.context.get_symbol_value(&"this".to_string(), &mut None);
+            self.context.find_symbol(&"this".to_string(), &mut None);
         }
     }
 
@@ -73,7 +73,7 @@ impl SemanticPass {
         if !hop_count.is_none() {
             panic!();
         }
-        self.context.get_symbol_value(&"super".to_string(), &mut None);
+        self.context.find_symbol(&"super".to_string(), &mut None);
     }
 
     pub fn visit_unary(self: &mut Self, expr: &mut expression::UnaryOperation) {
@@ -107,7 +107,7 @@ impl SemanticPass {
 
         let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
         self.visit_expression(rhs);
-        self.context.set_symbol_value(&lhs.lexeme, Value::Nil, hop_count);
+        self.context.find_symbol(&lhs.lexeme, hop_count);
     }
 
     pub fn visit_binary(self: &mut Self, expr: &mut expression::BinaryOperation) {
