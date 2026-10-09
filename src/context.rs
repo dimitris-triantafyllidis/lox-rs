@@ -149,6 +149,31 @@ impl Context {
         }
     }
 
+    pub fn get_global_symbol_value(self: &Self, identifier: &String) -> Value {
+
+        let env = self.environments.get(&0).unwrap();
+
+        if let Some(v) = env.symbols.get(identifier) {
+            return v.clone();
+        }
+        else {
+            panic!("Symbol not found")
+        }
+    }
+
+    pub fn set_global_symbol_value(self: &mut Self, identifier: &String, value: Value) {
+
+        let env = self.environments.get_mut(&0).unwrap();
+
+        if let Some(v) = env.symbols.get_mut(identifier) {
+            *v = value;
+            return;
+        }
+        else {
+            panic!("Symbol not found")
+        }
+    }
+
     pub fn insert_symbol(&mut self, identifier: &String, value: Value) {
 
         let id = *self

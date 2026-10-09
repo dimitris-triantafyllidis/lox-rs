@@ -122,6 +122,12 @@ impl Bytecode {
             OP_DEFINE_GLOBAL => {
                 return self.constant_instruction("OP_DEFINE_GLOBAL", offset);
             },
+            OP_GET_GLOBAL => {
+                return self.constant_instruction("OP_GET_GLOBAL", offset);
+            },
+            OP_SET_GLOBAL => {
+                return self.constant_instruction("OP_SET_GLOBAL", offset);
+            },
             _ => {
                 println!("Unknown opcode: {insn}");
                 return offset + 1;
@@ -351,6 +357,23 @@ impl VirtualMachine {
                     if let Value::String(name) = self.read_constant() {
                         let value = self.pop();
                         self.context.insert_symbol(&name, value);
+                    }
+                    else {
+                        panic!("Expected string value");
+                    }
+                },
+                OP_GET_GLOBAL => {
+                    if let Value::String(name) = self.read_constant() {
+                        self.push(self.context.get_global_symbol_value(&name));
+                    }
+                    else {
+                        panic!("Expected string value");
+                    }
+                },
+                OP_SET_GLOBAL => {
+                    if let Value::String(name) = self.read_constant() {
+                        let value = self.stack.last().unwrap();
+                        self.context.set_global_symbol_value(&name, value.clone());
                     }
                     else {
                         panic!("Expected string value");

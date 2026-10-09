@@ -63,6 +63,11 @@ impl Compiler {
 
     pub fn visit_variable(self: &mut Self, expr: &mut expression::Variable) {
 
+        let expression::Variable { identifier, .. } = expr;
+
+        let constant_idx = self.bytecode.write_constant(Value::String(identifier.lexeme.clone())) as u8;
+        self.emit_bytes(crate::OP_GET_GLOBAL, constant_idx);
+
     }
 
     pub fn visit_this(self: &Self) {
