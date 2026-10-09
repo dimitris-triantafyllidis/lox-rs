@@ -332,6 +332,12 @@ impl Compiler {
         if let Some ( statement::Expression { expr } ) = init {
             self.visit_expression(expr);
         }
+        else {
+            self.emit_byte(crate::OP_NIL);
+        }
+
+        let constant_idx = self.bytecode.write_constant(Value::String(id.lexeme.clone())) as u8;
+        self.emit_bytes(crate::OP_DEFINE_GLOBAL, constant_idx);
 
     }
 

@@ -4,22 +4,25 @@ use crate::interpreter::*;
 use crate::semantic_pass::*;
 use crate::compiler::*;
 
-pub const OP_CONSTANT: u8 = 0;
-pub const OP_RETURN:   u8 = 1;
-pub const OP_NEGATE:   u8 = 2;
-pub const OP_ADD:      u8 = 3;
-pub const OP_SUBTRACT: u8 = 4;
-pub const OP_MULTIPLY: u8 = 5;
-pub const OP_DIVIDE:   u8 = 6;
-pub const OP_NIL:      u8 = 7;
-pub const OP_TRUE:     u8 = 8;
-pub const OP_FALSE:    u8 = 9;
-pub const OP_NOT:      u8 = 10;
-pub const OP_EQUAL:    u8 = 11;
-pub const OP_GREATER:  u8 = 12;
-pub const OP_LESS:     u8 = 13;
-pub const OP_PRINT:    u8 = 14;
-pub const OP_POP:      u8 = 15;
+pub const OP_CONSTANT:          u8 = 0;
+pub const OP_RETURN:            u8 = 1;
+pub const OP_NEGATE:            u8 = 2;
+pub const OP_ADD:               u8 = 3;
+pub const OP_SUBTRACT:          u8 = 4;
+pub const OP_MULTIPLY:          u8 = 5;
+pub const OP_DIVIDE:            u8 = 6;
+pub const OP_NIL:               u8 = 7;
+pub const OP_TRUE:              u8 = 8;
+pub const OP_FALSE:             u8 = 9;
+pub const OP_NOT:               u8 = 10;
+pub const OP_EQUAL:             u8 = 11;
+pub const OP_GREATER:           u8 = 12;
+pub const OP_LESS:              u8 = 13;
+pub const OP_PRINT:             u8 = 14;
+pub const OP_POP:               u8 = 15;
+pub const OP_DEFINE_GLOBAL:     u8 = 16;
+pub const OP_GET_GLOBAL:        u8 = 17;
+pub const OP_SET_GLOBAL:        u8 = 18;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpretResult {
@@ -116,6 +119,9 @@ impl Bytecode {
             OP_POP => {
                 return self.simple_instruction("OP_POP", offset);
             },
+            OP_DEFINE_GLOBAL => {
+                return self.constant_instruction("OP_DEFINE_GLOBAL", offset);
+            },
             _ => {
                 println!("Unknown opcode: {insn}");
                 return offset + 1;
@@ -180,6 +186,7 @@ impl Bytecode {
 pub struct VirtualMachine {
     pub program: Bytecode,
     pub stack: Vec<Value>,
+    pub context: crate::context::Context,
     pub ip: usize,
     pub trace: bool
 }
@@ -187,11 +194,16 @@ pub struct VirtualMachine {
 impl VirtualMachine {
 
     pub fn new() -> Self {
+
+        let mut context = crate::context::Context::new();
+        context.push_new_environment_auto();
+
         Self {
             program: Bytecode::new(),
             stack: Vec::<Value>::new(),
             ip: 0,
-            trace: true
+            trace: true,
+            context: context
         }
     }
 
@@ -334,6 +346,15 @@ impl VirtualMachine {
                 },
                 OP_POP => {
                     self.pop();
+                },
+                OP_DEFINE_GLOBAL => {
+                    if let Value::String(name) = self.read_constant() {
+                        let value = self.pop();
+                        self.context.insert_symbol(&name, value);
+                    }
+                    else {
+                        panic!("Expected string value");
+                    }
                 },
                 _ => {
                     panic!()
