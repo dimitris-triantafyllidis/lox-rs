@@ -121,6 +121,8 @@ impl Compiler {
 
         let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
         self.visit_expression(rhs);
+        let constant_idx = self.bytecode.write_constant(Value::String(lhs.lexeme.clone())) as u8;
+        self.emit_bytes(crate::OP_SET_GLOBAL, constant_idx);
     }
 
     pub fn visit_binary(self: &mut Self, expr: &mut expression::BinaryOperation) {
