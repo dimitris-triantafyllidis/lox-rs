@@ -69,13 +69,6 @@ impl NodeResult {
             control
         }
     }
-
-    pub fn default() -> Self {
-        return Self {
-            value: Value::Nil,
-            control: Control::Continue
-        }
-    }
 }
 
 pub fn is_truthy(v: &Value) -> bool {

@@ -13,7 +13,3 @@ debug = true
 [[bin]]
 name = "lox"
 path = "src/lox.rs"
-
-[[bin]]
-name = "loxc"
-path = "src/loxc.rs"

@@ -5,5 +5,6 @@ A few things that need to be done:
 - Some actual test suite (integrate the test sets from the book's repository)
 - Better and faster code as I am still pretty new to Rust
 
-I decided to start working on the bytecode VM before necessarily fixing all of the above.
+I think already I got enough out of the parts of the compiler I implemented so far, so I decided to start another PL project instead of continuing with the Lox VM, after I address the above issues. I will only keep the AST interpreter in this repository.
 
+Thank you Bob Nystrom!
