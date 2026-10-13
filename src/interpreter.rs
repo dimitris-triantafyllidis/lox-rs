@@ -90,7 +90,7 @@ impl Interpreter {
         context.push_new_environment_auto();
 
         context.insert_symbol (
-            &"clock".to_string(),
+            "clock",
             Value::Function (
                 Function {
                     pars: Vec::new(),
@@ -158,7 +158,7 @@ impl Interpreter {
     pub fn evaluate_this(self: &mut Self) -> NodeResult {
 
         NodeResult::new (
-            self.context.get_symbol_value(&"this".to_string(), &mut None).clone(),
+            self.context.get_symbol_value("this", &mut None).clone(),
             Control::Continue
         )
 
@@ -169,17 +169,17 @@ impl Interpreter {
         let Super { property, lookup_hop_count } = expr;
 
         let mut hop_count_mut_copy = *lookup_hop_count;
-        let instance_value = self.context.get_symbol_value(&"this".to_string(), &mut None);
+        let instance_value = self.context.get_symbol_value("this", &mut None);
         let mut value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&"super".to_string(), &mut hop_count_mut_copy).clone()));
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy).clone()));
         while let Some(box_value) = method_lookup_class.clone() {
             if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
                 if methods.contains_key(&property) {
                     value = methods.get(&property).unwrap().clone();
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                         self.context.push_new_environment(Some(*closure_id));
-                        self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                        self.context.insert_symbol("this", instance_value.clone());
                         *closure_id = self.context.next_id - 1;
                         self.context.pop_environment();
                         return NodeResult { value, control: Control::Continue };
@@ -239,7 +239,7 @@ impl Interpreter {
                             value = methods.get(&property).unwrap().clone();
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol(&"this".to_string(), instance_value.clone());
+                                self.context.insert_symbol("this", instance_value.clone());
                                 *closure_id = self.context.next_id - 1;
                                 self.context.pop_environment();
                                 return value;
@@ -745,7 +745,7 @@ impl Interpreter {
             if let Value::Class {..} = super_class_value {
                 super_class_result = Some(Box::new(super_class_value.clone()));
                 self.context.push_new_environment_auto();
-                self.context.insert_symbol(&"super".to_string(), super_class_value.clone());
+                self.context.insert_symbol("super", super_class_value.clone());
                 println!("{:#?}", super_class_value.clone());
             }
             else {

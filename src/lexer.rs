@@ -41,7 +41,7 @@ pub struct Token {
     pub line_number: usize
 }
 
-pub fn lexer_match_one_or_two_character_token(characters: &Vec<char>, cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_one_or_two_character_token(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
 
     // One-character tokens
 
@@ -84,7 +84,7 @@ pub fn lexer_match_one_or_two_character_token(characters: &Vec<char>, cursor: us
 
 }
 
-pub fn lexer_match_keyword_or_identifier(characters: &Vec<char>, cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_keyword_or_identifier(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
 
     let mut cursor = cursor;
 
@@ -128,7 +128,7 @@ pub fn lexer_match_keyword_or_identifier(characters: &Vec<char>, cursor: usize, 
 
 }
 
-pub fn lexer_match_string_literal(characters: &Vec<char>, cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_string_literal(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
 
     let mut cursor = cursor;
 
@@ -155,7 +155,7 @@ pub fn lexer_match_string_literal(characters: &Vec<char>, cursor: usize, line_nu
 
 }
 
-pub fn lexer_match_number_literal(characters: &Vec<char>, cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_number_literal(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
 
     let mut cursor = cursor;
 
@@ -202,7 +202,7 @@ pub fn lexer_match_number_literal(characters: &Vec<char>, cursor: usize, line_nu
 
 }
 
-pub fn lexer_scan(s: &String) -> Vec<Token> {
+pub fn lexer_scan(s: &str) -> Vec<Token> {
 
     let characters: Vec<char> = s.chars().collect();
     let mut tokens = Vec::<Token>::new();

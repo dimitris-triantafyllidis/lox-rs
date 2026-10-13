@@ -32,7 +32,7 @@ impl SemanticPass {
         context.push_new_environment_auto();
 
         context.insert_symbol (
-            &"clock".to_string(),
+            "clock",
             Value::Nil
         );
 
@@ -63,7 +63,7 @@ impl SemanticPass {
             panic!("Unexpected 'this' outside a class context");
         }
         else {
-            self.context.find_symbol(&"this".to_string(), &mut None);
+            self.context.find_symbol("this", &mut None);
         }
     }
 
@@ -73,7 +73,7 @@ impl SemanticPass {
         if !hop_count.is_none() {
             panic!();
         }
-        self.context.find_symbol(&"super".to_string(), &mut None);
+        self.context.find_symbol("super", &mut None);
     }
 
     pub fn visit_unary(self: &mut Self, expr: &mut expression::UnaryOperation) {
@@ -280,7 +280,7 @@ impl SemanticPass {
 
         if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
             self.context.push_new_environment(Some(closure_id));
-            self.context.insert_symbol(&"this".to_string(), Value::Nil);
+            self.context.insert_symbol("this", Value::Nil);
             closure_id = self.context.next_id - 1;
         }
 
@@ -346,7 +346,7 @@ impl SemanticPass {
 
         if let Some(..) = super_class {
             self.context.push_new_environment_auto();
-            self.context.insert_symbol(&"super".to_string(), Value::Nil);
+            self.context.insert_symbol("super", Value::Nil);
         }
 
         for method_decl in method_decls {

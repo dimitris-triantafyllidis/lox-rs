@@ -66,7 +66,7 @@ impl Context {
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(self: &Self, identifier: &String, lookup_hop_count: &mut Option<usize>) -> usize {
+    pub fn find_symbol(self: &Self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
@@ -122,7 +122,7 @@ impl Context {
         }
     }
 
-    pub fn get_symbol_value(self: &Self, identifier: &String, lookup_hop_count: &mut Option<usize>) -> Value {
+    pub fn get_symbol_value(self: &Self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> Value {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get(&env_id).unwrap();
@@ -135,7 +135,7 @@ impl Context {
         }
     }
 
-    pub fn set_symbol_value(self: &mut Self, identifier: &String, value: Value, lookup_hop_count: &mut Option<usize>) {
+    pub fn set_symbol_value(self: &mut Self, identifier: &str, value: Value, lookup_hop_count: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get_mut(&env_id).unwrap();
@@ -149,7 +149,7 @@ impl Context {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &String, value: Value) {
+    pub fn insert_symbol(&mut self, identifier: &str, value: Value) {
 
         let id = *self
             .environment_stack
@@ -165,7 +165,7 @@ impl Context {
             panic!("Symbol already exists");
         }
 
-        env.symbols.insert(identifier.clone(), value);
+        env.symbols.insert(identifier.to_string(), value);
     }
 
     pub fn get_current_environment_id(self: &Self) -> usize {
