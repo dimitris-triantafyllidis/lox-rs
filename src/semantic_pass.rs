@@ -32,7 +32,7 @@ impl<'a> SemanticPass<'a> {
         context.push_new_environment_auto();
 
         context.insert_symbol (
-            &['c', 'l', 'o', 'c', 'k'],
+            "class",
             Value::Nil
         );
 
@@ -63,7 +63,7 @@ impl<'a> SemanticPass<'a> {
             panic!("Unexpected 'this' outside a class context");
         }
         else {
-            self.context.find_symbol(&['t', 'h', 'i', 's'], &mut None);
+            self.context.find_symbol("this", &mut None);
         }
     }
 
@@ -73,7 +73,7 @@ impl<'a> SemanticPass<'a> {
         if !hop_count.is_none() {
             panic!();
         }
-        self.context.find_symbol(&['s', 'u', 'p', 'e', 'r'], &mut None);
+        self.context.find_symbol("super", &mut None);
     }
 
     pub fn visit_unary(&mut self, expr: &mut expression::UnaryOperation<'a>) {
@@ -280,7 +280,7 @@ impl<'a> SemanticPass<'a> {
 
         if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
             self.context.push_new_environment(Some(closure_id));
-            self.context.insert_symbol(&['t', 'h', 'i', 's'], Value::Nil);
+            self.context.insert_symbol("this", Value::Nil);
             closure_id = self.context.next_id - 1;
         }
 
@@ -346,12 +346,12 @@ impl<'a> SemanticPass<'a> {
 
         if let Some(..) = super_class {
             self.context.push_new_environment_auto();
-            self.context.insert_symbol(&['s', 'u', 'p', 'e', 'r'], Value::Nil);
+            self.context.insert_symbol("super", Value::Nil);
         }
 
         for method_decl in method_decls {
             let FunctionDeclaration { id, .. } = method_decl;
-            if id.lexeme == ['i', 'n', 'i', 't'] {
+            if id.lexeme == "init" {
                 self.function_context_stack.push(FunctionContext::Initializer);
             }
             else {

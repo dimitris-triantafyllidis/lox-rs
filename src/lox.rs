@@ -36,8 +36,7 @@ fn run_file(file_path: &String) {
 
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
-            let characters: Vec<char> = s.chars().collect();
-            let tokens = lexer_scan(&characters);
+            let tokens = lexer_scan(&s);
             let mut syntax_tree = parse(&tokens);
             let mut semantic_pass = SemanticPass::new();
             semantic_pass.visit(&mut syntax_tree);

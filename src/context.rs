@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::interpreter::*;
 
 pub struct Environment<'a> {
-    pub symbols: HashMap<&'a [char], Value<'a>>,
+    pub symbols: HashMap<&'a str, Value<'a>>,
     pub parent_key: Option<usize>,
     pub reachable: bool
 }
@@ -11,7 +11,7 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
-            symbols: HashMap::<&[char], Value>::new(),
+            symbols: HashMap::<&str, Value>::new(),
             parent_key: parent_key,
             reachable: false
         }
@@ -66,7 +66,7 @@ impl<'a> Context<'a> {
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(&self, identifier: &[char], lookup_hop_count: &mut Option<usize>) -> usize {
+    pub fn find_symbol(&self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
@@ -122,7 +122,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get_symbol_value(&self, identifier: &[char], lookup_hop_count: &mut Option<usize>) -> Value<'a> {
+    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> Value<'a> {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get(&env_id).unwrap();
@@ -135,7 +135,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &[char], value: Value<'a>, lookup_hop_count: &mut Option<usize>) {
+    pub fn set_symbol_value(&mut self, identifier: &str, value: Value<'a>, lookup_hop_count: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get_mut(&env_id).unwrap();
@@ -149,7 +149,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &'a [char], value: Value<'a>) {
+    pub fn insert_symbol(&mut self, identifier: &'a str, value: Value<'a>) {
 
         let id = *self
             .environment_stack

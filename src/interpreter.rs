@@ -90,7 +90,7 @@ impl<'a> Interpreter<'a> {
         context.push_new_environment_auto();
 
         context.insert_symbol (
-            &['c', 'l', 'o', 'c', 'k'],
+            "clock",
             Value::Function (
                 Function {
                     pars: Vec::new(),
@@ -128,7 +128,7 @@ impl<'a> Interpreter<'a> {
             TokenKind::Number => {
                 return NodeResult::new (
                     Value::Number (
-                        token.lexeme.iter().copied().collect::<String>().parse().unwrap()
+                        token.lexeme.parse().unwrap()
                     ),
                     Control::Continue
                 )
@@ -136,7 +136,7 @@ impl<'a> Interpreter<'a> {
             TokenKind::String => {
                 return NodeResult::new (
                     Value::String (
-                        token.lexeme[1..token.lexeme.len() - 1].iter().copied().collect::<String>()
+                        token.lexeme[1..token.lexeme.len() - 1].to_string()
                     ),
                     Control::Continue
                 )
@@ -158,7 +158,7 @@ impl<'a> Interpreter<'a> {
     pub fn evaluate_this(&mut self) -> NodeResult<'a> {
 
         NodeResult::new (
-            self.context.get_symbol_value(&['t', 'h', 'i', 's'], &mut None),
+            self.context.get_symbol_value("this", &mut None),
             Control::Continue
         )
 
@@ -169,17 +169,17 @@ impl<'a> Interpreter<'a> {
         let Super { property, lookup_hop_count } = expr;
 
         let mut hop_count_mut_copy = *lookup_hop_count;
-        let instance_value = self.context.get_symbol_value(&['t', 'h', 'i', 's'], &mut None);
+        let instance_value = self.context.get_symbol_value("this", &mut None);
         let mut value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&['s', 'u', 'p', 'e', 'r'], &mut hop_count_mut_copy)));
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy)));
         while let Some(box_value) = method_lookup_class {
             if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
                 if methods.contains_key(&property) {
                     value = methods.get(&property).unwrap().clone();
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                         self.context.push_new_environment(Some(*closure_id));
-                        self.context.insert_symbol(&['t', 'h', 'i', 's'], instance_value);
+                        self.context.insert_symbol("this", instance_value);
                         *closure_id = self.context.next_id - 1;
                         self.context.pop_environment();
                         return NodeResult { value, control: Control::Continue };
@@ -239,7 +239,7 @@ impl<'a> Interpreter<'a> {
                             value = methods.get(&property).unwrap().clone();
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol(&['t', 'h', 'i', 's'], instance_value.clone());
+                                self.context.insert_symbol("this", instance_value.clone());
                                 *closure_id = self.context.next_id - 1;
                                 self.context.pop_environment();
                                 return value;
@@ -497,11 +497,11 @@ impl<'a> Interpreter<'a> {
             let init_token =
                 Token {
                     kind:TokenKind::Identifier,
-                    lexeme: &['i', 'n', 'i', 't'],
+                    lexeme: "init",
                     line_number: 0
                 };
 
-            if methods.keys().any(|token| token.lexeme == ['i', 'n', 'i', 't'])  {
+            if methods.keys().any(|token| token.lexeme == "init")  {
                 let init_bound_function = self.evaluate_get_internal (
                     &new_instance,
                     &init_token
@@ -745,7 +745,7 @@ impl<'a> Interpreter<'a> {
             if let Value::Class {..} = super_class_value {
                 super_class_result = Some(Box::new(super_class_value.clone()));
                 self.context.push_new_environment_auto();
-                self.context.insert_symbol(&['s', 'u', 'p', 'e', 'r'], super_class_value);
+                self.context.insert_symbol("super", super_class_value);
             }
             else {
                 panic!("Superclass must be a class");
