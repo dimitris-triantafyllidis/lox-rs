@@ -18,15 +18,12 @@ fn main() -> ExitCode {
 
     let args: Vec<String> = env::args().collect();
 
-    if args.len() > 2 {
+    if args.len() != 2 {
         println!("Usage: lox [script]");
         return ExitCode::from(64);
     }
     else if args.len() == 2 {
         run_file(&args[1]);
-    }
-    else {
-        run_repl();
     }
 
     return ExitCode::from(0);
@@ -49,29 +46,3 @@ fn run_file(file_path: &String) {
     }
 
 }
-
-fn run_repl() {
-
-    let mut rl = DefaultEditor::new().unwrap();
-
-    let mut interpreter = Interpreter::new();
-
-    loop {
-        match rl.readline("lox > ") {
-
-            Ok(line) => {
-
-            }
-            Err(ReadlineError::Interrupted) => {
-                continue;
-            }
-            Err(ReadlineError::Eof) => {
-                break;
-            }
-            Err(e) => {
-                eprintln!("rustyline error: {}", e);
-            }
-        }
-    }
-}
-
