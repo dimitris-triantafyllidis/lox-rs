@@ -13,9 +13,9 @@ use expression::*;
 use statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Instance {
-    class: Box<Value>,
-    properties: HashMap<Token, Value>
+pub struct Instance<'a> {
+    class: Box<Value<'a>>,
+    properties: HashMap<Token<'a>, Value<'a>>
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,29 +25,29 @@ pub enum NativeFunction {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Function {
-    pub pars: Vec<Token>,
-    pub body: Statement,
+pub struct Function<'a> {
+    pub pars: Vec<Token<'a>>,
+    pub body: Statement<'a>,
     pub closure_id: usize,
     pub is_native: bool,
     pub native_function: NativeFunction
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Class {
-    methods: HashMap<Token, Value>,
-    super_class: Option<Box<Value>>
+pub struct Class<'a> {
+    methods: HashMap<Token<'a>, Value<'a>>,
+    super_class: Option<Box<Value<'a>>>
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value {
+pub enum Value<'a> {
     Nil,
     Boolean (bool),
     Number (f64),
     String (String),
-    Function (Function),
-    Class (Class),
-    Instance (Rc<RefCell<Instance>>)
+    Function (Function<'a>),
+    Class (Class<'a>),
+    Instance (Rc<RefCell<Instance<'a>>>)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,13 +57,13 @@ pub enum Control {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NodeResult {
-    pub value: Value,
+pub struct NodeResult<'a> {
+    pub value: Value<'a>,
     pub control: Control
 }
 
-impl NodeResult {
-    pub fn new(value: Value, control: Control) -> Self {
+impl<'a> NodeResult<'a> {
+    pub fn new(value: Value<'a>, control: Control) -> Self {
         return Self {
             value,
             control
@@ -78,11 +78,11 @@ pub fn is_truthy(v: &Value) -> bool {
         _ => true
     }
 }
-pub struct Interpreter {
-    pub context: Context
+pub struct Interpreter<'a> {
+    pub context: Context<'a>
 }
 
-impl Interpreter {
+impl<'a> Interpreter<'a> {
 
     pub fn new() -> Self {
 
@@ -90,7 +90,7 @@ impl Interpreter {
         context.push_new_environment_auto();
 
         context.insert_symbol (
-            "clock",
+            &['c', 'l', 'o', 'c', 'k'],
             Value::Function (
                 Function {
                     pars: Vec::new(),
@@ -111,7 +111,7 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_literal(self: &mut Self, expr: &expression::Literal) -> NodeResult {
+    pub fn evaluate_literal(&mut self, expr: &expression::Literal<'a>) -> NodeResult<'a> {
 
         let Literal { token } = expr;
 
@@ -128,7 +128,7 @@ impl Interpreter {
             TokenKind::Number => {
                 return NodeResult::new (
                     Value::Number (
-                        token.lexeme.parse().unwrap()
+                        token.lexeme.iter().copied().collect::<String>().parse().unwrap()
                     ),
                     Control::Continue
                 )
@@ -136,7 +136,7 @@ impl Interpreter {
             TokenKind::String => {
                 return NodeResult::new (
                     Value::String (
-                        token.lexeme[1..token.lexeme.len() - 1].to_string()
+                        token.lexeme[1..token.lexeme.len() - 1].iter().copied().collect::<String>()
                     ),
                     Control::Continue
                 )
@@ -145,41 +145,41 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_variable(self: &mut Self, expr: &expression::Variable) -> NodeResult {
+    pub fn evaluate_variable(&mut self, expr: &expression::Variable<'a>) -> NodeResult<'a> {
 
         let Variable { identifier: id, lookup_hop_count: hop_count } = expr;
         let mut hop_count_mut_copy = *hop_count;
         NodeResult::new (
-            self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy).clone(),
+            self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy),
             Control::Continue
         )
     }
 
-    pub fn evaluate_this(self: &mut Self) -> NodeResult {
+    pub fn evaluate_this(&mut self) -> NodeResult<'a> {
 
         NodeResult::new (
-            self.context.get_symbol_value("this", &mut None).clone(),
+            self.context.get_symbol_value(&['t', 'h', 'i', 's'], &mut None),
             Control::Continue
         )
 
     }
 
-    pub fn evaluate_super(self: &mut Self, expr: &expression::Super) -> NodeResult {
+    pub fn evaluate_super(&mut self, expr: &expression::Super<'a>) -> NodeResult<'a> {
 
         let Super { property, lookup_hop_count } = expr;
 
         let mut hop_count_mut_copy = *lookup_hop_count;
-        let instance_value = self.context.get_symbol_value("this", &mut None);
+        let instance_value = self.context.get_symbol_value(&['t', 'h', 'i', 's'], &mut None);
         let mut value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy).clone()));
-        while let Some(box_value) = method_lookup_class.clone() {
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value(&['s', 'u', 'p', 'e', 'r'], &mut hop_count_mut_copy)));
+        while let Some(box_value) = method_lookup_class {
             if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
                 if methods.contains_key(&property) {
                     value = methods.get(&property).unwrap().clone();
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                         self.context.push_new_environment(Some(*closure_id));
-                        self.context.insert_symbol("this", instance_value.clone());
+                        self.context.insert_symbol(&['t', 'h', 'i', 's'], instance_value);
                         *closure_id = self.context.next_id - 1;
                         self.context.pop_environment();
                         return NodeResult { value, control: Control::Continue };
@@ -200,7 +200,7 @@ impl Interpreter {
         panic!("Undefined property");
     }
 
-    pub fn evaluate_set(self: &mut Self, expr: &expression::Set) -> NodeResult {
+    pub fn evaluate_set(&mut self, expr: &expression::Set<'a>) -> NodeResult<'a> {
 
         let Set { instance, property, value } = expr;
 
@@ -211,7 +211,7 @@ impl Interpreter {
             let mut instance = instance.borrow_mut();
             instance.properties.insert(property.clone(), value.clone());
             return NodeResult::new (
-                value.clone(),
+                value,
                 Control::Continue
             );
         }
@@ -221,9 +221,9 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_get_internal(self: &mut Self, instance_value: &Value, property: &Token) -> Value {
+    pub fn evaluate_get_internal(&mut self, instance_value: &Value<'a>, property: &Token<'a>) -> Value<'a> {
 
-        if let Value::Instance ( instance ) = instance_value.clone() {
+        if let Value::Instance ( instance ) = instance_value {
             let instance = instance.borrow_mut();
             let mut value: Value;
 
@@ -239,7 +239,7 @@ impl Interpreter {
                             value = methods.get(&property).unwrap().clone();
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol("this", instance_value.clone());
+                                self.context.insert_symbol(&['t', 'h', 'i', 's'], instance_value.clone());
                                 *closure_id = self.context.next_id - 1;
                                 self.context.pop_environment();
                                 return value;
@@ -265,7 +265,7 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_get(self: &mut Self, expr: &expression::Get) -> NodeResult {
+    pub fn evaluate_get(&mut self, expr: &expression::Get<'a>) -> NodeResult<'a> {
 
         let Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref()).value;
@@ -275,7 +275,7 @@ impl Interpreter {
         );
     }
 
-    pub fn evaluate_unary(self: &mut Self, expr: &expression::UnaryOperation) -> NodeResult {
+    pub fn evaluate_unary(&mut self, expr: &expression::UnaryOperation<'a>) -> NodeResult<'a> {
 
         let expression::UnaryOperation { operator: op, right: rhs } = expr;
         let rhs_result = self.evaluate_expression(rhs);
@@ -297,7 +297,7 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_parentheses(self: &mut Self, expr: &expression::Parentheses) -> NodeResult {
+    pub fn evaluate_parentheses(&mut self, expr: &expression::Parentheses<'a>) -> NodeResult<'a> {
 
         let expression::Parentheses { expression: e } = expr;
         let expression_result = self.evaluate_expression(e);
@@ -308,7 +308,7 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_assignment(self: &mut Self, expr: &expression::Assignment) -> NodeResult {
+    pub fn evaluate_assignment(&mut self, expr: &expression::Assignment<'a>) -> NodeResult<'a> {
 
         let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
         let rhs_result = self.evaluate_expression(rhs);
@@ -321,14 +321,14 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_binary(self: &mut Self, expr: &expression::BinaryOperation) -> NodeResult {
+    pub fn evaluate_binary(&mut self, expr: &expression::BinaryOperation<'a>) -> NodeResult<'a> {
 
         let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
 
         let lhs_value = self.evaluate_expression(lhs).value;
         let rhs_value = self.evaluate_expression(rhs).value;
 
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &lhs_value, &rhs_value ) {
             match op.kind {
                 TokenKind::Plus         => { return NodeResult::new ( Value::Number ( vl + vr),   Control::Continue ) },
                 TokenKind::Minus        => { return NodeResult::new ( Value::Number ( vl - vr),   Control::Continue ) },
@@ -344,9 +344,9 @@ impl Interpreter {
             }
         }
 
-        if let ( Value::String (vl), Value::String(vr) ) = ( lhs_value.clone(), rhs_value.clone() ) {
+        if let ( Value::String (vl), Value::String(vr) ) = ( &lhs_value, &rhs_value ) {
             match op.kind {
-                TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl + &vr.clone()), Control::Continue ) },
+                TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl.clone() + vr), Control::Continue ) },
                 TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean (vl == vr),         Control::Continue ) },
                 TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean (vl != vr),         Control::Continue ) },
                 TokenKind::Less         => { return NodeResult::new ( Value::Boolean (vl <  vr),         Control::Continue ) },
@@ -368,7 +368,7 @@ impl Interpreter {
         panic!();
     }
 
-    pub fn evaluate_logical_or(self: &mut Self, expr: &expression::LogicalOr) -> NodeResult {
+    pub fn evaluate_logical_or(&mut self, expr: &expression::LogicalOr<'a>) -> NodeResult<'a> {
 
         let LogicalOr { left: lhs, right: rhs } = expr;
 
@@ -384,7 +384,7 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_logical_and(self: &mut Self, expr: &expression::LogicalAnd) -> NodeResult {
+    pub fn evaluate_logical_and(&mut self, expr: &expression::LogicalAnd<'a>) -> NodeResult<'a> {
 
         let LogicalAnd { left: lhs, right: rhs } = expr;
 
@@ -400,15 +400,15 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_function_call(self: &mut Self, callee: Value, arguments: &Vec<Value>) -> Value {
+    pub fn evaluate_function_call(&mut self, callee: &Value<'a>, arguments: &[Value<'a>]) -> Value<'a> {
 
         if let Value::Function ( Function { pars, body, closure_id, is_native, native_function } ) = callee {
 
             if pars.len() == arguments.len() {
 
-                self.context.push_new_environment(Some(closure_id));
+                self.context.push_new_environment(Some(*closure_id));
 
-                if is_native {
+                if *is_native {
                     match native_function {
                         NativeFunction::Clock => {
                             self.context.pop_environment();
@@ -431,9 +431,9 @@ impl Interpreter {
                     );
                 }
 
-                if let Statement::Block ( Block { statements } ) = body {
-                    for statement in statements {
-                        let statement_result = self.execute_statement(&statement);
+                if let Statement::Block ( Block { statements } ) = &body {
+                    for ref statement in statements {
+                        let statement_result = self.execute_statement(statement);
                         if statement_result.control == Control::FunctionReturn {
                             self.context.pop_environment();
                             return statement_result.value;
@@ -456,23 +456,23 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate_call(self: &mut Self, expr: &expression::Call) -> NodeResult {
+    pub fn evaluate_call(&mut self, expr: &expression::Call<'a>) -> NodeResult<'a> {
 
-        let Call { callee, arguments }= expr;
+        let Call { callee, arguments } = &expr;
 
         let callee = self.evaluate_expression(callee).value;
 
-        if let Value::Function ( Function { ref pars, .. } ) = callee {
+        if let Value::Function ( Function { pars, .. } ) = &callee {
             if pars.len() == arguments.len() {
 
                 let mut argument_values = Vec::<Value>::new();
 
                 for i in 0..pars.len() {
-                    argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
+                    argument_values.push(self.evaluate_expression(&arguments[i]).value);
                 }
 
                 return NodeResult::new (
-                    self.evaluate_function_call(callee, &argument_values),
+                    self.evaluate_function_call(&callee, &argument_values),
                     Control::Continue
                 );
             }
@@ -480,7 +480,7 @@ impl Interpreter {
                 panic!("Wrong number of arguments");
             }
         }
-        else if let Value::Class ( Class { ref methods, .. } ) = callee {
+        else if let Value::Class ( Class { methods, .. } ) = &callee {
 
             let new_instance =
                 Value::Instance (
@@ -497,11 +497,11 @@ impl Interpreter {
             let init_token =
                 Token {
                     kind:TokenKind::Identifier,
-                    lexeme: "init".to_string(),
+                    lexeme: &['i', 'n', 'i', 't'],
                     line_number: 0
                 };
 
-            if methods.keys().any(|token| token.lexeme == "init")  {
+            if methods.keys().any(|token| token.lexeme == ['i', 'n', 'i', 't'])  {
                 let init_bound_function = self.evaluate_get_internal (
                     &new_instance,
                     &init_token
@@ -513,10 +513,10 @@ impl Interpreter {
                         let mut argument_values = Vec::<Value>::new();
 
                         for i in 0..pars.len() {
-                            argument_values.push(self.evaluate_expression(&arguments[i]).value.clone());
+                            argument_values.push(self.evaluate_expression(&arguments[i]).value);
                         }
 
-                        self.evaluate_function_call(init_bound_function, &argument_values);
+                        self.evaluate_function_call(&init_bound_function, &argument_values);
                     }
                     else {
                         panic!("Wrong number of class arguments");
@@ -540,7 +540,7 @@ impl Interpreter {
 
     }
 
-    pub fn evaluate_expression(self: &mut Self, expr: &expression::Expression) -> NodeResult {
+    pub fn evaluate_expression(&mut self, expr: &expression::Expression<'a>) -> NodeResult<'a> {
 
         match expr {
             expression::Expression::Literal         (expr) => return self.evaluate_literal(expr),
@@ -560,7 +560,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_statement(self: &mut Self, statement: &Statement) -> NodeResult {
+    pub fn execute_statement(&mut self, statement: &Statement<'a>) -> NodeResult<'a> {
 
         match statement {
             Statement::Expression (stmt)          => return self.execute_expression_statement(stmt),
@@ -577,7 +577,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_expression_statement(self: &mut Self, stmt: &statement::Expression) -> NodeResult {
+    pub fn execute_expression_statement(&mut self, stmt: &statement::Expression<'a>) -> NodeResult<'a> {
 
         let statement::Expression { expr } = stmt;
         let expr_result = self.evaluate_expression(&expr);
@@ -585,7 +585,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_print_statement(self: &mut Self, stmt: &statement::Print) -> NodeResult {
+    pub fn execute_print_statement(&mut self, stmt: &statement::Print<'a>) -> NodeResult<'a> {
 
         let Print { expr } = stmt;
 
@@ -618,7 +618,7 @@ impl Interpreter {
         return NodeResult::new ( Value::Nil, expr_result.control );
     }
 
-    pub fn execute_return_statement(self: &mut Self, stmt: &statement::Return) -> NodeResult {
+    pub fn execute_return_statement(&mut self, stmt: &statement::Return<'a>) -> NodeResult<'a> {
 
         let statement::Return { expr } = stmt;
 
@@ -633,7 +633,7 @@ impl Interpreter {
         }
     }
 
-    pub fn execute_while_statement(self: &mut Self, stmt: &statement::While) -> NodeResult {
+    pub fn execute_while_statement(&mut self, stmt: &statement::While<'a>) -> NodeResult<'a> {
 
         let While { condition: statement::Expression { expr }, body } = stmt;
 
@@ -653,7 +653,7 @@ impl Interpreter {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_for_statement(self: &mut Self, stmt: &statement::For) -> NodeResult {
+    pub fn execute_for_statement(&mut self, stmt: &statement::For<'a>) -> NodeResult<'a> {
 
         let For {
             init: initializer_statement,
@@ -693,7 +693,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_if_statement(self: &mut Self, stmt: &statement::If) -> NodeResult {
+    pub fn execute_if_statement(&mut self, stmt: &statement::If<'a>) -> NodeResult<'a> {
 
         let If { condition: statement::Expression { expr }, then_statement, else_statement } = stmt;
         let condition_expression_value = self.evaluate_expression(expr).value;
@@ -708,7 +708,7 @@ impl Interpreter {
         }
     }
 
-    pub fn execute_function_declaration_statement(self: &mut Self, stmt: &statement::FunctionDeclaration) -> NodeResult {
+    pub fn execute_function_declaration_statement(&mut self, stmt: &statement::FunctionDeclaration<'a>) -> NodeResult<'a> {
 
         let FunctionDeclaration { id, pars, body } = stmt;
 
@@ -728,7 +728,7 @@ impl Interpreter {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_class_declaration_statement(self: &mut Self, stmt: &statement::ClassDeclaration) -> NodeResult {
+    pub fn execute_class_declaration_statement(&mut self, stmt: &statement::ClassDeclaration<'a>) -> NodeResult<'a> {
 
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
@@ -745,8 +745,7 @@ impl Interpreter {
             if let Value::Class {..} = super_class_value {
                 super_class_result = Some(Box::new(super_class_value.clone()));
                 self.context.push_new_environment_auto();
-                self.context.insert_symbol("super", super_class_value.clone());
-                println!("{:#?}", super_class_value.clone());
+                self.context.insert_symbol(&['s', 'u', 'p', 'e', 'r'], super_class_value);
             }
             else {
                 panic!("Superclass must be a class");
@@ -792,7 +791,7 @@ impl Interpreter {
 
     }
 
-    pub fn execute_variable_declaration_statement(self: &mut Self, stmt: &statement::VariableDeclaration) -> NodeResult {
+    pub fn execute_variable_declaration_statement(&mut self, stmt: &statement::VariableDeclaration<'a>) -> NodeResult<'a> {
 
         let VariableDeclaration { id, init } = stmt;
 
@@ -801,18 +800,18 @@ impl Interpreter {
             Some ( statement::Expression { expr } ) => self.evaluate_expression(expr).value
         };
 
-        self.context.insert_symbol(&id.lexeme, expr_value.clone());
+        self.context.insert_symbol(&id.lexeme, expr_value);
 
         return NodeResult::new ( Value::Nil, Control::Continue );
 
     }
 
-    pub fn execute_block_statement(self: &mut Self, stmt: &statement::Block) -> NodeResult {
+    pub fn execute_block_statement(&mut self, stmt: &statement::Block<'a>) -> NodeResult<'a> {
 
         let Block { statements } = stmt;
 
         self.context.push_new_environment_auto();
-        for statement in statements {
+        for ref statement in statements {
             let statement_result = self.execute_statement(statement);
             if statement_result.control == Control::FunctionReturn {
                 self.context.pop_environment();
@@ -825,9 +824,9 @@ impl Interpreter {
 
     }
 
-    pub fn execute(self: &mut Self, statements: &Vec<Statement>) {
-        for statement in statements {
-            self.execute_statement(statement);
+    pub fn execute(&mut self, statements: &[Statement<'a>]) {
+        for ref statement in statements {
+            self.execute_statement(&statement);
         }
         return;
     }

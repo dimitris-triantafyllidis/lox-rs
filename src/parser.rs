@@ -5,93 +5,93 @@ pub mod expression {
     use crate::lexer::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Literal {
-        pub token: Token
+    pub struct Literal<'a> {
+        pub token: Token<'a>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Variable {
-        pub identifier: Token,
+    pub struct Variable<'a> {
+        pub identifier: Token<'a>,
         pub lookup_hop_count: Option<usize>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct UnaryOperation {
-        pub operator: Token,
-        pub right: Box<Expression>
+    pub struct UnaryOperation<'a> {
+        pub operator: Token<'a>,
+        pub right: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct BinaryOperation {
-        pub operator: Token,
-        pub left: Box<Expression>,
-        pub right: Box<Expression>
+    pub struct BinaryOperation<'a> {
+        pub operator: Token<'a>,
+        pub left: Box<Expression<'a>>,
+        pub right: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LogicalOr {
-        pub left: Box<Expression>,
-        pub right: Box<Expression>
+    pub struct LogicalOr<'a> {
+        pub left: Box<Expression<'a>>,
+        pub right: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LogicalAnd {
-        pub left: Box<Expression>,
-        pub right: Box<Expression>
+    pub struct LogicalAnd<'a> {
+        pub left: Box<Expression<'a>>,
+        pub right: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Parentheses {
-        pub expression: Box<Expression>
+    pub struct Parentheses<'a> {
+        pub expression: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Assignment {
-        pub left: Token,
+    pub struct Assignment<'a> {
+        pub left: Token<'a>,
         pub lookup_hop_count: Option<usize>,
-        pub expression: Box<Expression>
+        pub expression: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Call {
-        pub callee: Box<Expression>,
-        pub arguments: Vec<Expression>
+    pub struct Call<'a> {
+        pub callee: Box<Expression<'a>>,
+        pub arguments: Vec<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Set {
-        pub instance: Box<Expression>,
-        pub property: Token,
-        pub value: Box<Expression>
+    pub struct Set<'a> {
+        pub instance: Box<Expression<'a>>,
+        pub property: Token<'a>,
+        pub value: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Get {
-        pub instance: Box<Expression>,
-        pub property: Token
+    pub struct Get<'a> {
+        pub instance: Box<Expression<'a>>,
+        pub property: Token<'a>
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct Super {
-        pub property: Token,
+    pub struct Super<'a> {
+        pub property: Token<'a>,
         pub lookup_hop_count: Option<usize>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub enum Expression {
-        Literal (Literal),
-        Variable (Variable),
-        UnaryOperation (UnaryOperation),
-        BinaryOperation (BinaryOperation),
-        LogicalOr (LogicalOr),
-        LogicalAnd (LogicalAnd),
-        Parentheses (Parentheses),
-        Assignment (Assignment),
-        Call (Call),
-        Set (Set),
-        Get (Get),
+    pub enum Expression<'a> {
+        Literal (Literal<'a>),
+        Variable (Variable<'a>),
+        UnaryOperation (UnaryOperation<'a>),
+        BinaryOperation (BinaryOperation<'a>),
+        LogicalOr (LogicalOr<'a>),
+        LogicalAnd (LogicalAnd<'a>),
+        Parentheses (Parentheses<'a>),
+        Assignment (Assignment<'a>),
+        Call (Call<'a>),
+        Set (Set<'a>),
+        Get (Get<'a>),
         This,
-        Super (Super)
+        Super (Super<'a>)
     }
 
 }
@@ -103,84 +103,84 @@ pub mod statement {
     use crate::{lexer::*, parser::statement};
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Expression {
-        pub expr: super::expression::Expression
+    pub struct Expression<'a> {
+        pub expr: super::expression::Expression<'a>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct If {
-        pub condition: Expression,
-        pub then_statement: Box<Statement>,
-        pub else_statement: Option<Box<Statement>>
+    pub struct If<'a> {
+        pub condition: Expression<'a>,
+        pub then_statement: Box<Statement<'a>>,
+        pub else_statement: Option<Box<Statement<'a>>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct While {
-        pub condition: Expression,
-        pub body: Box<Statement>
+    pub struct While<'a> {
+        pub condition: Expression<'a>,
+        pub body: Box<Statement<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct For {
-        pub init: Option<Box<Statement>>,
-        pub cond: Option<Expression>,
-        pub incr: Option<Expression>,
-        pub body: Box<Statement>
+    pub struct For<'a> {
+        pub init: Option<Box<Statement<'a>>>,
+        pub cond: Option<Expression<'a>>,
+        pub incr: Option<Expression<'a>>,
+        pub body: Box<Statement<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Print {
-        pub expr: super::expression::Expression
+    pub struct Print<'a> {
+        pub expr: super::expression::Expression<'a>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Return {
-        pub expr: Option<Expression>
+    pub struct Return<'a> {
+        pub expr: Option<Expression<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct FunctionDeclaration {
-        pub id: Token,
-        pub pars: Vec<Token>,
-        pub body: Box<Statement>
+    pub struct FunctionDeclaration<'a> {
+        pub id: Token<'a>,
+        pub pars: Vec<Token<'a>>,
+        pub body: Box<Statement<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct ClassDeclaration {
-        pub id: Token,
-        pub method_decls: Vec<statement::FunctionDeclaration>,
-        pub super_class: Option<super::statement::Expression>
+    pub struct ClassDeclaration<'a> {
+        pub id: Token<'a>,
+        pub method_decls: Vec<statement::FunctionDeclaration<'a>>,
+        pub super_class: Option<super::statement::Expression<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct VariableDeclaration {
-        pub id: Token,
-        pub init: Option<Expression>
+    pub struct VariableDeclaration<'a> {
+        pub id: Token<'a>,
+        pub init: Option<Expression<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Block {
-        pub statements: Vec<Statement>
+    pub struct Block<'a> {
+        pub statements: Vec<Statement<'a>>
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub enum Statement {
-        Expression (Expression),
-        If (If),
-        While (While),
-        For (For),
-        Print (Print),
-        Return (Return),
-        FunctionDeclaration (FunctionDeclaration),
-        ClassDeclaration (ClassDeclaration),
-        VariableDeclaration (VariableDeclaration),
-        Block (Block)
+    pub enum Statement<'a> {
+        Expression (Expression<'a>),
+        If (If<'a>),
+        While (While<'a>),
+        For (For<'a>),
+        Print (Print<'a>),
+        Return (Return<'a>),
+        FunctionDeclaration (FunctionDeclaration<'a>),
+        ClassDeclaration (ClassDeclaration<'a>),
+        VariableDeclaration (VariableDeclaration<'a>),
+        Block (Block<'a>)
     }
 }
 
 use statement::*;
 
-pub fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
+pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<Statement<'a>> {
 
     let mut cursor: usize = 0;
     let mut stmt: Statement;
@@ -201,7 +201,7 @@ pub fn parse(tokens: &Vec<Token>) -> Vec<Statement> {
     return statements;
 }
 
-pub fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Var {
         return parse_variable_declaration(tokens, cursor + 1);
@@ -217,7 +217,7 @@ pub fn parse_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usiz
     }
 }
 
-pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -288,7 +288,7 @@ pub fn parse_function_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
 }
 
-pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -361,7 +361,7 @@ pub fn parse_class_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement
 
 }
 
-pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
     let id: Token;
@@ -400,7 +400,7 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
 }
 
-pub fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
@@ -425,7 +425,7 @@ pub fn parse_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize)
     }
 }
 
-pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -456,7 +456,7 @@ pub fn parse_while_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
     );
 }
 
-pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -521,7 +521,7 @@ pub fn parse_for_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, us
 
 }
 
-pub fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
@@ -536,7 +536,7 @@ pub fn parse_expression_statement(tokens: &Vec<Token>, cursor: usize) -> (Statem
 
 }
 
-pub fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut statements = Vec::<Statement>::new();
     let mut cursor = cursor;
@@ -567,7 +567,7 @@ pub fn parse_block(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
 
 }
 
-pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
@@ -582,7 +582,7 @@ pub fn parse_print_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, 
 
 }
 
-pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
@@ -604,7 +604,7 @@ pub fn parse_return_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement,
 
 }
 
-pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usize) {
+pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -656,11 +656,11 @@ pub fn parse_if_statement(tokens: &Vec<Token>, cursor: usize) -> (Statement, usi
 
 }
 
-pub fn parse_expression(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_expression<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
     return parse_assignment(tokens, cursor);
 }
 
-pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
@@ -706,7 +706,7 @@ pub fn parse_assignment(tokens: &Vec<Token>, cursor: usize) -> ( expression::Exp
 
 }
 
-pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
@@ -731,7 +731,7 @@ pub fn parse_logic_or(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expre
 
 }
 
-pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
@@ -756,7 +756,7 @@ pub fn parse_logic_and(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expr
 
 }
 
-pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
@@ -784,7 +784,7 @@ pub fn parse_equality(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expre
 
 }
 
-pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
@@ -814,7 +814,7 @@ pub fn parse_comparison(tokens: &Vec<Token>, cursor: usize) -> ( expression::Exp
 
 }
 
-pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_factor(tokens, cursor);
 
@@ -841,7 +841,7 @@ pub fn parse_term(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expressio
     return (expr, cursor);
 }
 
-pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
@@ -869,7 +869,7 @@ pub fn parse_factor(tokens: &Vec<Token>, cursor: usize) -> ( expression::Express
 
 }
 
-pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let mut cursor = cursor;
 
@@ -893,7 +893,7 @@ pub fn parse_unary(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expressi
 
 }
 
-pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
@@ -965,7 +965,7 @@ pub fn parse_call(tokens: &Vec<Token>, cursor: usize) -> ( expression::Expressio
     return (expr, cursor);
 }
 
-pub fn parse_primary(tokens: &Vec<Token>, mut cursor: usize) -> ( expression::Expression, usize ) {
+pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expression::Expression<'a>, usize ) {
 
     if
         tokens[cursor].kind == TokenKind::Nil    ||

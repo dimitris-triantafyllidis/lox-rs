@@ -35,28 +35,28 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
-pub struct Token {
+pub struct Token<'a> {
     pub kind: TokenKind,
-    pub lexeme: String,
+    pub lexeme: &'a [char],
     pub line_number: usize
 }
 
-pub fn lexer_match_one_or_two_character_token(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_one_or_two_character_token<'a>(characters: &'a [char], cursor: usize, line_number: usize) -> Option<Token<'a>> {
 
     // One-character tokens
 
     match characters[cursor] {
-        '(' => { return Some ( Token { kind: TokenKind::LeftParenthesis  , lexeme: "(".to_string(), line_number } ); },
-        ')' => { return Some ( Token { kind: TokenKind::RightParenthesis , lexeme: ")".to_string(), line_number } ); },
-        '{' => { return Some ( Token { kind: TokenKind::LeftBrace        , lexeme: "{".to_string(), line_number } ); },
-        '}' => { return Some ( Token { kind: TokenKind::RightBrace       , lexeme: "}".to_string(), line_number } ); },
-        ',' => { return Some ( Token { kind: TokenKind::Comma            , lexeme: ",".to_string(), line_number } ); },
-        '.' => { return Some ( Token { kind: TokenKind::Dot              , lexeme: ".".to_string(), line_number } ); },
-        '-' => { return Some ( Token { kind: TokenKind::Minus            , lexeme: "-".to_string(), line_number } ); },
-        '+' => { return Some ( Token { kind: TokenKind::Plus             , lexeme: "+".to_string(), line_number } ); },
-        ';' => { return Some ( Token { kind: TokenKind::Semicolon        , lexeme: ";".to_string(), line_number } ); },
-        '/' => { return Some ( Token { kind: TokenKind::Slash            , lexeme: "/".to_string(), line_number } ); },
-        '*' => { return Some ( Token { kind: TokenKind::Star             , lexeme: "*".to_string(), line_number } ); },
+        '(' => { return Some ( Token { kind: TokenKind::LeftParenthesis  , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        ')' => { return Some ( Token { kind: TokenKind::RightParenthesis , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '{' => { return Some ( Token { kind: TokenKind::LeftBrace        , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '}' => { return Some ( Token { kind: TokenKind::RightBrace       , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        ',' => { return Some ( Token { kind: TokenKind::Comma            , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '.' => { return Some ( Token { kind: TokenKind::Dot              , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '-' => { return Some ( Token { kind: TokenKind::Minus            , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '+' => { return Some ( Token { kind: TokenKind::Plus             , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        ';' => { return Some ( Token { kind: TokenKind::Semicolon        , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '/' => { return Some ( Token { kind: TokenKind::Slash            , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '*' => { return Some ( Token { kind: TokenKind::Star             , lexeme: &characters[cursor..cursor+1], line_number } ); },
         _   => ()
     }
 
@@ -64,19 +64,19 @@ pub fn lexer_match_one_or_two_character_token(characters: &[char], cursor: usize
 
     if cursor < characters.len() - 1 {
         match (characters[cursor], characters[cursor + 1]) {
-            ('!', '=') => { return Some ( Token { kind: TokenKind::BangEqual    , lexeme: "!=".to_string(), line_number } ); },
-            ('=', '=') => { return Some ( Token { kind: TokenKind::EqualEqual   , lexeme: "==".to_string(), line_number } ); },
-            ('>', '=') => { return Some ( Token { kind: TokenKind::GreaterEqual , lexeme: ">=".to_string(), line_number } ); },
-            ('<', '=') => { return Some ( Token { kind: TokenKind::LessEqual    , lexeme: "<=".to_string(), line_number } ); },
+            ('!', '=') => { return Some ( Token { kind: TokenKind::BangEqual    , lexeme: &characters[cursor..cursor+2], line_number } ); },
+            ('=', '=') => { return Some ( Token { kind: TokenKind::EqualEqual   , lexeme: &characters[cursor..cursor+2], line_number } ); },
+            ('>', '=') => { return Some ( Token { kind: TokenKind::GreaterEqual , lexeme: &characters[cursor..cursor+2], line_number } ); },
+            ('<', '=') => { return Some ( Token { kind: TokenKind::LessEqual    , lexeme: &characters[cursor..cursor+2], line_number } ); },
             _          => ()
         }
     }
 
     match characters[cursor] {
-        '!' => { return Some ( Token { kind: TokenKind::Bang    , lexeme: "!".to_string(), line_number } ); },
-        '=' => { return Some ( Token { kind: TokenKind::Equal   , lexeme: "=".to_string(), line_number } ); },
-        '>' => { return Some ( Token { kind: TokenKind::Greater , lexeme: ">".to_string(), line_number } ); },
-        '<' => { return Some ( Token { kind: TokenKind::Less    , lexeme: "<".to_string(), line_number } ); },
+        '!' => { return Some ( Token { kind: TokenKind::Bang    , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '=' => { return Some ( Token { kind: TokenKind::Equal   , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '>' => { return Some ( Token { kind: TokenKind::Greater , lexeme: &characters[cursor..cursor+1], line_number } ); },
+        '<' => { return Some ( Token { kind: TokenKind::Less    , lexeme: &characters[cursor..cursor+1], line_number } ); },
         _   => ()
     }
 
@@ -84,69 +84,61 @@ pub fn lexer_match_one_or_two_character_token(characters: &[char], cursor: usize
 
 }
 
-pub fn lexer_match_keyword_or_identifier(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_keyword_or_identifier<'a>(characters: &'a [char], cursor_start: usize, line_number: usize) -> Option<Token<'a>> {
 
-    let mut cursor = cursor;
+    let mut cursor_end = cursor_start;
 
-    if characters[cursor].is_alphabetic() || characters[cursor] == '_' {
+    if characters[cursor_end].is_alphabetic() || characters[cursor_end] == '_' {
 
-        let mut lexeme = String::new();
+        cursor_end += 1;
 
-        lexeme.push(characters[cursor]);
-        cursor += 1;
-
-        while cursor < characters.len() {
-            if characters[cursor].is_alphanumeric() || characters[cursor] == '_' {
-                lexeme.push(characters[cursor]);
-                cursor += 1;
+        while cursor_end < characters.len() {
+            if characters[cursor_end].is_alphanumeric() || characters[cursor_end] == '_' {
+                cursor_end += 1;
             }
             else {
                 break;
             }
         }
 
-        if      lexeme == "and"    { return Some ( Token { kind: TokenKind::And        , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "class"  { return Some ( Token { kind: TokenKind::Class      , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "else"   { return Some ( Token { kind: TokenKind::Else       , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "false"  { return Some ( Token { kind: TokenKind::False      , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "fun"    { return Some ( Token { kind: TokenKind::Fun        , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "for"    { return Some ( Token { kind: TokenKind::For        , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "if"     { return Some ( Token { kind: TokenKind::If         , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "nil"    { return Some ( Token { kind: TokenKind::Nil        , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "or"     { return Some ( Token { kind: TokenKind::Or         , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "print"  { return Some ( Token { kind: TokenKind::Print      , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "return" { return Some ( Token { kind: TokenKind::Return     , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "super"  { return Some ( Token { kind: TokenKind::Super      , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "this"   { return Some ( Token { kind: TokenKind::This       , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "true"   { return Some ( Token { kind: TokenKind::True       , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "var"    { return Some ( Token { kind: TokenKind::Var        , lexeme: lexeme.clone(), line_number } ); }
-        else if lexeme == "while"  { return Some ( Token { kind: TokenKind::While      , lexeme: lexeme.clone(), line_number } ); }
-        else                       { return Some ( Token { kind: TokenKind::Identifier , lexeme: lexeme.clone(), line_number } ); }
+        if      characters[cursor_start..cursor_end] == ['a', 'n', 'd'                ] { return Some ( Token { kind: TokenKind::And        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['c', 'l', 'a', 's', 's'      ] { return Some ( Token { kind: TokenKind::Class      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['e', 'l', 's', 'e'           ] { return Some ( Token { kind: TokenKind::Else       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['f', 'a', 'l', 's', 'e'      ] { return Some ( Token { kind: TokenKind::False      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['f', 'u', 'n'                ] { return Some ( Token { kind: TokenKind::Fun        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['f', 'o', 'r'                ] { return Some ( Token { kind: TokenKind::For        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['i', 'f',                    ] { return Some ( Token { kind: TokenKind::If         , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['n', 'i', 'l'                ] { return Some ( Token { kind: TokenKind::Nil        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['o', 'r',                    ] { return Some ( Token { kind: TokenKind::Or         , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['p', 'r', 'i', 'n', 't'      ] { return Some ( Token { kind: TokenKind::Print      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['r', 'e', 't', 'u', 'r', 'n' ] { return Some ( Token { kind: TokenKind::Return     , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['s', 'u', 'p', 'e', 'r'      ] { return Some ( Token { kind: TokenKind::Super      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['t', 'h', 'i', 's'           ] { return Some ( Token { kind: TokenKind::This       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['t', 'r', 'u', 'e'           ] { return Some ( Token { kind: TokenKind::True       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['v', 'a', 'r',               ] { return Some ( Token { kind: TokenKind::Var        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == ['w', 'h', 'i', 'l', 'e'      ] { return Some ( Token { kind: TokenKind::While      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else                                                                            { return Some ( Token { kind: TokenKind::Identifier , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
     }
 
     return None;
 
 }
 
-pub fn lexer_match_string_literal(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_string_literal<'a>(characters: &'a [char], cursor_start: usize, line_number: usize) -> Option<Token<'a>> {
 
-    let mut cursor = cursor;
+    let mut cursor_end = cursor_start;
 
-    if characters[cursor] == '"' {
+    if characters[cursor_end] == '"' {
 
-        let mut lexeme = String::new();
-        lexeme.push(characters[cursor]);
+        cursor_end += 1;
 
-        cursor += 1;
-
-        while cursor < characters.len() {
-            if characters[cursor] != '"' {
-                lexeme.push(characters[cursor]);
-                cursor += 1;
+        while cursor_end < characters.len() {
+            if characters[cursor_end] != '"' {
+                cursor_end += 1;
             }
-            else if characters[cursor] == '"' {
-                lexeme.push(characters[cursor]);
-                return Some ( Token { kind: TokenKind::String, lexeme: lexeme.clone(), line_number } );
+            else if characters[cursor_end] == '"' {
+                cursor_end += 1;
+                return Some ( Token { kind: TokenKind::String, lexeme: &characters[cursor_start..cursor_end], line_number } );
             }
         }
     }
@@ -155,36 +147,31 @@ pub fn lexer_match_string_literal(characters: &[char], cursor: usize, line_numbe
 
 }
 
-pub fn lexer_match_number_literal(characters: &[char], cursor: usize, line_number: usize) -> Option<Token> {
+pub fn lexer_match_number_literal<'a>(characters: &'a [char], cursor_start: usize, line_number: usize) -> Option<Token<'a>> {
 
-    let mut cursor = cursor;
+    let mut cursor_end = cursor_start;
 
-    let mut lexeme = String::new();
-
-    if characters[cursor].is_ascii_digit() {
+    if characters[cursor_end].is_ascii_digit() {
 
         let mut seen_dot = false;
 
-        lexeme.push(characters[cursor]);
-        cursor += 1;
+        cursor_end += 1;
 
-        while cursor < characters.len() {
+        while cursor_end < characters.len() {
 
-            if characters[cursor] == '.' {
+            if characters[cursor_end] == '.' {
                 if !seen_dot {
                     seen_dot = true;
-                    lexeme.push(characters[cursor]);
-                    cursor += 1;
+                    cursor_end += 1;
                 }
                 else {
                     return None;
                 }
             }
-            else if characters[cursor].is_ascii_digit() {
-                lexeme.push(characters[cursor]);
-                cursor += 1;
+            else if characters[cursor_end].is_ascii_digit() {
+                cursor_end += 1;
             }
-            else if characters[cursor].is_whitespace() || characters[cursor].is_ascii_punctuation() {
+            else if characters[cursor_end].is_whitespace() || characters[cursor_end].is_ascii_punctuation() {
                 break;
             }
             else {
@@ -193,8 +180,8 @@ pub fn lexer_match_number_literal(characters: &[char], cursor: usize, line_numbe
         }
     }
 
-    if !lexeme.is_empty() && !lexeme.ends_with('.') {
-        return Some ( Token { kind: TokenKind::Number, lexeme: lexeme.clone(), line_number } );
+    if !characters[cursor_start..cursor_end].is_empty() && characters[cursor_end] != '.' {
+        return Some ( Token { kind: TokenKind::Number, lexeme: &characters[cursor_start..cursor_end], line_number } );
     }
     else {
         return None;
@@ -202,19 +189,21 @@ pub fn lexer_match_number_literal(characters: &[char], cursor: usize, line_numbe
 
 }
 
-pub fn lexer_scan(s: &str) -> Vec<Token> {
+pub fn lexer_scan<'a>(characters: &'a [char]) -> Vec<Token<'a>> {
 
-    let characters: Vec<char> = s.chars().collect();
-    let mut tokens = Vec::<Token>::new();
+    let mut tokens = Vec::<Token<'a>>::new();
+
     let mut cursor: usize = 0;
     let mut line_number: usize = 1;
 
-    while cursor < characters.len() {
+    let source_length = characters.len();
+
+    while cursor < source_length {
 
         // Skip comments
 
-        if characters.len() - cursor >= 2 && (characters[cursor], characters[cursor + 1]) == ('/', '/') {
-            while cursor < characters.len() && characters[cursor] != '\n' {
+        if source_length - cursor >= 2 && (characters[cursor], characters[cursor + 1]) == ('/', '/') {
+            while cursor < source_length && characters[cursor] != '\n' {
                 cursor += 1;
             }
             continue;
@@ -235,10 +224,10 @@ pub fn lexer_scan(s: &str) -> Vec<Token> {
 
         let matches = [
 
-            lexer_match_one_or_two_character_token ( &characters, cursor, line_number ),
-            lexer_match_keyword_or_identifier      ( &characters, cursor, line_number ),
-            lexer_match_string_literal             ( &characters, cursor, line_number ),
-            lexer_match_number_literal             ( &characters, cursor, line_number )
+            lexer_match_one_or_two_character_token (characters, cursor, line_number ),
+            lexer_match_keyword_or_identifier      (characters, cursor, line_number ),
+            lexer_match_string_literal             (characters, cursor, line_number ),
+            lexer_match_number_literal             (characters, cursor, line_number )
 
         ];
 
@@ -261,11 +250,10 @@ pub fn lexer_scan(s: &str) -> Vec<Token> {
     tokens.push (
         Token {
             kind: TokenKind::EOF,
-            lexeme: String::from(""),
+            lexeme: &[],
             line_number
         }
     );
 
     tokens
-
 }

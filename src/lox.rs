@@ -36,13 +36,13 @@ fn run_file(file_path: &String) {
 
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
-            let tokens = lexer_scan(&s);
-            let mut parsed = parse(&tokens);
-            // println!("{:#?}", parsed);
+            let characters: Vec<char> = s.chars().collect();
+            let tokens = lexer_scan(&characters);
+            let mut syntax_tree = parse(&tokens);
             let mut semantic_pass = SemanticPass::new();
-            semantic_pass.visit(&mut parsed);
+            semantic_pass.visit(&mut syntax_tree);
             let mut interpreter = Interpreter::new();
-            interpreter.execute(&parsed);
+            interpreter.execute(&syntax_tree);
         },
         io::Result::Err(e) => {
             eprintln!("io error: {}", e);
@@ -61,9 +61,7 @@ fn run_repl() {
         match rl.readline("lox > ") {
 
             Ok(line) => {
-                let tokens = lexer_scan(&line);
-                let parsed = parse(&tokens);
-                interpreter.execute(&parsed);
+
             }
             Err(ReadlineError::Interrupted) => {
                 continue;

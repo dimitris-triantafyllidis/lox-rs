@@ -2,29 +2,29 @@ use std::collections::HashMap;
 
 use crate::interpreter::*;
 
-pub struct Environment {
-    pub symbols: HashMap<String, Value>,
+pub struct Environment<'a> {
+    pub symbols: HashMap<&'a [char], Value<'a>>,
     pub parent_key: Option<usize>,
     pub reachable: bool
 }
 
-impl Environment {
+impl<'a> Environment<'a> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
-            symbols: HashMap::<String, Value>::new(),
+            symbols: HashMap::<&[char], Value>::new(),
             parent_key: parent_key,
             reachable: false
         }
     }
 }
 
-pub struct Context {
-    pub environments: HashMap<usize, Environment>,
+pub struct Context<'a> {
+    pub environments: HashMap<usize, Environment<'a>>,
     pub environment_stack: Vec<usize>,
     pub next_id: usize
 }
 
-impl Context {
+impl<'a> Context<'a> {
 
     pub fn new() -> Self {
         Self {
@@ -34,7 +34,7 @@ impl Context {
         }
     }
 
-    pub fn push_new_environment(self: &mut Self, parent_id: Option<usize>) {
+    pub fn push_new_environment(&mut self, parent_id: Option<usize>) {
         self.environments.insert (
             self.next_id,
             Environment::new(parent_id)
@@ -48,7 +48,7 @@ impl Context {
 
     }
 
-    pub fn push_new_environment_auto(self: &mut Self) {
+    pub fn push_new_environment_auto(&mut self) {
         self.environments.insert (
             self.next_id,
             Environment::new(self.environment_stack.last().copied())
@@ -62,16 +62,16 @@ impl Context {
 
     }
 
-    pub fn pop_environment(self: &mut Self) {
+    pub fn pop_environment(&mut self) {
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(self: &Self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> usize {
+    pub fn find_symbol(&self, identifier: &[char], lookup_hop_count: &mut Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
             .last()
-            .expect(&format!("Symbol {identifier} not found: interpreter context is empty"));
+            .expect(&format!("Symbol {:#?} not found: interpreter context is empty", identifier));
 
         match lookup_hop_count {
 
@@ -111,18 +111,18 @@ impl Context {
                             return id;
                         }
                         else {
-                            panic!("Symbol {} not found", identifier);
+                            panic!("Symbol {:#?} not found", identifier);
                         }
                     }
 
                     hops_left -= 1;
-                    id = env.parent_key.expect(&format!("Symbol {identifier} not found"));
+                    id = env.parent_key.expect(&format!("Symbol {:#?} not found", identifier));
                 }
             }
         }
     }
 
-    pub fn get_symbol_value(self: &Self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> Value {
+    pub fn get_symbol_value(&self, identifier: &[char], lookup_hop_count: &mut Option<usize>) -> Value<'a> {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get(&env_id).unwrap();
@@ -135,7 +135,7 @@ impl Context {
         }
     }
 
-    pub fn set_symbol_value(self: &mut Self, identifier: &str, value: Value, lookup_hop_count: &mut Option<usize>) {
+    pub fn set_symbol_value(&mut self, identifier: &[char], value: Value<'a>, lookup_hop_count: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count);
         let env = self.environments.get_mut(&env_id).unwrap();
@@ -149,7 +149,7 @@ impl Context {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &str, value: Value) {
+    pub fn insert_symbol(&mut self, identifier: &'a [char], value: Value<'a>) {
 
         let id = *self
             .environment_stack
@@ -165,10 +165,10 @@ impl Context {
             panic!("Symbol already exists");
         }
 
-        env.symbols.insert(identifier.to_string(), value);
+        env.symbols.insert(identifier, value);
     }
 
-    pub fn get_current_environment_id(self: &Self) -> usize {
+    pub fn get_current_environment_id(&self) -> usize {
 
         return *self
             .environment_stack
@@ -176,7 +176,7 @@ impl Context {
             .expect("Interpreter context is empty");
     }
 
-    pub fn gc_collect(self: &mut Self) {
+    pub fn gc_collect(&mut self) {
 
         for (_, env) in &mut self.environments {
             env.reachable = false;
