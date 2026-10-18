@@ -15,7 +15,7 @@ use statement::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
     class: Box<Value<'a>>,
-    properties: HashMap<Token<'a>, Value<'a>>
+    properties: HashMap<&'a str, Value<'a>>
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +26,7 @@ pub enum NativeFunction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function<'a> {
-    pub pars: Vec<Token<'a>>,
+    pub pars: Vec<&'a str>,
     pub body: Statement<'a>,
     pub closure_id: usize,
     pub is_native: bool,
@@ -35,7 +35,7 @@ pub struct Function<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
-    methods: HashMap<Token<'a>, Value<'a>>,
+    methods: HashMap<&'a str, Value<'a>>,
     super_class: Option<Box<Value<'a>>>
 }
 
@@ -175,8 +175,8 @@ impl<'a> Interpreter<'a> {
         let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy)));
         while let Some(box_value) = method_lookup_class {
             if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
-                if methods.contains_key(&property) {
-                    value = methods.get(&property).unwrap().clone();
+                if methods.contains_key(&property.lexeme) {
+                    value = methods.get(&property.lexeme).unwrap().clone();
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                         self.context.push_new_environment(Some(*closure_id));
                         self.context.insert_symbol("this", instance_value);
@@ -209,7 +209,7 @@ impl<'a> Interpreter<'a> {
 
         if let Value::Instance ( instance ) = instance {
             let mut instance = instance.borrow_mut();
-            instance.properties.insert(property.clone(), value.clone());
+            instance.properties.insert(property.lexeme, value.clone());
             return NodeResult::new (
                 value,
                 Control::Continue
@@ -227,16 +227,16 @@ impl<'a> Interpreter<'a> {
             let instance = instance.borrow_mut();
             let mut value: Value;
 
-            if instance.properties.contains_key(&property) {
-                value = instance.properties.get(&property).unwrap().clone();
+            if instance.properties.contains_key(&property.lexeme) {
+                value = instance.properties.get(&property.lexeme).unwrap().clone();
                 return value;
             }
             else {
                 let mut method_lookup_class = Some(instance.class.clone());
                 while let Some(box_value) = method_lookup_class {
                     if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
-                        if methods.contains_key(&property) {
-                            value = methods.get(&property).unwrap().clone();
+                        if methods.contains_key(&property.lexeme) {
+                            value = methods.get(&property.lexeme).unwrap().clone();
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol("this", instance_value.clone());
@@ -257,7 +257,7 @@ impl<'a> Interpreter<'a> {
                         panic!("Expected class value");
                     }
                 }
-                panic!("Undefined property");
+                panic!("Undefined property: {}", property.lexeme);
             }
         }
         else {
@@ -426,7 +426,7 @@ impl<'a> Interpreter<'a> {
 
                 for i in 0..pars.len() {
                     self.context.insert_symbol (
-                        &pars[i].lexeme,
+                        &pars[i],
                         arguments[i].clone()
                     );
                 }
@@ -488,7 +488,7 @@ impl<'a> Interpreter<'a> {
                         RefCell::new (
                             Instance {
                                 class:      Box::new(callee.clone()),
-                                properties: HashMap::<Token, Value>::new()
+                                properties: HashMap::<&'a str, Value>::new()
                             }
                         )
                     )
@@ -501,7 +501,7 @@ impl<'a> Interpreter<'a> {
                     line_number: 0
                 };
 
-            if methods.keys().any(|token| token.lexeme == "init")  {
+            if methods.keys().any(|id| *id == "init")  {
                 let init_bound_function = self.evaluate_get_internal (
                     &new_instance,
                     &init_token
@@ -712,11 +712,17 @@ impl<'a> Interpreter<'a> {
 
         let FunctionDeclaration { id, pars, body } = stmt;
 
+        let mut par_lexemes = Vec::<&'a str>::new();
+
+        for par in pars {
+            par_lexemes.push(par.lexeme);
+        }
+
         self.context.insert_symbol (
             &id.lexeme,
             Value::Function (
                 Function {
-                    pars: pars.clone(),
+                    pars: par_lexemes,
                     body: *body.clone(),
                     closure_id: self.context.get_current_environment_id(),
                     is_native: false,
@@ -734,7 +740,7 @@ impl<'a> Interpreter<'a> {
 
         let super_class_result: Option<Box<Value>>;
 
-        if let Some ( statement::Expression { expr } ) = super_class {
+        if let Some ( expr ) = super_class {
             let super_class_value: Value;
             if let expression::Expression::Variable(expr) = expr {
                 super_class_value = self.evaluate_variable(expr).value;
@@ -759,11 +765,18 @@ impl<'a> Interpreter<'a> {
 
         for method_decl in method_decls {
             let FunctionDeclaration { id, pars, body } = method_decl;
+
+            let mut par_lexemes = Vec::<&'a str>::new();
+
+            for par in pars {
+                par_lexemes.push(par.lexeme);
+            }
+
             class_method_map.insert (
                 id.clone(),
                 Value::Function (
                     Function {
-                        pars: pars.clone(),
+                        pars: par_lexemes,
                         body: *body.clone(),
                         closure_id: self.context.get_current_environment_id(),
                         is_native: false,
@@ -777,11 +790,17 @@ impl<'a> Interpreter<'a> {
             self.context.pop_environment();
         }
 
+        let mut class_method_lexeme_map = HashMap::<&'a str, Value>::new();
+
+        for (method_token, value) in class_method_map {
+            class_method_lexeme_map.insert(method_token.lexeme, value);
+        }
+
         self.context.insert_symbol (
             &id.lexeme,
             Value::Class (
                 Class {
-                    methods: class_method_map,
+                    methods: class_method_lexeme_map,
                     super_class: super_class_result
                 }
             )

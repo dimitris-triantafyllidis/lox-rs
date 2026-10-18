@@ -284,11 +284,17 @@ impl<'a> SemanticPass<'a> {
             closure_id = self.context.next_id - 1;
         }
 
+        let mut par_lexemes = Vec::<&'a str>::new();
+
+        for par in pars.clone() {
+            par_lexemes.push(par.lexeme);
+        }
+
         self.context.insert_symbol (
             &id.lexeme,
             Value::Function (
                 Function {
-                    pars: pars.clone(),
+                    pars: par_lexemes,
                     body: *body.clone(),
                     closure_id,
                     is_native: false,
@@ -328,7 +334,7 @@ impl<'a> SemanticPass<'a> {
 
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
-        if let Some ( statement::Expression { expr } ) = super_class {
+        if let Some ( expr ) = super_class {
             if let expression::Expression::Variable(expr) = expr {
                 self.visit_variable(expr);
             }

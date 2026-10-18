@@ -114,7 +114,7 @@ pub fn lexer_match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: 
         else if characters[cursor_start..cursor_end] == *"return"{ return Some ( Token { kind: TokenKind::Return     , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
         else if characters[cursor_start..cursor_end] == *"super" { return Some ( Token { kind: TokenKind::Super      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
         else if characters[cursor_start..cursor_end] == *"this"  { return Some ( Token { kind: TokenKind::This       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"this"  { return Some ( Token { kind: TokenKind::True       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        else if characters[cursor_start..cursor_end] == *"true"  { return Some ( Token { kind: TokenKind::True       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
         else if characters[cursor_start..cursor_end] == *"var"   { return Some ( Token { kind: TokenKind::Var        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
         else if characters[cursor_start..cursor_end] == *"while" { return Some ( Token { kind: TokenKind::While      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
         else                                                     { return Some ( Token { kind: TokenKind::Identifier , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
