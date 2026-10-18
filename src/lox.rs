@@ -1,8 +1,5 @@
 use std::{env, fs, io, process::ExitCode};
 
-use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
-
 mod lexer;
 mod parser;
 mod interpreter;

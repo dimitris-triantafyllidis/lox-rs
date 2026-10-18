@@ -187,6 +187,9 @@ impl<'a> Context<'a> {
             let mut env_id = *env_chain_root_id;
             loop {
                 let env = self.environments.get_mut(&env_id).unwrap();
+                if env.reachable == true {
+                    break;
+                }
                 env.reachable = true;
                 match env.parent_key {
                     Some(key) => { env_id = key; },
