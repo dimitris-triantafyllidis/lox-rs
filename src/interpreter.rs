@@ -14,8 +14,8 @@ use statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
-    class: Box<Value<'a>>,
-    properties: HashMap<&'a str, Value<'a>>
+    pub class: Box<Value<'a>>,
+    pub properties: HashMap<&'a str, Value<'a>>
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,8 +35,8 @@ pub struct Function<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
-    methods: HashMap<&'a str, Value<'a>>,
-    super_class: Option<Box<Value<'a>>>
+    pub methods: HashMap<&'a str, Value<'a>>,
+    pub super_class: Option<Box<Value<'a>>>
 }
 
 #[derive(Debug, Clone, PartialEq)]

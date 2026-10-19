@@ -176,33 +176,81 @@ impl<'a> Context<'a> {
             .expect("Interpreter context is empty");
     }
 
-    pub fn gc_collect(&mut self) {
-
+    pub fn gc_clear_flags(&mut self) {
         for (_, env) in &mut self.environments {
             env.reachable = false;
         }
+    }
 
-        for env_chain_root_id in &mut self.environment_stack {
-
-            let mut env_id = *env_chain_root_id;
-            loop {
-                let env = self.environments.get_mut(&env_id).unwrap();
-                if env.reachable == true {
-                    break;
-                }
-                env.reachable = true;
-                match env.parent_key {
-                    Some(key) => { env_id = key; },
-                    None => { break; }
-                }
-            }
-
-        }
-
+    pub fn gc_sweep(&mut self) {
         self.environments.retain (
             |_, env|  {
                 env.reachable
             }
         );
+    }
+
+    pub fn gc_follow_and_mark(&mut self, env_id: usize) {
+
+        let mut env_ids_to_mark_stack = Vec::<usize>::new();
+        env_ids_to_mark_stack.push(env_id);
+
+        while let Some(env_id) = env_ids_to_mark_stack.pop() {
+
+            let Some(env) = self.environments.get_mut(&env_id) else {
+                continue;
+            };
+
+            if env.reachable {
+                continue;
+            }
+
+            env.reachable = true;
+
+            let mut new_envs_to_visit = Vec::new();
+
+            for value in env.symbols.values() {
+                if let Value::Function(Function { closure_id, .. }) = value {
+                    new_envs_to_visit.push(*closure_id);
+                }
+                else if let Value::Instance ( instance ) = value {
+                    let instance = instance.as_ref().borrow();
+                    for value in instance.properties.values() {
+                        if let Value::Function ( Function { closure_id, .. } ) = value {
+                            new_envs_to_visit.push(*closure_id);
+                        }
+                    }
+                }
+                else if let Value::Class ( Class { methods, .. } ) = value {
+
+                    for value in methods.values() {
+                        if let Value::Function(Function { closure_id, .. } ) = value {
+                            new_envs_to_visit.push(*closure_id);
+                        }
+                    }
+                }
+            }
+
+            if let Some(parent_id) = env.parent_key {
+                new_envs_to_visit.push(parent_id);
+            }
+
+            env_ids_to_mark_stack.extend(new_envs_to_visit);
+        }
+
+    }
+
+    pub fn gc_collect(&mut self) {
+
+        self.gc_clear_flags();
+
+        let env_stack = self.environment_stack.clone();
+
+        for env_chain_root_id in env_stack {
+            let env_id = env_chain_root_id;
+            self.gc_follow_and_mark(env_id);
+        }
+
+        self.gc_sweep();
     }
 }
