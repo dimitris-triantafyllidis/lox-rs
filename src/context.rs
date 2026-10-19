@@ -21,7 +21,9 @@ impl<'a> Environment<'a> {
 pub struct Context<'a> {
     pub environments: HashMap<usize, Environment<'a>>,
     pub environment_stack: Vec<usize>,
-    pub next_id: usize
+    pub next_env_id: usize,
+    pub instances: HashMap<usize, Instance<'a>>,
+    pub next_instance_id: usize
 }
 
 impl<'a> Context<'a> {
@@ -30,19 +32,30 @@ impl<'a> Context<'a> {
         Self {
             environments: HashMap::<usize, Environment>::new(),
             environment_stack: Vec::<usize>::new(),
-            next_id: 0
+            next_env_id: 0,
+            instances: HashMap::<usize, Instance<'a>>::new(),
+            next_instance_id: 0
         }
+    }
+
+    pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
+        self.instances.insert (
+            self.next_instance_id,
+            instance
+        );
+        self.next_instance_id += 1;
+        return self.next_instance_id - 1;
     }
 
     pub fn push_new_environment(&mut self, parent_id: Option<usize>) {
         self.environments.insert (
-            self.next_id,
+            self.next_env_id,
             Environment::new(parent_id)
         );
-        self.environment_stack.push(self.next_id);
-        self.next_id += 1;
+        self.environment_stack.push(self.next_env_id);
+        self.next_env_id += 1;
 
-        if self.next_id % 512 == 0 {
+        if self.next_env_id % 512 == 0 {
             self.gc_collect();
         };
 
@@ -50,13 +63,13 @@ impl<'a> Context<'a> {
 
     pub fn push_new_environment_auto(&mut self) {
         self.environments.insert (
-            self.next_id,
+            self.next_env_id,
             Environment::new(self.environment_stack.last().copied())
         );
-        self.environment_stack.push(self.next_id);
-        self.next_id += 1;
+        self.environment_stack.push(self.next_env_id);
+        self.next_env_id += 1;
 
-        if self.next_id % 512 == 0 {
+        if self.next_env_id % 512 == 0 {
             self.gc_collect();
         };
 
@@ -213,13 +226,8 @@ impl<'a> Context<'a> {
                 if let Value::Function(Function { closure_id, .. }) = value {
                     new_envs_to_visit.push(*closure_id);
                 }
-                else if let Value::Instance ( instance ) = value {
-                    let instance = instance.as_ref().borrow();
-                    for value in instance.properties.values() {
-                        if let Value::Function ( Function { closure_id, .. } ) = value {
-                            new_envs_to_visit.push(*closure_id);
-                        }
-                    }
+                else if let Value::Instance ( instance_id ) = value {
+                    let instance = self.instances.get(instance_id).unwrap();
                 }
                 else if let Value::Class ( Class { methods, .. } ) = value {
 

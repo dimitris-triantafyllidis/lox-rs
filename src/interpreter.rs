@@ -2,9 +2,6 @@ use std::collections::HashMap;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use std::rc::Rc;
-use std::cell::RefCell;
-
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
@@ -15,7 +12,8 @@ use statement::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
     pub class: Box<Value<'a>>,
-    pub properties: HashMap<&'a str, Value<'a>>
+    pub properties: HashMap<&'a str, Value<'a>>,
+    pub reachable: bool
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +45,7 @@ pub enum Value<'a> {
     String (String),
     Function (Function<'a>),
     Class (Class<'a>),
-    Instance (Rc<RefCell<Instance<'a>>>)
+    Instance (usize)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -180,7 +178,7 @@ impl<'a> Interpreter<'a> {
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                         self.context.push_new_environment(Some(*closure_id));
                         self.context.insert_symbol("this", instance_value);
-                        *closure_id = self.context.next_id - 1;
+                        *closure_id = self.context.next_env_id - 1;
                         self.context.pop_environment();
                         return NodeResult { value, control: Control::Continue };
                     }
@@ -207,9 +205,9 @@ impl<'a> Interpreter<'a> {
         let instance = self.evaluate_expression(instance.as_ref()).value;
         let value = self.evaluate_expression(value).value;
 
-        if let Value::Instance ( instance ) = instance {
-            let mut instance = instance.borrow_mut();
-            instance.properties.insert(property.lexeme, value.clone());
+        if let Value::Instance ( instance_id ) = instance {
+            let instance_value = self.context.instances.get_mut(&instance_id).unwrap();
+            instance_value.properties.insert(property.lexeme, value.clone());
             return NodeResult::new (
                 value,
                 Control::Continue
@@ -223,8 +221,8 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_get_internal(&mut self, instance_value: &Value<'a>, property: &Token<'a>) -> Value<'a> {
 
-        if let Value::Instance ( instance ) = instance_value {
-            let instance = instance.borrow_mut();
+        if let Value::Instance ( instance_id ) = instance_value {
+            let instance = self.context.instances.get(instance_id).unwrap();
             let mut value: Value;
 
             if instance.properties.contains_key(&property.lexeme) {
@@ -240,7 +238,7 @@ impl<'a> Interpreter<'a> {
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol("this", instance_value.clone());
-                                *closure_id = self.context.next_id - 1;
+                                *closure_id = self.context.next_env_id - 1;
                                 self.context.pop_environment();
                                 return value;
                             }
@@ -484,13 +482,12 @@ impl<'a> Interpreter<'a> {
 
             let new_instance =
                 Value::Instance (
-                    Rc::new (
-                        RefCell::new (
-                            Instance {
-                                class:      Box::new(callee.clone()),
-                                properties: HashMap::<&'a str, Value>::new()
-                            }
-                        )
+                    self.context.insert_instance (
+                        Instance {
+                            class:      Box::new(callee.clone()),
+                            properties: HashMap::<&'a str, Value>::new(),
+                            reachable:  false
+                        }
                     )
                 );
 

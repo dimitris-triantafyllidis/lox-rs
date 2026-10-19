@@ -281,7 +281,7 @@ impl<'a> SemanticPass<'a> {
         if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
             self.context.push_new_environment(Some(closure_id));
             self.context.insert_symbol("this", Value::Nil);
-            closure_id = self.context.next_id - 1;
+            closure_id = self.context.next_env_id - 1;
         }
 
         let mut par_lexemes = Vec::<&'a str>::new();
