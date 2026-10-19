@@ -101,23 +101,30 @@ pub fn lexer_match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: 
             }
         }
 
-        if      characters[cursor_start..cursor_end] == *"and"   { return Some ( Token { kind: TokenKind::And        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"class" { return Some ( Token { kind: TokenKind::Class      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"else"  { return Some ( Token { kind: TokenKind::Else       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"false" { return Some ( Token { kind: TokenKind::False      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"fun"   { return Some ( Token { kind: TokenKind::Fun        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"for"   { return Some ( Token { kind: TokenKind::For        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"if"    { return Some ( Token { kind: TokenKind::If         , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"nil"   { return Some ( Token { kind: TokenKind::Nil        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"or"    { return Some ( Token { kind: TokenKind::Or         , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"print" { return Some ( Token { kind: TokenKind::Print      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"return"{ return Some ( Token { kind: TokenKind::Return     , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"super" { return Some ( Token { kind: TokenKind::Super      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"this"  { return Some ( Token { kind: TokenKind::This       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"true"  { return Some ( Token { kind: TokenKind::True       , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"var"   { return Some ( Token { kind: TokenKind::Var        , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else if characters[cursor_start..cursor_end] == *"while" { return Some ( Token { kind: TokenKind::While      , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
-        else                                                     { return Some ( Token { kind: TokenKind::Identifier , lexeme: &characters[cursor_start..cursor_end], line_number } ); }
+        let lexeme = &characters[cursor_start..cursor_end];
+
+        match lexeme {
+
+            "and"    => { return Some ( Token { kind: TokenKind::And        , lexeme, line_number } ); }
+            "class"  => { return Some ( Token { kind: TokenKind::Class      , lexeme, line_number } ); }
+            "else"   => { return Some ( Token { kind: TokenKind::Else       , lexeme, line_number } ); }
+            "false"  => { return Some ( Token { kind: TokenKind::False      , lexeme, line_number } ); }
+            "fun"    => { return Some ( Token { kind: TokenKind::Fun        , lexeme, line_number } ); }
+            "for"    => { return Some ( Token { kind: TokenKind::For        , lexeme, line_number } ); }
+            "if"     => { return Some ( Token { kind: TokenKind::If         , lexeme, line_number } ); }
+            "nil"    => { return Some ( Token { kind: TokenKind::Nil        , lexeme, line_number } ); }
+            "or"     => { return Some ( Token { kind: TokenKind::Or         , lexeme, line_number } ); }
+            "print"  => { return Some ( Token { kind: TokenKind::Print      , lexeme, line_number } ); }
+            "return" => { return Some ( Token { kind: TokenKind::Return     , lexeme, line_number } ); }
+            "super"  => { return Some ( Token { kind: TokenKind::Super      , lexeme, line_number } ); }
+            "this"   => { return Some ( Token { kind: TokenKind::This       , lexeme, line_number } ); }
+            "true"   => { return Some ( Token { kind: TokenKind::True       , lexeme, line_number } ); }
+            "var"    => { return Some ( Token { kind: TokenKind::Var        , lexeme, line_number } ); }
+            "while"  => { return Some ( Token { kind: TokenKind::While      , lexeme, line_number } ); }
+            _ =>        { return Some ( Token { kind: TokenKind::Identifier , lexeme, line_number } ); }
+
+        }
+
     }
 
     return None;
