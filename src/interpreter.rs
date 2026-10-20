@@ -77,7 +77,8 @@ pub fn is_truthy(v: &Value) -> bool {
     }
 }
 pub struct Interpreter<'a> {
-    pub context: Context<'a>
+    pub context: Context<'a>,
+    pub statement_exec_count: usize
 }
 
 impl<'a> Interpreter<'a> {
@@ -105,7 +106,8 @@ impl<'a> Interpreter<'a> {
         );
 
         Self {
-            context
+            context,
+            statement_exec_count: 0
         }
     }
 
@@ -558,6 +560,19 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn execute_statement(&mut self, statement: &Statement<'a>) -> NodeResult<'a> {
+
+        self.statement_exec_count += 1;
+
+        if self.statement_exec_count % 256 == 0 {
+            // print!("gc cycle, before: ");
+            // print!("env count: {}, ", self.context.environments.len());
+            // println!("instance count: {}, ", self.context.instances.len());
+            self.context.gc_collect();
+            // print!("gc cycle, after: ");
+            // print!("env count: {}, ", self.context.environments.len());
+            // println!("instance count: {}, ", self.context.instances.len());
+            // println!();
+        }
 
         match statement {
             Statement::Expression (stmt)          => return self.execute_expression_statement(stmt),

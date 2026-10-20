@@ -55,10 +55,6 @@ impl<'a> Context<'a> {
         self.environment_stack.push(self.next_env_id);
         self.next_env_id += 1;
 
-        if self.next_env_id % 512 == 0 {
-            self.gc_collect();
-        };
-
     }
 
     pub fn push_new_environment_auto(&mut self) {
@@ -68,11 +64,6 @@ impl<'a> Context<'a> {
         );
         self.environment_stack.push(self.next_env_id);
         self.next_env_id += 1;
-
-        if self.next_env_id % 512 == 0 {
-            self.gc_collect();
-        };
-
     }
 
     pub fn pop_environment(&mut self) {
@@ -193,6 +184,9 @@ impl<'a> Context<'a> {
         for (_, env) in &mut self.environments {
             env.reachable = false;
         }
+        for (_, instance) in &mut self.instances {
+            instance.reachable = false;
+        }
     }
 
     pub fn gc_sweep(&mut self) {
@@ -201,51 +195,159 @@ impl<'a> Context<'a> {
                 env.reachable
             }
         );
+        self.instances.retain (
+            |_, instance|  {
+                instance.reachable
+            }
+        );
     }
 
     pub fn gc_follow_and_mark(&mut self, env_id: usize) {
 
         let mut env_ids_to_mark_stack = Vec::<usize>::new();
+        let mut instance_ids_to_mark_stack = Vec::<usize>::new();
+
         env_ids_to_mark_stack.push(env_id);
 
-        while let Some(env_id) = env_ids_to_mark_stack.pop() {
+        while !env_ids_to_mark_stack.is_empty() || !instance_ids_to_mark_stack.is_empty() {
 
-            let Some(env) = self.environments.get_mut(&env_id) else {
-                continue;
-            };
+            while let Some(env_id) = env_ids_to_mark_stack.pop() {
 
-            if env.reachable {
-                continue;
+                let Some(env) = self.environments.get_mut(&env_id) else {
+                    continue;
+                };
+
+                if env.reachable {
+                    continue;
+                }
+
+                env.reachable = true;
+
+                let mut new_envs_to_visit = Vec::<usize>::new();
+
+                for value in env.symbols.values() {
+                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                        new_envs_to_visit.push(*closure_id);
+                    }
+                    else if let Value::Instance ( instance_id ) = value {
+                        instance_ids_to_mark_stack.push(*instance_id);
+                    }
+                    else if let Value::Class ( Class { methods, super_class } ) = value {
+
+                        for value in methods.values() {
+                            if let Value::Function ( Function { closure_id, .. } ) = value {
+                                new_envs_to_visit.push(*closure_id);
+                            }
+                        }
+
+                        let mut s = super_class;
+
+                        while let Some (b) = s {
+                            if let Value::Class ( Class { methods, super_class } ) = b.as_ref() {
+                                for value in methods.values() {
+                                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                                        new_envs_to_visit.push(*closure_id);
+                                    }
+                                }
+                                s = super_class;
+                            }
+                            else {
+                                panic!("gc: Expected class value");
+                            }
+                        }
+
+                    }
+                }
+
+                if let Some(parent_id) = env.parent_key {
+                    new_envs_to_visit.push(parent_id);
+                }
+
+                env_ids_to_mark_stack.extend(new_envs_to_visit);
             }
 
-            env.reachable = true;
+            while let Some(instance_id) = instance_ids_to_mark_stack.pop() {
 
-            let mut new_envs_to_visit = Vec::new();
+                let Some ( instance ) = self.instances.get_mut(&instance_id) else {
+                    continue;
+                };
 
-            for value in env.symbols.values() {
-                if let Value::Function(Function { closure_id, .. }) = value {
-                    new_envs_to_visit.push(*closure_id);
+                if instance.reachable {
+                    continue;
                 }
-                else if let Value::Instance ( instance_id ) = value {
-                    let instance = self.instances.get(instance_id).unwrap();
-                }
-                else if let Value::Class ( Class { methods, .. } ) = value {
+
+                instance.reachable = true;
+
+                let mut new_instances_to_visit = Vec::<usize>::new();
+
+                if let Value::Class ( Class { methods, super_class } ) = instance.class.as_ref() {
 
                     for value in methods.values() {
-                        if let Value::Function(Function { closure_id, .. } ) = value {
-                            new_envs_to_visit.push(*closure_id);
+                        if let Value::Function ( Function { closure_id, .. } ) = value {
+                            env_ids_to_mark_stack.push(*closure_id);
+                        }
+                    }
+
+                    let mut s = super_class;
+
+                    while let Some (b) = s {
+                        if let Value::Class ( Class { methods, super_class } ) = b.as_ref() {
+                            for value in methods.values() {
+                                if let Value::Function ( Function { closure_id, .. } ) = value {
+                                    env_ids_to_mark_stack.push(*closure_id);
+                                }
+                            }
+                            s = super_class;
+                        }
+                        else {
+                            panic!("gc: Expected class value");
                         }
                     }
                 }
+                else {
+                    panic!("gc: Expected class value");
+                }
+
+                for (_, property_value) in &instance.properties {
+
+                    if let Value::Class ( Class { methods, super_class } ) = property_value {
+
+                        for value in methods.values() {
+                            if let Value::Function ( Function { closure_id, .. } ) = value {
+                                env_ids_to_mark_stack.push(*closure_id);
+                            }
+                        }
+
+                        let mut s = super_class;
+
+                        while let Some (b) = s {
+                            if let Value::Class ( Class { methods, super_class } ) = b.as_ref() {
+                                for value in methods.values() {
+                                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                                        env_ids_to_mark_stack.push(*closure_id);
+                                    }
+                                }
+                                s = super_class;
+                            }
+                            else {
+                                panic!("gc: Expected class value");
+                            }
+                        }
+                    }
+                    else if let Value::Function ( Function { closure_id, .. } ) = property_value {
+                        env_ids_to_mark_stack.push(*closure_id);
+                    }
+                    else if let Value::Instance ( instance_id ) = property_value {
+                        new_instances_to_visit.push(*instance_id);
+                    }
+
+                }
+
+                instance_ids_to_mark_stack.extend(new_instances_to_visit);
+
             }
 
-            if let Some(parent_id) = env.parent_key {
-                new_envs_to_visit.push(parent_id);
-            }
-
-            env_ids_to_mark_stack.extend(new_envs_to_visit);
         }
-
     }
 
     pub fn gc_collect(&mut self) {
