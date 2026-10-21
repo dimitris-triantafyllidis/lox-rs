@@ -336,3 +336,54 @@ fn test_this_nested_closure() {
 fn test_this_this_in_method() {
     run_lox_test(Path::new("test/this/this_in_method.lox"));
 }
+
+#[test]
+fn test_super_bound_method() {
+    run_lox_test(Path::new("test/super/bound_method.lox"));
+}
+
+#[test]
+fn test_super_call_other_method() {
+    run_lox_test(Path::new("test/super/call_other_method.lox"));
+}
+
+#[test]
+fn test_super_call_same_method() {
+    run_lox_test(Path::new("test/super/call_same_method.lox"));
+}
+
+#[test]
+fn test_super_closure() {
+    run_lox_test(Path::new("test/super/closure.lox"));
+}
+
+#[test]
+fn test_super_constructor() {
+    run_lox_test(Path::new("test/super/constructor.lox"));
+}
+
+#[test]
+fn test_super_indirectly_inherited() {
+    run_lox_test(Path::new("test/super/indirectly_inherited.lox"));
+}
+
+#[test]
+fn test_super_reassign_superclass() {
+    run_lox_test(Path::new("test/super/reassign_superclass.lox"));
+}
+
+#[test]
+fn test_super_super_in_closure_in_inherited_method() {
+    run_lox_test(Path::new("test/super/super_in_closure_in_inherited_method.lox"));
+}
+
+
+#[test]
+fn test_super_super_in_inherited_method() {
+    run_lox_test(Path::new("test/super/super_in_inherited_method.lox"));
+}
+
+#[test]
+fn test_super_this_in_superclass_method() {
+    run_lox_test(Path::new("test/super/this_in_superclass_method.lox"));
+}
