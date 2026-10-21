@@ -116,3 +116,68 @@ fn test_call_string() {
 fn test_class_inherited_method() {
     run_lox_test(Path::new("test/class/inherited_method.lox"));
 }
+
+#[test]
+fn test_closure_assign_to_closure() {
+    run_lox_test(Path::new("test/closure/assign_to_closure.lox"));
+}
+
+#[test]
+fn test_closure_assign_to_shadowed_later() {
+    run_lox_test(Path::new("test/closure/assign_to_shadowed_later.lox"));
+}
+
+#[test]
+fn test_closure_close_over_function_parameter() {
+    run_lox_test(Path::new("test/closure/close_over_function_parameter.lox"));
+}
+
+#[test]
+fn test_closure_close_over_later_variable() {
+    run_lox_test(Path::new("test/closure/close_over_later_variable.lox"));
+}
+
+#[test]
+fn test_closure_close_over_method_parameter() {
+    run_lox_test(Path::new("test/closure/close_over_method_parameter.lox"));
+}
+
+#[test]
+fn test_closure_closed_closure_in_function() {
+    run_lox_test(Path::new("test/closure/closed_closure_in_function.lox"));
+}
+
+#[test]
+fn test_closure_nested_closure() {
+    run_lox_test(Path::new("test/closure/nested_closure.lox"));
+}
+
+#[test]
+fn test_closure_open_closure_in_function() {
+    run_lox_test(Path::new("test/closure/open_closure_in_function.lox"));
+}
+
+#[test]
+fn test_closure_reference_closure_multiple_times() {
+    run_lox_test(Path::new("test/closure/reference_closure_multiple_times.lox"));
+}
+
+#[test]
+fn test_closure_reuse_closure_slot() {
+    run_lox_test(Path::new("test/closure/reuse_closure_slot.lox"));
+}
+
+#[test]
+fn test_closure_shadow_closure_with_local() {
+    run_lox_test(Path::new("test/closure/shadow_closure_with_local.lox"));
+}
+
+#[test]
+fn test_closure_unused_closure() {
+    run_lox_test(Path::new("test/closure/unused_closure.lox"));
+}
+
+#[test]
+fn test_closure_unused_later_closure() {
+    run_lox_test(Path::new("test/closure/unused_later_closure.lox"));
+}
