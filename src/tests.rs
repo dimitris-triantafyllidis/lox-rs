@@ -316,3 +316,23 @@ fn test_variable_unreached_undefined() {
 fn test_variable_use_global_in_initializer() {
     run_lox_test(Path::new("test/variable/use_global_in_initializer.lox"));
 }
+
+#[test]
+fn test_this_closure() {
+    run_lox_test(Path::new("test/this/closure.lox"));
+}
+
+#[test]
+fn test_this_nested_class() {
+    run_lox_test(Path::new("test/this/nested_class.lox"));
+}
+
+#[test]
+fn test_this_nested_closure() {
+    run_lox_test(Path::new("test/this/nested_closure.lox"));
+}
+
+#[test]
+fn test_this_this_in_method() {
+    run_lox_test(Path::new("test/this/this_in_method.lox"));
+}
