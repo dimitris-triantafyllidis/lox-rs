@@ -614,7 +614,7 @@ impl<'a> Interpreter<'a> {
                 println!("nil");
             },
             Value::String(s) => {
-                println!("\"{s}\"");
+                println!("{s}");
             },
             Value::Function{..} => {
                 println!("<fn>");
