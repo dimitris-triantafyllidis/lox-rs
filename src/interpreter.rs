@@ -34,7 +34,8 @@ pub struct Function<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
     pub methods: HashMap<&'a str, Value<'a>>,
-    pub super_class: Option<Box<Value<'a>>>
+    pub super_class: Option<Box<Value<'a>>>,
+    pub name: String
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -174,7 +175,7 @@ impl<'a> Interpreter<'a> {
 
         let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy)));
         while let Some(box_value) = method_lookup_class {
-            if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
+            if let Value::Class ( Class { methods, super_class, .. } ) = box_value.as_ref() {
                 if methods.contains_key(&property.lexeme) {
                     value = methods.get(&property.lexeme).unwrap().clone();
                     if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
@@ -234,7 +235,7 @@ impl<'a> Interpreter<'a> {
             else {
                 let mut method_lookup_class = Some(instance.class.clone());
                 while let Some(box_value) = method_lookup_class {
-                    if let Value::Class ( Class { methods, super_class } ) = box_value.as_ref() {
+                    if let Value::Class ( Class { methods, super_class, .. } ) = box_value.as_ref() {
                         if methods.contains_key(&property.lexeme) {
                             value = methods.get(&property.lexeme).unwrap().clone();
                             if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
@@ -813,7 +814,8 @@ impl<'a> Interpreter<'a> {
             Value::Class (
                 Class {
                     methods: class_method_lexeme_map,
-                    super_class: super_class_result
+                    super_class: super_class_result,
+                    name: id.lexeme.to_string()
                 }
             )
         );

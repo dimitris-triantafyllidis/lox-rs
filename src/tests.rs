@@ -181,3 +181,23 @@ fn test_closure_unused_closure() {
 fn test_closure_unused_later_closure() {
     run_lox_test(Path::new("test/closure/unused_later_closure.lox"));
 }
+
+#[test]
+fn test_comments_line_at_eof() {
+    run_lox_test(Path::new("test/comments/line_at_eof.lox"));
+}
+
+#[test]
+fn test_comments_only_line_comment_and_line() {
+    run_lox_test(Path::new("test/comments/only_line_comment_and_line.lox"));
+}
+
+#[test]
+fn test_comments_only_line_comment() {
+    run_lox_test(Path::new("test/comments/only_line_comment.lox"));
+}
+
+#[test]
+fn test_comments_unicode() {
+    run_lox_test(Path::new("test/comments/unicode.lox"));
+}
