@@ -480,3 +480,39 @@ fn test_operator_not() {
 fn test_operator_subtract() {
     run_lox_test(Path::new("test/operator/subtract.lox"));
 }
+
+#[test]
+fn test_number_literals() {
+    run_lox_test(Path::new("test/number/literals.lox"));
+}
+
+#[test]
+fn test_number_nan_equality() {
+    run_lox_test(Path::new("test/number/nan_equality.lox"));
+}
+
+#[test]
+fn test_nil_literal() {
+    run_lox_test(Path::new("test/nil/literal.lox"));
+}
+
+#[test]
+fn test_logical_operator_and_truth() {
+    run_lox_test(Path::new("test/logical_operator/and_truth.lox"));
+}
+
+#[test]
+fn test_logical_operator_and() {
+    run_lox_test(Path::new("test/logical_operator/and.lox"));
+}
+
+#[test]
+fn test_logical_operator_or_truth() {
+    run_lox_test(Path::new("test/logical_operator/or_truth.lox"));
+}
+
+#[test]
+fn test_logical_operator_or() {
+    run_lox_test(Path::new("test/logical_operator/or.lox"));
+}
+
