@@ -421,4 +421,62 @@ fn test_return_return_nil_if_no_value() {
     run_lox_test(Path::new("test/return/return_nil_if_no_value.lox"));
 }
 
+#[test]
+fn test_operator_add() {
+    run_lox_test(Path::new("test/operator/add.lox"));
+}
 
+#[test]
+fn test_operator_comparison() {
+    run_lox_test(Path::new("test/operator/comparison.lox"));
+}
+
+#[test]
+fn test_operator_divide() {
+    run_lox_test(Path::new("test/operator/divide.lox"));
+}
+
+#[test]
+fn test_operator_equals_class() {
+    run_lox_test(Path::new("test/operator/equals_class.lox"));
+}
+
+#[test]
+fn test_operator_equals_method() {
+    run_lox_test(Path::new("test/operator/equals_method.lox"));
+}
+
+#[test]
+fn test_operator_equals() {
+    run_lox_test(Path::new("test/operator/equals.lox"));
+}
+
+#[test]
+fn test_operator_multiply() {
+    run_lox_test(Path::new("test/operator/multiply.lox"));
+}
+
+#[test]
+fn test_operator_negate() {
+    run_lox_test(Path::new("test/operator/negate.lox"));
+}
+
+#[test]
+fn test_operator_not_class() {
+    run_lox_test(Path::new("test/operator/not_class.lox"));
+}
+
+#[test]
+fn test_operator_not_equals() {
+    run_lox_test(Path::new("test/operator/not_equals.lox"));
+}
+
+#[test]
+fn test_operator_not() {
+    run_lox_test(Path::new("test/operator/not.lox"));
+}
+
+#[test]
+fn test_operator_subtract() {
+    run_lox_test(Path::new("test/operator/subtract.lox"));
+}
