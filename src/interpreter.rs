@@ -620,8 +620,8 @@ impl<'a> Interpreter<'a> {
             Value::Function{..} => {
                 println!("<fn>");
             },
-            Value::Class{..} => {
-                println!("<class>")
+            Value::Class ( Class { name, .. } ) => {
+                println!("{}", name);
             },
             Value::Instance{..} => {
                 println!("<instance>")

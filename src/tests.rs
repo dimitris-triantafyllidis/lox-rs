@@ -113,8 +113,28 @@ fn test_call_string() {
 }
 
 #[test]
+fn test_class_empty() {
+    run_lox_test(Path::new("test/class/empty.lox"));
+}
+
+#[test]
 fn test_class_inherited_method() {
     run_lox_test(Path::new("test/class/inherited_method.lox"));
+}
+
+#[test]
+fn test_class_local_inherit_other() {
+    run_lox_test(Path::new("test/class/local_inherit_other.lox"));
+}
+
+#[test]
+fn test_class_local_reference_self() {
+    run_lox_test(Path::new("test/class/local_reference_self.lox"));
+}
+
+#[test]
+fn test_class_reference_self() {
+    run_lox_test(Path::new("test/class/reference_self.lox"));
 }
 
 #[test]
