@@ -333,6 +333,43 @@ fn test_for_syntax() {
     run_lox_test(Path::new("test/for/syntax.lox"));
 }
 
+// function
+
+#[test]
+fn test_function_empty_body() {
+    run_lox_test(Path::new("test/function/empty_body.lox"));
+}
+
+#[test]
+fn test_function_local_mutual_recursion() {
+    run_lox_test(Path::new("test/function/local_mutual_recursion.lox"));
+}
+
+#[test]
+fn test_function_local_recursion() {
+    run_lox_test(Path::new("test/function/local_recursion.lox"));
+}
+
+#[test]
+fn test_function_mutual_recursion() {
+    run_lox_test(Path::new("test/function/mutual_recursion.lox"));
+}
+
+#[test]
+fn test_function_nested_call_with_arguments() {
+    run_lox_test(Path::new("test/function/nested_call_with_arguments.lox"));
+}
+
+#[test]
+fn test_function_parameters() {
+    run_lox_test(Path::new("test/function/parameters.lox"));
+}
+
+#[test]
+fn test_function_recursion() {
+    run_lox_test(Path::new("test/function/recursion.lox"));
+}
+
 // variable
 
 #[test]
