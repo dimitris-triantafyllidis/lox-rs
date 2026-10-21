@@ -69,6 +69,8 @@ fn test_assignment_to_this() {
     run_lox_test(Path::new("test/assignment/to_this.lox"));
 }
 
+// benchmark
+
 // block
 
 #[test]
@@ -268,6 +270,40 @@ fn test_while_return_inside() {
 #[test]
 fn test_while_syntax() {
     run_lox_test(Path::new("test/while/syntax.lox"));
+}
+
+// expressions
+
+// field
+
+#[test]
+fn test_field_call_function_field() {
+    run_lox_test(Path::new("test/field/call_function_field.lox"));
+}
+
+#[test]
+fn test_field_get_and_set_method() {
+    run_lox_test(Path::new("test/field/get_and_set_method.lox"));
+}
+
+#[test]
+fn test_field_many() {
+    run_lox_test(Path::new("test/field/many.lox"));
+}
+
+#[test]
+fn test_field_method_binds_this() {
+    run_lox_test(Path::new("test/field/method_binds_this.lox"));
+}
+
+#[test]
+fn test_field_method() {
+    run_lox_test(Path::new("test/field/method.lox"));
+}
+
+#[test]
+fn test_field_on_instance() {
+    run_lox_test(Path::new("test/field/on_instance.lox"));
 }
 
 // variable
