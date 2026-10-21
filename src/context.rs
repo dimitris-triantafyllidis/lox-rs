@@ -115,7 +115,7 @@ impl<'a> Context<'a> {
                             return id;
                         }
                         else {
-                            panic!("Symbol {:#?} not found", identifier);
+                            panic!("Undefined variable '{}'.", identifier);
                         }
                     }
 

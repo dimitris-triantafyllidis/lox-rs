@@ -1,45 +1,92 @@
+
 use std::{
     fs,
     path::Path,
     process::Command,
 };
 
-fn parse_expected_output(source: &str) -> Vec<String> {
-    source
-        .lines()
-        .filter_map(|line| {
+struct Expectations {
+    output: Vec<String>,
+    runtime_error: Option<String>,
+}
+
+fn parse_expectations(source: &str) -> Expectations {
+    let mut output = Vec::new();
+    let mut runtime_error = None;
+
+    for line in source.lines() {
+        if let Some((_, expected)) =
+            line.split_once("// expect runtime error:")
+        {
+            runtime_error = Some(expected.trim().to_string());
+        } else if let Some((_, expected)) =
             line.split_once("// expect:")
-                .map(|(_, expected)| expected.trim().to_string())
-        })
-        .collect()
+        {
+            output.push(expected.trim().to_string());
+        }
+    }
+
+    Expectations {
+        output,
+        runtime_error,
+    }
 }
 
 fn run_lox_test(path: &Path) {
     let source = fs::read_to_string(path)
         .expect("Failed to read Lox test");
 
-    let expected_lines = parse_expected_output(&source);
+    let expectations = parse_expectations(&source);
 
     let output = Command::new(env!("CARGO_BIN_EXE_lox"))
         .arg(path)
         .output()
         .expect("Failed to execute interpreter");
 
-    let actual = String::from_utf8(output.stdout)
+    let stdout = String::from_utf8(output.stdout)
         .expect("stdout was not valid UTF-8");
 
-    let expected = if expected_lines.is_empty() {
-        String::new()
-    } else {
-        format!("{}\n", expected_lines.join("\n"))
-    };
+    let stderr = String::from_utf8(output.stderr)
+        .expect("stderr was not valid UTF-8");
 
-    assert_eq!(
-        actual,
-        expected,
-        "Output mismatch in {}",
-        path.display()
-    );
+    if let Some(expected_error) = expectations.runtime_error {
+        assert!(
+            !output.status.success(),
+            "Expected runtime error '{}' in {}, but interpreter exited successfully.\nstdout:\n{}",
+            expected_error,
+            path.display(),
+            stdout
+        );
+
+        assert!(
+            stderr.contains(&expected_error),
+            "Expected error message '{}' in {}, but got stderr:\n{}",
+            expected_error,
+            path.display(),
+            stderr
+        );
+    } else {
+        assert!(
+            output.status.success(),
+            "Interpreter failed on {}.\nstdout:\n{}\nstderr:\n{}",
+            path.display(),
+            stdout,
+            stderr
+        );
+
+        let expected = if expectations.output.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", expectations.output.join("\n"))
+        };
+
+        assert_eq!(
+            stdout,
+            expected,
+            "Output mismatch in {}",
+            path.display()
+        );
+    }
 }
 
 // assignment
