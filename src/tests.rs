@@ -387,3 +387,38 @@ fn test_super_super_in_inherited_method() {
 fn test_super_this_in_superclass_method() {
     run_lox_test(Path::new("test/super/this_in_superclass_method.lox"));
 }
+
+#[test]
+fn test_return_after_else() {
+    run_lox_test(Path::new("test/return/after_else.lox"));
+}
+
+
+#[test]
+fn test_return_after_if() {
+    run_lox_test(Path::new("test/return/after_if.lox"));
+}
+
+
+#[test]
+fn test_return_after_while() {
+    run_lox_test(Path::new("test/return/after_while.lox"));
+}
+
+
+#[test]
+fn test_return_in_function() {
+    run_lox_test(Path::new("test/return/in_function.lox"));
+}
+
+#[test]
+fn test_return_in_method() {
+    run_lox_test(Path::new("test/return/in_method.lox"));
+}
+
+#[test]
+fn test_return_return_nil_if_no_value() {
+    run_lox_test(Path::new("test/return/return_nil_if_no_value.lox"));
+}
+
+
