@@ -370,6 +370,49 @@ fn test_function_recursion() {
     run_lox_test(Path::new("test/function/recursion.lox"));
 }
 
+// if
+
+#[test]
+fn test_if_dangling_else() {
+    run_lox_test(Path::new("test/if/dangling_else.lox"));
+}
+
+#[test]
+fn test_if_else() {
+    run_lox_test(Path::new("test/if/else.lox"));
+}
+
+#[test]
+fn test_if_if() {
+    run_lox_test(Path::new("test/if/if.lox"));
+}
+
+#[test]
+fn test_if_truth() {
+    run_lox_test(Path::new("test/if/truth.lox"));
+}
+
+// inheritance
+
+#[test]
+fn test_inheritance_constructor() {
+    run_lox_test(Path::new("test/inheritance/constructor.lox"));
+}
+
+#[test]
+fn test_inheritance_inherit_methods() {
+    run_lox_test(Path::new("test/inheritance/inherit_methods.lox"));
+}
+
+#[test]
+fn test_inheritance_set_fields_from_base_class() {
+    run_lox_test(Path::new("test/inheritance/set_fields_from_base_class.lox"));
+}
+
+// limit
+
+// method
+
 // variable
 
 #[test]

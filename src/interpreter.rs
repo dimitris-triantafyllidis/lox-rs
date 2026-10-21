@@ -222,7 +222,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_get_internal(&mut self, instance_value: &Value<'a>, property: &Token<'a>) -> Value<'a> {
+    pub fn evaluate_get_internal(&mut self, instance_value: &Value<'a>, property: &Token<'a>) -> Option<Value<'a>> {
 
         if let Value::Instance ( instance_id ) = instance_value {
             let instance = self.context.instances.get(instance_id).unwrap();
@@ -230,7 +230,7 @@ impl<'a> Interpreter<'a> {
 
             if instance.properties.contains_key(&property.lexeme) {
                 value = instance.properties.get(&property.lexeme).unwrap().clone();
-                return value;
+                return Some(value);
             }
             else {
                 let mut method_lookup_class = Some(instance.class.clone());
@@ -243,7 +243,7 @@ impl<'a> Interpreter<'a> {
                                 self.context.insert_symbol("this", instance_value.clone());
                                 *closure_id = self.context.next_env_id - 1;
                                 self.context.pop_environment();
-                                return value;
+                                return Some(value);
                             }
                             else {
                                 panic!("Expected function value");
@@ -258,7 +258,7 @@ impl<'a> Interpreter<'a> {
                         panic!("Expected class value");
                     }
                 }
-                panic!("Undefined property: {}", property.lexeme);
+                return None;
             }
         }
         else {
@@ -271,7 +271,7 @@ impl<'a> Interpreter<'a> {
         let Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref()).value;
         return NodeResult::new (
-            self.evaluate_get_internal(&instance_value, property),
+            self.evaluate_get_internal(&instance_value, property).unwrap(),
             Control::Continue
         );
     }
@@ -481,7 +481,7 @@ impl<'a> Interpreter<'a> {
                 panic!("Wrong number of arguments");
             }
         }
-        else if let Value::Class ( Class { methods, .. } ) = &callee {
+        else if let Value::Class ( Class { .. } ) = &callee {
 
             let new_instance =
                 Value::Instance (
@@ -501,12 +501,10 @@ impl<'a> Interpreter<'a> {
                     line_number: 0
                 };
 
-            if methods.keys().any(|id| *id == "init")  {
-                let init_bound_function = self.evaluate_get_internal (
-                    &new_instance,
-                    &init_token
-                );
-
+            if let Some(init_bound_function) = self.evaluate_get_internal (
+                &new_instance,
+                &init_token
+            ) {
                 if let Value::Function ( Function { ref pars, .. } ) = init_bound_function {
                     if pars.len() == arguments.len() {
 
