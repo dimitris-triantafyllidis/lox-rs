@@ -413,6 +413,16 @@ fn test_inheritance_set_fields_from_base_class() {
 
 // method
 
+#[test]
+fn test_method_arity() {
+    run_lox_test(Path::new("test/method/arity.lox"));
+}
+
+#[test]
+fn test_method_empty_block() {
+    run_lox_test(Path::new("test/method/empty_block.lox"));
+}
+
 // variable
 
 #[test]
@@ -478,6 +488,30 @@ fn test_variable_unreached_undefined() {
 #[test]
 fn test_variable_use_global_in_initializer() {
     run_lox_test(Path::new("test/variable/use_global_in_initializer.lox"));
+}
+
+// regression
+
+#[test]
+fn test_regression_40() {
+    run_lox_test(Path::new("test/regression/40.lox"));
+}
+
+#[test]
+fn test_regression_394() {
+    run_lox_test(Path::new("test/regression/394.lox"));
+}
+
+// string
+
+#[test]
+fn test_string_literals() {
+    run_lox_test(Path::new("test/string/literals.lox"));
+}
+
+#[test]
+fn test_string_multiline() {
+    run_lox_test(Path::new("test/string/multiline.lox"));
 }
 
 // this
