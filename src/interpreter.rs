@@ -623,8 +623,11 @@ impl<'a> Interpreter<'a> {
             Value::Class ( Class { name, .. } ) => {
                 println!("{}", name);
             },
-            Value::Instance{..} => {
-                println!("<instance>")
+            Value::Instance ( instance_id ) => {
+                let instance = self.context.instances.get(&instance_id).unwrap();
+                let Instance { class, .. } = instance;
+                let Value::Class ( Class { name, .. } ) = class.as_ref() else { panic!() };
+                println!("{} instance", name)
             }
         }
 

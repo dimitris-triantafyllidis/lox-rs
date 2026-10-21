@@ -221,3 +221,18 @@ fn test_comments_only_line_comment() {
 fn test_comments_unicode() {
     run_lox_test(Path::new("test/comments/unicode.lox"));
 }
+
+#[test]
+fn test_constructor_arguments() {
+    run_lox_test(Path::new("test/constructor/arguments.lox"));
+}
+
+#[test]
+fn test_constructor_call_init_early_return() {
+    run_lox_test(Path::new("test/constructor/call_init_early_return.lox"));
+}
+
+#[test]
+fn test_constructor_default() {
+    run_lox_test(Path::new("test/constructor/default.lox"));
+}
