@@ -42,6 +42,8 @@ fn run_lox_test(path: &Path) {
     );
 }
 
+// assignment
+
 #[test]
 fn test_assignment_associativity() {
     run_lox_test(Path::new("test/assignment/associativity.lox"));
@@ -67,6 +69,8 @@ fn test_assignment_to_this() {
     run_lox_test(Path::new("test/assignment/to_this.lox"));
 }
 
+// block
+
 #[test]
 fn test_block_empty() {
     run_lox_test(Path::new("test/block/empty.lox"));
@@ -77,6 +81,8 @@ fn test_block_scope() {
     run_lox_test(Path::new("test/block/scope.lox"));
 }
 
+// bool
+
 #[test]
 fn test_bool_empty() {
     run_lox_test(Path::new("test/bool/equality.lox"));
@@ -86,6 +92,8 @@ fn test_bool_empty() {
 fn test_bool_scope() {
     run_lox_test(Path::new("test/bool/not.lox"));
 }
+
+// call
 
 #[test]
 fn test_call_bool() {
@@ -112,6 +120,8 @@ fn test_call_string() {
     run_lox_test(Path::new("test/call/string.lox"));
 }
 
+// class
+
 #[test]
 fn test_class_empty() {
     run_lox_test(Path::new("test/class/empty.lox"));
@@ -136,6 +146,8 @@ fn test_class_local_reference_self() {
 fn test_class_reference_self() {
     run_lox_test(Path::new("test/class/reference_self.lox"));
 }
+
+// closure
 
 #[test]
 fn test_closure_assign_to_closure() {
@@ -202,6 +214,8 @@ fn test_closure_unused_later_closure() {
     run_lox_test(Path::new("test/closure/unused_later_closure.lox"));
 }
 
+// comments
+
 #[test]
 fn test_comments_line_at_eof() {
     run_lox_test(Path::new("test/comments/line_at_eof.lox"));
@@ -222,6 +236,8 @@ fn test_comments_unicode() {
     run_lox_test(Path::new("test/comments/unicode.lox"));
 }
 
+// constructor
+
 #[test]
 fn test_constructor_arguments() {
     run_lox_test(Path::new("test/constructor/arguments.lox"));
@@ -231,6 +247,8 @@ fn test_constructor_arguments() {
 fn test_constructor_default() {
     run_lox_test(Path::new("test/constructor/default.lox"));
 }
+
+// while
 
 #[test]
 fn test_while_closure_in_body() {
@@ -251,6 +269,8 @@ fn test_while_return_inside() {
 fn test_while_syntax() {
     run_lox_test(Path::new("test/while/syntax.lox"));
 }
+
+// variable
 
 #[test]
 fn test_variable_early_bound() {
@@ -317,6 +337,8 @@ fn test_variable_use_global_in_initializer() {
     run_lox_test(Path::new("test/variable/use_global_in_initializer.lox"));
 }
 
+// this
+
 #[test]
 fn test_this_closure() {
     run_lox_test(Path::new("test/this/closure.lox"));
@@ -336,6 +358,8 @@ fn test_this_nested_closure() {
 fn test_this_this_in_method() {
     run_lox_test(Path::new("test/this/this_in_method.lox"));
 }
+
+// super
 
 #[test]
 fn test_super_bound_method() {
@@ -377,7 +401,6 @@ fn test_super_super_in_closure_in_inherited_method() {
     run_lox_test(Path::new("test/super/super_in_closure_in_inherited_method.lox"));
 }
 
-
 #[test]
 fn test_super_super_in_inherited_method() {
     run_lox_test(Path::new("test/super/super_in_inherited_method.lox"));
@@ -388,23 +411,22 @@ fn test_super_this_in_superclass_method() {
     run_lox_test(Path::new("test/super/this_in_superclass_method.lox"));
 }
 
+// return
+
 #[test]
 fn test_return_after_else() {
     run_lox_test(Path::new("test/return/after_else.lox"));
 }
-
 
 #[test]
 fn test_return_after_if() {
     run_lox_test(Path::new("test/return/after_if.lox"));
 }
 
-
 #[test]
 fn test_return_after_while() {
     run_lox_test(Path::new("test/return/after_while.lox"));
 }
-
 
 #[test]
 fn test_return_in_function() {
@@ -420,6 +442,8 @@ fn test_return_in_method() {
 fn test_return_return_nil_if_no_value() {
     run_lox_test(Path::new("test/return/return_nil_if_no_value.lox"));
 }
+
+// operator
 
 #[test]
 fn test_operator_add() {
@@ -481,6 +505,8 @@ fn test_operator_subtract() {
     run_lox_test(Path::new("test/operator/subtract.lox"));
 }
 
+// number
+
 #[test]
 fn test_number_literals() {
     run_lox_test(Path::new("test/number/literals.lox"));
@@ -491,10 +517,14 @@ fn test_number_nan_equality() {
     run_lox_test(Path::new("test/number/nan_equality.lox"));
 }
 
+// nil
+
 #[test]
 fn test_nil_literal() {
     run_lox_test(Path::new("test/nil/literal.lox"));
 }
+
+// logical_operator
 
 #[test]
 fn test_logical_operator_and_truth() {
