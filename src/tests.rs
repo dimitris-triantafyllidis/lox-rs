@@ -251,3 +251,68 @@ fn test_while_return_inside() {
 fn test_while_syntax() {
     run_lox_test(Path::new("test/while/syntax.lox"));
 }
+
+#[test]
+fn test_variable_early_bound() {
+    run_lox_test(Path::new("test/variable/early_bound.lox"));
+}
+
+#[test]
+fn test_variable_in_middle_of_block() {
+    run_lox_test(Path::new("test/variable/in_middle_of_block.lox"));
+}
+
+#[test]
+fn test_variable_in_nested_block() {
+    run_lox_test(Path::new("test/variable/in_nested_block.lox"));
+}
+
+#[test]
+fn test_variable_local_from_method() {
+    run_lox_test(Path::new("test/variable/local_from_method.lox"));
+}
+
+#[test]
+fn test_variable_redeclare_global() {
+    run_lox_test(Path::new("test/variable/redeclare_global.lox"));
+}
+
+#[test]
+fn test_variable_redefine_global() {
+    run_lox_test(Path::new("test/variable/redefine_global.lox"));
+}
+
+#[test]
+fn test_variable_scope_reuse_in_different_blocks() {
+    run_lox_test(Path::new("test/variable/scope_reuse_in_different_blocks.lox"));
+}
+
+#[test]
+fn test_variable_shadow_and_local() {
+    run_lox_test(Path::new("test/variable/shadow_and_local.lox"));
+}
+
+#[test]
+fn test_variable_shadow_global() {
+    run_lox_test(Path::new("test/variable/shadow_global.lox"));
+}
+
+#[test]
+fn test_variable_shadow_local() {
+    run_lox_test(Path::new("test/variable/shadow_local.lox"));
+}
+
+#[test]
+fn test_variable_uninitialized() {
+    run_lox_test(Path::new("test/variable/uninitialized.lox"));
+}
+
+#[test]
+fn test_variable_unreached_undefined() {
+    run_lox_test(Path::new("test/variable/unreached_undefined.lox"));
+}
+
+#[test]
+fn test_variable_use_global_in_initializer() {
+    run_lox_test(Path::new("test/variable/use_global_in_initializer.lox"));
+}
