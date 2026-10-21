@@ -306,6 +306,33 @@ fn test_field_on_instance() {
     run_lox_test(Path::new("test/field/on_instance.lox"));
 }
 
+// for
+
+#[test]
+fn test_for_closure_in_body() {
+    run_lox_test(Path::new("test/for/closure_in_body.lox"));
+}
+
+#[test]
+fn test_for_return_closure() {
+    run_lox_test(Path::new("test/for/return_closure.lox"));
+}
+
+#[test]
+fn test_for_return_inside() {
+    run_lox_test(Path::new("test/for/return_inside.lox"));
+}
+
+#[test]
+fn test_for_scope() {
+    run_lox_test(Path::new("test/for/scope.lox"));
+}
+
+#[test]
+fn test_for_syntax() {
+    run_lox_test(Path::new("test/for/syntax.lox"));
+}
+
 // variable
 
 #[test]

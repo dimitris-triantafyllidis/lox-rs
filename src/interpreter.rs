@@ -685,18 +685,17 @@ impl<'a> Interpreter<'a> {
         }
 
         loop {
-            if let Some(statement::Expression { expr }) = condition_expression {
+            if let Some ( statement::Expression { expr } ) = condition_expression {
                 let expr_value = self.evaluate_expression(expr).value;
-                if is_truthy(&expr_value) {
-                    let statement_result = self.execute_statement(body_statement);
-                    if statement_result.control == Control::FunctionReturn {
-                        self.context.pop_environment();
-                        return statement_result;
-                    }
-                }
-                else {
+                if !is_truthy(&expr_value) {
                     break;
                 }
+            }
+
+            let body_statement_result = self.execute_statement(body_statement);
+            if body_statement_result.control == Control::FunctionReturn {
+                self.context.pop_environment();
+                return body_statement_result;
             }
 
             if let Some ( statement::Expression { expr } ) = increment_expression {
