@@ -228,11 +228,26 @@ fn test_constructor_arguments() {
 }
 
 #[test]
-fn test_constructor_call_init_early_return() {
-    run_lox_test(Path::new("test/constructor/call_init_early_return.lox"));
+fn test_constructor_default() {
+    run_lox_test(Path::new("test/constructor/default.lox"));
 }
 
 #[test]
-fn test_constructor_default() {
-    run_lox_test(Path::new("test/constructor/default.lox"));
+fn test_while_closure_in_body() {
+    run_lox_test(Path::new("test/while/closure_in_body.lox"));
+}
+
+#[test]
+fn test_while_return_closure() {
+    run_lox_test(Path::new("test/while/return_closure.lox"));
+}
+
+#[test]
+fn test_while_return_inside() {
+    run_lox_test(Path::new("test/while/return_inside.lox"));
+}
+
+#[test]
+fn test_while_syntax() {
+    run_lox_test(Path::new("test/while/syntax.lox"));
 }

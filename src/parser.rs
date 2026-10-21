@@ -492,7 +492,7 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statemen
 
     cursor += 1;
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
+    if tokens[cursor].kind == TokenKind::RightParenthesis {
         increment_expression = None;
     }
     else {
