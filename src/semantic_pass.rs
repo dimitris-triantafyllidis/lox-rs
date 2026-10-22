@@ -217,7 +217,7 @@ impl<'a> SemanticPass<'a> {
     pub fn visit_return_statement(&mut self, stmt: &mut statement::Return<'a>) {
 
         if self.function_context_stack.is_empty() {
-            panic!("Unexpected 'return' outside a function context")
+            panic!("Can't return from top-level code.")
         }
 
         let statement::Return { expr } = stmt;

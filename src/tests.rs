@@ -432,8 +432,8 @@ fn test_constructor_arguments() {
 }
 
 #[test]
-fn test_constructor_call_init_early_exit() {
-    run_lox_test(Path::new("test/constructor/call_init_early_exit.lox"));
+fn test_constructor_call_init_early_return() {
+    run_lox_test(Path::new("test/constructor/call_init_early_return.lox"));
 }
 
 #[test]

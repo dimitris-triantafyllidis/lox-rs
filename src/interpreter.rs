@@ -222,7 +222,7 @@ impl<'a> Interpreter<'a> {
             );
         }
         else {
-            panic!("Expected instance value");
+            panic!("Only instances have fields.");
         }
 
     }
@@ -267,7 +267,7 @@ impl<'a> Interpreter<'a> {
             }
         }
         else {
-            panic!("Expected instance value");
+            panic!("Only instances have properties.");
         }
     }
 
@@ -582,13 +582,13 @@ impl<'a> Interpreter<'a> {
                         self.evaluate_function_call(&init_bound_function, &argument_values);
                     }
                     else {
-                        panic!("Wrong number of class arguments");
+                        panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
                     }
                 }
             }
             else {
                 if arguments.len() != 0 {
-                    panic!("Cannot pass arguments to class without a user-defined init method");
+                    panic!("Expected 0 arguments but got {}.", arguments.len());
                 }
             }
 
@@ -598,7 +598,7 @@ impl<'a> Interpreter<'a> {
             )
         }
         else {
-            panic!("Expected function value or class value");
+            panic!("Can only call functions and classes.");
         }
 
     }
@@ -832,7 +832,7 @@ impl<'a> Interpreter<'a> {
                 self.context.insert_symbol("super", super_class_value);
             }
             else {
-                panic!("Superclass must be a class");
+                panic!("Superclass must be a class.");
             }
         }
         else {

@@ -257,7 +257,7 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
                         break;
                     }
                     else {
-                        syntax_error(tokens, cursor, &"Expected ')' or ','");
+                        syntax_error(tokens, cursor, &"Expect ')' after parameters.");
                     }
                 }
                 else {
@@ -280,7 +280,7 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
                 )
             }
             else {
-                syntax_error(tokens, cursor, &"Expected '{{'");
+                syntax_error(tokens, cursor, &"Expect '{' before function body.");
             }
         }
         else {
@@ -308,7 +308,7 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
             cursor += 1;
             if tokens[cursor].kind == TokenKind::Identifier {
                 if tokens[cursor] == identifier {
-                    syntax_error(tokens, cursor, &"Super class cannot be the same as the inheriting class");
+                    syntax_error(tokens, cursor, &"A class can't inherit from itself.");
                 }
                 super_class = Some (
                     expression::Expression::Variable (
@@ -321,7 +321,7 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
                 cursor += 1;
             }
             else {
-                syntax_error(tokens, cursor, &"Expected super class identifier after '<' in class declaration");
+                syntax_error(tokens, cursor, &"Expect superclass name.");
             }
         }
         else {
@@ -701,7 +701,7 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
                 );
             }
             _ => {
-                syntax_error(tokens, cursor, &"Invalid assignment target");
+                syntax_error(tokens, cursor, &"Invalid assignment target.");
             }
         }
     }
@@ -942,7 +942,7 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
                     }
                 }
                 else {
-                    syntax_error(tokens, cursor, &"Can't have more than 255 arguments in a function call");
+                    syntax_error(tokens, cursor, &"Can't have more than 255 arguments.");
                 }
             }
         }
