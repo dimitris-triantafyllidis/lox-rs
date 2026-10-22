@@ -960,7 +960,7 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
                 )
             }
             else {
-                syntax_error(tokens, cursor, &"Expected property name after '.'");
+                syntax_error(tokens, cursor, &"Expect property name after '.'.");
             }
         }
         else {

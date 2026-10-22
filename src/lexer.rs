@@ -187,13 +187,29 @@ pub fn lexer_match_number_literal<'a>(characters: &'a str, cursor_start: usize, 
         }
     }
 
-    if !characters[cursor_start..cursor_end].is_empty() && characters.as_bytes()[cursor_end] != b'.' {
-        return Some ( Token { kind: TokenKind::Number, lexeme: &characters[cursor_start..cursor_end], line_number } );
+    if !characters[cursor_start..cursor_end].is_empty() {
+        if characters.as_bytes()[cursor_end - 1] != b'.' {
+            return Some (
+                Token {
+                    kind: TokenKind::Number,
+                    lexeme: &characters[cursor_start..cursor_end],
+                    line_number
+                }
+            );
+        }
+        else {
+            return Some (
+                Token {
+                    kind: TokenKind::Number,
+                    lexeme: &characters[cursor_start..cursor_end - 1],
+                    line_number
+                }
+            );
+        }
     }
     else {
         return None;
     }
-
 }
 
 pub fn lexer_scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
@@ -257,7 +273,7 @@ pub fn lexer_scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
     tokens.push (
         Token {
             kind: TokenKind::EOF,
-            lexeme: &"",
+            lexeme: &"end",
             line_number
         }
     );
