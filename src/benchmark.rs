@@ -1,4 +1,4 @@
-use std::{env, fs, io, process::ExitCode};
+use std::{fs, io, process::ExitCode};
 
 mod lexer;
 mod parser;

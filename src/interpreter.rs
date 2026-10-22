@@ -79,7 +79,8 @@ pub fn is_truthy(v: &Value) -> bool {
 }
 pub struct Interpreter<'a> {
     pub context: Context<'a>,
-    pub statement_exec_count: usize
+    pub statement_exec_count: usize,
+    pub working_set_size: usize
 }
 
 impl<'a> Interpreter<'a> {
@@ -108,7 +109,8 @@ impl<'a> Interpreter<'a> {
 
         Self {
             context,
-            statement_exec_count: 0
+            statement_exec_count: 0,
+            working_set_size: 0
         }
     }
 
@@ -638,15 +640,13 @@ impl<'a> Interpreter<'a> {
 
         self.statement_exec_count += 1;
 
-        if self.statement_exec_count % 256 == 0 {
-            // print!("gc cycle, before: ");
-            // print!("env count: {}, ", self.context.environments.len());
-            // println!("instance count: {}, ", self.context.instances.len());
+        let working_set_size =
+            self.context.environments.len() +
+            self.context.instances.len();
+
+        if working_set_size > self.working_set_size * 3 / 2 && working_set_size > 256 {
             self.context.gc_collect();
-            // print!("gc cycle, after: ");
-            // print!("env count: {}, ", self.context.environments.len());
-            // println!("instance count: {}, ", self.context.instances.len());
-            // println!();
+            self.working_set_size = working_set_size;
         }
 
         match statement {
