@@ -74,11 +74,16 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_super(&self, expr: &mut expression::Super<'a>) {
 
-        let expression::Super { lookup_hop_count: hop_count, .. } = expr;
-        if !hop_count.is_none() {
-            panic!();
+        if self.class_context_stack.is_empty() {
+            self.compile_error("Can't use 'super' outside of a class.'");
         }
-        self.context.find_symbol("super", &mut None);
+        else {
+            let expression::Super { lookup_hop_count: hop_count, .. } = expr;
+            if !hop_count.is_none() {
+                panic!();
+            }
+            self.context.find_symbol("super", &mut None);
+        }
     }
 
     pub fn visit_unary(&mut self, expr: &mut expression::UnaryOperation<'a>) {

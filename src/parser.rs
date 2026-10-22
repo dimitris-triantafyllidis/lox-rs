@@ -670,6 +670,7 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
     if tokens[cursor].kind == TokenKind::Equal {
+        let cursor_equals = cursor;
         cursor += 1;
         let value_expr: expression::Expression;
 
@@ -701,7 +702,7 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
                 );
             }
             _ => {
-                syntax_error(tokens, cursor, &"Invalid assignment target.");
+                syntax_error(tokens, cursor_equals, &"Invalid assignment target.");
             }
         }
     }

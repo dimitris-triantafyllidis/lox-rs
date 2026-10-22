@@ -275,32 +275,43 @@ impl<'a> Interpreter<'a> {
 
         let Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref()).value;
-        return NodeResult::new (
-            self.evaluate_get_internal(&instance_value, property).unwrap(),
-            Control::Continue
-        );
+
+        if let Some(value) = self.evaluate_get_internal(&instance_value, property) {
+            return NodeResult::new (
+                value,
+                Control::Continue
+            );
+        }
+        else {
+            self.runtime_error(&std::format!("Undefined property '{}'.", property.lexeme));
+        }
     }
 
     pub fn evaluate_unary(&mut self, expr: &expression::UnaryOperation<'a>) -> NodeResult<'a> {
 
         let expression::UnaryOperation { operator: op, right: rhs } = expr;
         let rhs_result = self.evaluate_expression(rhs);
-        match rhs_result.value {
-            Value::Number (v) if op.kind == TokenKind::Minus => {
+
+        if op.kind == TokenKind::Minus {
+            if let Value::Number (v) = rhs_result.value {
                 return NodeResult::new (
                     Value::Number (-v),
                     Control::Continue
                 )
             }
-            _ if op.kind == TokenKind::Bang => {
-                return NodeResult::new (
-                    Value::Boolean (!is_truthy(&rhs_result.value)),
-                    Control::Continue
-                )
+            else {
+                self.runtime_error("Operand must be a number.");
             }
-            _ => panic!()
         }
-
+        else if op.kind == TokenKind::Bang {
+            return NodeResult::new (
+                Value::Boolean (!is_truthy(&rhs_result.value)),
+                Control::Continue
+            )
+        }
+        else {
+            panic!();
+        }
     }
 
     pub fn evaluate_parentheses(&mut self, expr: &expression::Parentheses<'a>) -> NodeResult<'a> {
