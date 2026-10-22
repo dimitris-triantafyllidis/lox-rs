@@ -112,6 +112,11 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    pub fn runtime_error(&self, message: &str) -> ! {
+        eprintln!("Runtime error:, '{}'", message);
+        std::process::exit(1);
+    }
+
     pub fn evaluate_literal(&mut self, expr: &expression::Literal<'a>) -> NodeResult<'a> {
 
         let Literal { token } = expr;

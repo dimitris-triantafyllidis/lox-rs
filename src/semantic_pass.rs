@@ -46,6 +46,11 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
+    pub fn compile_error(&self, message: &str) -> ! {
+        eprintln!("Compile error:, '{}'", message);
+        std::process::exit(1);
+    }
+
     pub fn visit_literal(&mut self, _: &mut expression::Literal<'a>) { }
 
     pub fn visit_variable(&mut self, expr: &mut expression::Variable<'a>) {
@@ -60,7 +65,7 @@ impl<'a> SemanticPass<'a> {
     pub fn visit_this(&self) {
 
         if self.class_context_stack.is_empty() {
-            panic!("Unexpected 'this' outside a class context");
+            self.compile_error("Can't use 'this' outside of a class.'");
         }
         else {
             self.context.find_symbol("this", &mut None);

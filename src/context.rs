@@ -166,7 +166,7 @@ impl<'a> Context<'a> {
             .expect("Environment id does not exist");
 
         if env.symbols.contains_key(identifier) && self.environment_stack.len() > 1 {
-            panic!("Symbol already exists");
+            panic!("{identifier}: Already a variable with this name in this scope.");
         }
 
         env.symbols.insert(identifier, value);
