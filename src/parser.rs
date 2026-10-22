@@ -261,7 +261,7 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
                     }
                 }
                 else {
-                    syntax_error(tokens, cursor, &"Can't have more than 255 arguments in a function call.");
+                    syntax_error(tokens, cursor, &"Can't have more than 255 parameters.");
                 }
             }
 

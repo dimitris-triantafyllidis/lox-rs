@@ -203,7 +203,7 @@ impl<'a> Interpreter<'a> {
                 panic!("Expected class value");
             }
         }
-        panic!("Undefined property");
+        panic!("Undefined property '{}'.", property.lexeme);
     }
 
     pub fn evaluate_set(&mut self, expr: &expression::Set<'a>) -> NodeResult<'a> {
@@ -327,6 +327,89 @@ impl<'a> Interpreter<'a> {
 
     }
 
+    pub fn op_add(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Number(vl + vr);
+        }
+        else if let ( Value::String (vl), Value::String (vr) ) = ( &vl, &vr ) {
+            return Value::String(vl.clone() + vr);
+        }
+        else {
+            self.runtime_error("Operands must be two numbers or two strings.");
+        }
+    }
+
+    pub fn op_sub(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Number(vl - vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_mul(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Number(vl * vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_div(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Number(vl / vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        return Value::Boolean(vl == vr);
+    }
+
+    pub fn op_not_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        return Value::Boolean(vl != vr);
+    }
+
+    pub fn op_less(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Boolean(vl < vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_less_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Boolean(vl <= vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_greater(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Boolean(vl > vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
+    pub fn op_greater_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
+            return Value::Boolean(vl >= vr);
+        }
+        else {
+            self.runtime_error("Operands must be numbers.");
+        }
+    }
+
     pub fn evaluate_binary(&mut self, expr: &expression::BinaryOperation<'a>) -> NodeResult<'a> {
 
         let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
@@ -334,41 +417,18 @@ impl<'a> Interpreter<'a> {
         let lhs_value = self.evaluate_expression(lhs).value;
         let rhs_value = self.evaluate_expression(rhs).value;
 
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &lhs_value, &rhs_value ) {
-            match op.kind {
-                TokenKind::Plus         => { return NodeResult::new ( Value::Number ( vl + vr),   Control::Continue ) },
-                TokenKind::Minus        => { return NodeResult::new ( Value::Number ( vl - vr),   Control::Continue ) },
-                TokenKind::Star         => { return NodeResult::new ( Value::Number ( vl * vr),   Control::Continue ) },
-                TokenKind::Slash        => { return NodeResult::new ( Value::Number ( vl / vr),   Control::Continue ) },
-                TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean ( vl == vr), Control::Continue ) },
-                TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean ( vl != vr), Control::Continue ) },
-                TokenKind::Less         => { return NodeResult::new ( Value::Boolean ( vl <  vr), Control::Continue ) },
-                TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean ( vl <= vr), Control::Continue ) },
-                TokenKind::Greater      => { return NodeResult::new ( Value::Boolean ( vl >  vr), Control::Continue ) },
-                TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean ( vl >= vr), Control::Continue ) },
-                _ => panic!()
-            }
-        }
-
-        if let ( Value::String (vl), Value::String(vr) ) = ( &lhs_value, &rhs_value ) {
-            match op.kind {
-                TokenKind::Plus         => { return NodeResult::new ( Value::String  (vl.clone() + vr), Control::Continue ) },
-                TokenKind::EqualEqual   => { return NodeResult::new ( Value::Boolean (vl == vr),         Control::Continue ) },
-                TokenKind::BangEqual    => { return NodeResult::new ( Value::Boolean (vl != vr),         Control::Continue ) },
-                TokenKind::Less         => { return NodeResult::new ( Value::Boolean (vl <  vr),         Control::Continue ) },
-                TokenKind::LessEqual    => { return NodeResult::new ( Value::Boolean (vl <= vr),         Control::Continue ) },
-                TokenKind::Greater      => { return NodeResult::new ( Value::Boolean (vl >  vr),         Control::Continue ) },
-                TokenKind::GreaterEqual => { return NodeResult::new ( Value::Boolean (vl >= vr),         Control::Continue ) },
-                _ => panic!()
-            }
-        }
-
-        if op.kind == TokenKind::EqualEqual {
-            return NodeResult::new ( Value::Boolean(lhs_value == rhs_value), Control::Continue );
-        }
-
-        if op.kind == TokenKind::BangEqual {
-            return NodeResult::new ( Value::Boolean(lhs_value != rhs_value), Control::Continue );
+        match op.kind {
+            TokenKind::Plus         => return NodeResult::new ( self.op_add           ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::Minus        => return NodeResult::new ( self.op_sub           ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::Star         => return NodeResult::new ( self.op_mul           ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::Slash        => return NodeResult::new ( self.op_div           ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::Less         => return NodeResult::new ( self.op_less          ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::LessEqual    => return NodeResult::new ( self.op_less_equal    ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::Greater      => return NodeResult::new ( self.op_greater       ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::GreaterEqual => return NodeResult::new ( self.op_greater_equal ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::EqualEqual   => return NodeResult::new ( self.op_equal         ( lhs_value, rhs_value ), Control::Continue ),
+            TokenKind::BangEqual    => return NodeResult::new ( self.op_not_equal     ( lhs_value, rhs_value ), Control::Continue ),
+            _ => {}
         }
 
         panic!();
@@ -454,7 +514,7 @@ impl<'a> Interpreter<'a> {
                 return Value::Nil;
             }
             else {
-                panic!("Wrong number of arguments");
+                panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
             }
         }
         else {
@@ -483,7 +543,7 @@ impl<'a> Interpreter<'a> {
                 );
             }
             else {
-                panic!("Wrong number of arguments");
+                panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
             }
         }
         else if let Value::Class ( Class { .. } ) = &callee {
