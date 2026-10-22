@@ -135,7 +135,12 @@ impl<'a> Context<'a> {
             return v.clone();
         }
         else {
-            panic!("Symbol not found")
+            if identifier == "super" {
+                panic!("Can't use 'super' in a class with no superclass.");
+            }
+            else {
+                panic!("Symbol not found");
+            }
         }
     }
 
@@ -149,7 +154,12 @@ impl<'a> Context<'a> {
             return;
         }
         else {
-            panic!("Symbol not found")
+            if identifier == "super" {
+                panic!("Can't use 'super' in a class with no superclass.");
+            }
+            else {
+                panic!("Symbol not found");
+            }
         }
     }
 
