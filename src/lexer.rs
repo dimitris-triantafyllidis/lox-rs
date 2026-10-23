@@ -178,7 +178,7 @@ pub fn lexer_match_number_literal<'a>(characters: &'a str, cursor_start: usize, 
             else if characters.as_bytes()[cursor_end].is_ascii_digit() {
                 cursor_end += 1;
             }
-            else if characters.as_bytes()[cursor_end].is_ascii_whitespace() || characters.as_bytes()[cursor_end].is_ascii_punctuation() {
+            else if !characters.as_bytes()[cursor_end].is_ascii_digit() {
                 break;
             }
             else {
