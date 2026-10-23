@@ -155,10 +155,11 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_variable(&mut self, expr: &expression::Variable<'a>) -> NodeResult<'a> {
 
-        let Variable { identifier: id, lookup_hop_count: hop_count } = expr;
-        let mut hop_count_mut_copy = *hop_count;
+        let Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
+        let mut lookup_hop_count_mut_copy = *lookup_hop_count;
+        let mut env_slot_idx_mut_copy = *env_slot_idx;
         NodeResult::new (
-            self.context.get_symbol_value(&id.lexeme, &mut hop_count_mut_copy),
+            self.context.get_symbol_value(&id.lexeme, &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy),
             Control::Continue
         )
     }
@@ -166,7 +167,7 @@ impl<'a> Interpreter<'a> {
     pub fn evaluate_this(&mut self) -> NodeResult<'a> {
 
         NodeResult::new (
-            self.context.get_symbol_value("this", &mut None),
+            self.context.get_symbol_value("this", &mut None, &mut None),
             Control::Continue
         )
 
@@ -174,13 +175,14 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_super(&mut self, expr: &expression::Super<'a>) -> NodeResult<'a> {
 
-        let Super { property, lookup_hop_count } = expr;
+        let Super { property, lookup_hop_count, env_slot_idx } = expr;
 
-        let mut hop_count_mut_copy = *lookup_hop_count;
-        let instance_value = self.context.get_symbol_value("this", &mut None);
+        let mut lookup_hop_count_mut_copy = *lookup_hop_count;
+        let mut env_slot_idx_mut_copy = *env_slot_idx;
+        let instance_value = self.context.get_symbol_value("this", &mut None, &mut None);
         let mut value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut hop_count_mut_copy)));
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy)));
         while let Some(box_value) = method_lookup_class {
             if let Value::Class ( Class { methods, super_class, .. } ) = box_value.as_ref() {
                 if methods.contains_key(&property.lexeme) {
@@ -329,10 +331,11 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_assignment(&mut self, expr: &expression::Assignment<'a>) -> NodeResult<'a> {
 
-        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
+        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
         let rhs_result = self.evaluate_expression(rhs);
-        let mut hop_count_mut_copy = *hop_count;
-        self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut hop_count_mut_copy);
+        let mut lookup_hop_count_mut_copy = *lookup_hop_count;
+        let mut env_slot_idx_mut_copy = *env_slot_idx;
+        self.context.set_symbol_value(&lhs.lexeme, rhs_result.value.clone(), &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy);
         return NodeResult::new (
             rhs_result.value,
             Control::Continue

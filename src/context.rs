@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::interpreter::*;
 
 pub struct Environment<'a> {
-    pub symbols: HashMap<&'a str, Value<'a>>,
+    pub symbols: Vec<(&'a str, Value<'a>)>,
     pub parent_key: Option<usize>,
     pub reachable: bool
 }
@@ -11,7 +11,7 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
-            symbols: HashMap::<&str, Value>::new(),
+            symbols: Vec::<(&str, Value)>::new(),
             parent_key: parent_key,
             reachable: false
         }
@@ -70,7 +70,7 @@ impl<'a> Context<'a> {
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(&self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> usize {
+    pub fn find_symbol(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> usize {
 
         let mut id = *self
             .environment_stack
@@ -87,7 +87,7 @@ impl<'a> Context<'a> {
                         .get(&id)
                         .expect("Environment id does not exist");
 
-                    if let Some(..) = env.symbols.get(identifier) {
+                    if let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; })  {
                         *lookup_hop_count = Some(hop_count);
                         return id;
                     }
@@ -111,7 +111,7 @@ impl<'a> Context<'a> {
                         .expect("Environment id does not exist");
 
                     if hops_left == 0 {
-                        if let Some(..) = env.symbols.get(identifier) {
+                        if let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
                             return id;
                         }
                         else {
@@ -126,13 +126,13 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>) -> Value<'a> {
+    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> Value<'a> {
 
-        let env_id = self.find_symbol(identifier, lookup_hop_count);
+        let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
 
-        if let Some(v) = env.symbols.get(identifier) {
-            return v.clone();
+        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+            return env.symbols[idx].1.clone();
         }
         else {
             if identifier == "super" {
@@ -144,13 +144,13 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &str, value: Value<'a>, lookup_hop_count: &mut Option<usize>) {
+    pub fn set_symbol_value(&mut self, identifier: &str, value: Value<'a>, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
 
-        let env_id = self.find_symbol(identifier, lookup_hop_count);
+        let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get_mut(&env_id).unwrap();
 
-        if let Some(v) = env.symbols.get_mut(identifier) {
-            *v = value;
+        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+            env.symbols[idx].1 = value;
             return;
         }
         else {
@@ -175,11 +175,18 @@ impl<'a> Context<'a> {
             .get_mut(&id)
             .expect("Environment id does not exist");
 
-        if env.symbols.contains_key(identifier) && self.environment_stack.len() > 1 {
-            panic!("{identifier}: Already a variable with this name in this scope.");
+        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+            if self.environment_stack.len() > 1 {
+                panic!("{identifier}: Already a variable with this name in this scope.");
+            }
+            else {
+                env.symbols[idx].1 = value;
+            }
+        }
+        else {
+            env.symbols.push((identifier, value));
         }
 
-        env.symbols.insert(identifier, value);
     }
 
     pub fn get_current_environment_id(&self) -> usize {
@@ -235,7 +242,7 @@ impl<'a> Context<'a> {
 
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
-                for value in env.symbols.values() {
+                for (_, value) in &env.symbols {
                     if let Value::Function ( Function { closure_id, .. } ) = value {
                         new_envs_to_visit.push(*closure_id);
                     }

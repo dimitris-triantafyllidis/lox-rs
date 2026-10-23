@@ -55,11 +55,11 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_variable(&mut self, expr: &mut expression::Variable<'a>) {
 
-        let Variable { identifier: id, lookup_hop_count: hop_count } = expr;
-        if !hop_count.is_none() {
+        let Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
+        if !lookup_hop_count.is_none() {
             panic!();
         }
-        self.context.find_symbol(id.lexeme, hop_count);
+        self.context.find_symbol(id.lexeme, lookup_hop_count, env_slot_idx);
     }
 
     pub fn visit_this(&self) {
@@ -68,7 +68,7 @@ impl<'a> SemanticPass<'a> {
             self.compile_error("Can't use 'this' outside of a class.'");
         }
         else {
-            self.context.find_symbol("this", &mut None);
+            self.context.find_symbol("this", &mut None, &mut None);
         }
     }
 
@@ -78,11 +78,11 @@ impl<'a> SemanticPass<'a> {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
         else {
-            let expression::Super { lookup_hop_count: hop_count, .. } = expr;
-            if !hop_count.is_none() {
+            let expression::Super { lookup_hop_count, env_slot_idx, .. } = expr;
+            if !lookup_hop_count.is_none() {
                 panic!();
             }
-            self.context.find_symbol("super", &mut None);
+            self.context.find_symbol("super", &mut None, &mut None);
         }
     }
 
@@ -115,9 +115,9 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_assignment(&mut self, expr: &mut expression::Assignment<'a>) {
 
-        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count: hop_count } = expr;
+        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
         self.visit_expression(rhs);
-        self.context.find_symbol(lhs.lexeme, hop_count);
+        self.context.find_symbol(lhs.lexeme, lookup_hop_count, env_slot_idx);
     }
 
     pub fn visit_binary(&mut self, expr: &mut expression::BinaryOperation<'a>) {

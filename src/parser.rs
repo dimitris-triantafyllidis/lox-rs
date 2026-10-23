@@ -12,7 +12,8 @@ pub mod expression {
     #[derive(Debug, Clone, PartialEq)]
     pub struct Variable<'a> {
         pub identifier: Token<'a>,
-        pub lookup_hop_count: Option<usize>
+        pub lookup_hop_count: Option<usize>,
+        pub env_slot_idx: Option<usize>
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -49,6 +50,7 @@ pub mod expression {
     pub struct Assignment<'a> {
         pub left: Token<'a>,
         pub lookup_hop_count: Option<usize>,
+        pub env_slot_idx: Option<usize>,
         pub expression: Box<Expression<'a>>
     }
 
@@ -74,7 +76,8 @@ pub mod expression {
     #[derive(Debug, Clone, PartialEq)]
     pub struct Super<'a> {
         pub property: Token<'a>,
-        pub lookup_hop_count: Option<usize>
+        pub lookup_hop_count: Option<usize>,
+        pub env_slot_idx: Option<usize>
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -314,7 +317,8 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
                     expression::Expression::Variable (
                         Variable {
                             identifier: tokens[cursor].clone(),
-                            lookup_hop_count: None
+                            lookup_hop_count: None,
+                            env_slot_idx: None
                         }
                     )
                 );
@@ -677,12 +681,13 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
         (value_expr, cursor) = parse_assignment(tokens, cursor);
 
         match expr {
-            expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count: None } )=> {
+            expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
                 return (
                     expression::Expression::Assignment (
                         Assignment {
                             left: t,
-                            lookup_hop_count: None,
+                            lookup_hop_count,
+                            env_slot_idx,
                             expression: Box::<expression::Expression>::new(value_expr)
                         }
                     ),
@@ -1013,7 +1018,8 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
                 expression::Expression::Super (
                     Super {
                         property: tokens[cursor].clone(),
-                        lookup_hop_count: None
+                        lookup_hop_count: None,
+                        env_slot_idx: None
                     }
                 ),
                 cursor + 1
@@ -1030,7 +1036,8 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
             expression::Expression::Variable (
                 Variable {
                     identifier: tokens[cursor].clone(),
-                    lookup_hop_count: None
+                    lookup_hop_count: None,
+                    env_slot_idx: None
                 }
             ),
             cursor + 1
