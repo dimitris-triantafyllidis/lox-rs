@@ -23,7 +23,8 @@ pub struct Context<'a> {
     pub environment_stack: Vec<usize>,
     pub next_env_id: usize,
     pub instances: HashMap<usize, Instance<'a>>,
-    pub next_instance_id: usize
+    pub next_instance_id: usize,
+    pub classes: Vec<Class<'a>>
 }
 
 impl<'a> Context<'a> {
@@ -34,8 +35,16 @@ impl<'a> Context<'a> {
             environment_stack: Vec::<usize>::new(),
             next_env_id: 0,
             instances: HashMap::<usize, Instance<'a>>::new(),
-            next_instance_id: 0
+            next_instance_id: 0,
+            classes: Vec::<Class>::new()
         }
+    }
+
+    pub fn insert_class(&mut self, class: Class<'a>) -> usize {
+        self.classes.push (
+            class
+        );
+        return self.classes.len() - 1;
     }
 
     pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
@@ -266,8 +275,8 @@ impl<'a> Context<'a> {
                     else if let Value::Instance ( instance_id ) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
                     }
-                    else if let Value::Class ( Class { methods, super_class, .. } ) = value {
-
+                    else if let Value::Class ( class_id ) = value {
+                        let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
                             if let Value::Function ( Function { closure_id, .. } ) = value {
                                 new_envs_to_visit.push(*closure_id);
@@ -277,7 +286,8 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( Class { methods, super_class, .. } ) = b.as_ref() {
+                            if let Value::Class ( class_id ) = b.as_ref() {
+                                let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
                                     if let Value::Function ( Function { closure_id, .. } ) = value {
                                         new_envs_to_visit.push(*closure_id);
@@ -314,7 +324,9 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class ( Class { methods, super_class, .. } ) = instance.class.as_ref() {
+                if let Value::Class ( class_id ) = instance.class.as_ref() {
+
+                    let Class { methods, super_class, .. } = &self.classes[*class_id];
 
                     for value in methods.values() {
                         if let Value::Function ( Function { closure_id, .. } ) = value {
@@ -325,7 +337,8 @@ impl<'a> Context<'a> {
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        if let Value::Class ( Class { methods, super_class, .. } ) = b.as_ref() {
+                        if let Value::Class ( class_id ) = b.as_ref() {
+                            let Class { methods, super_class, .. } = &self.classes[*class_id];
                             for value in methods.values() {
                                 if let Value::Function ( Function { closure_id, .. } ) = value {
                                     env_ids_to_mark_stack.push(*closure_id);
@@ -344,8 +357,8 @@ impl<'a> Context<'a> {
 
                 for (_, property_value) in &instance.properties {
 
-                    if let Value::Class ( Class { methods, super_class, .. } ) = property_value {
-
+                    if let Value::Class ( class_id ) = property_value {
+                        let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
                             if let Value::Function ( Function { closure_id, .. } ) = value {
                                 env_ids_to_mark_stack.push(*closure_id);
@@ -355,7 +368,8 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( Class { methods, super_class, .. } ) = b.as_ref() {
+                            if let Value::Class ( class_id ) = b.as_ref() {
+                                let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
                                     if let Value::Function ( Function { closure_id, .. } ) = value {
                                         env_ids_to_mark_stack.push(*closure_id);
