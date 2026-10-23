@@ -87,8 +87,9 @@ impl<'a> Context<'a> {
                         .get(&id)
                         .expect("Environment id does not exist");
 
-                    if let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; })  {
+                    if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; })  {
                         *lookup_hop_count = Some(hop_count);
+                        *env_slot_idx = Some(idx);
                         return id;
                     }
 
@@ -131,15 +132,23 @@ impl<'a> Context<'a> {
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
 
-        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
-            return env.symbols[idx].1.clone();
-        }
-        else {
-            if identifier == "super" {
-                panic!("Can't use 'super' in a class with no superclass.");
-            }
-            else {
-                panic!("Symbol not found");
+        match env_slot_idx {
+
+            None => {
+                if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+                    return env.symbols[idx].1.clone();
+                }
+                else {
+                    if identifier == "super" {
+                        panic!("Can't use 'super' in a class with no superclass.");
+                    }
+                    else {
+                        panic!("Symbol not found");
+                    }
+                }
+            },
+            Some(idx) => {
+                return env.symbols[*idx].1.clone();
             }
         }
     }
@@ -149,16 +158,24 @@ impl<'a> Context<'a> {
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get_mut(&env_id).unwrap();
 
-        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
-            env.symbols[idx].1 = value;
-            return;
-        }
-        else {
-            if identifier == "super" {
-                panic!("Can't use 'super' in a class with no superclass.");
-            }
-            else {
-                panic!("Symbol not found");
+        match env_slot_idx {
+            None => {
+                if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+                    env.symbols[idx].1 = value;
+                    *env_slot_idx = Some(idx);
+                    return;
+                }
+                else {
+                    if identifier == "super" {
+                        panic!("Can't use 'super' in a class with no superclass.");
+                    }
+                    else {
+                        panic!("Symbol not found");
+                    }
+                }
+            },
+            Some(idx) => {
+                env.symbols[*idx].1 = value;
             }
         }
     }
