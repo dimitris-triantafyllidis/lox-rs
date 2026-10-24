@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::interpreter::*;
 
 pub struct Environment<'a> {
-    pub symbols: Vec<(&'a str, Value<'a>)>,
+    pub symbols: Vec<(&'a str, Value)>,
     pub parent_key: Option<usize>,
     pub reachable: bool
 }
@@ -24,10 +24,37 @@ pub struct Context<'a> {
     pub next_env_id: usize,
     pub instances: HashMap<usize, Instance<'a>>,
     pub next_instance_id: usize,
-    pub classes: Vec<Class<'a>>
+    pub classes: Vec<Class<'a>>,
+    pub functions: Vec<Function<'a>>
 }
 
 impl<'a> Context<'a> {
+
+
+pub fn insert_symbol_split(
+    environments: &mut HashMap<usize, Environment<'a>>,
+    environment_stack: &[usize],
+    identifier: &'a str,
+    value: Value,
+) {
+    let id = *environment_stack
+        .last()
+        .expect("Interpreter context is empty");
+
+    let env = environments
+        .get_mut(&id)
+        .expect("Environment id does not exist");
+
+    if let Some(idx) = env.symbols.iter().position(|(name, _)| *name == identifier) {
+        if environment_stack.len() > 1 {
+            panic!("{identifier}: Already a variable with this name in this scope.");
+        } else {
+            env.symbols[idx].1 = value;
+        }
+    } else {
+        env.symbols.push((identifier, value));
+    }
+}
 
     pub fn new() -> Self {
         Self {
@@ -36,7 +63,8 @@ impl<'a> Context<'a> {
             next_env_id: 0,
             instances: HashMap::<usize, Instance<'a>>::new(),
             next_instance_id: 0,
-            classes: Vec::<Class>::new()
+            classes: Vec::<Class>::new(),
+            functions: Vec::<Function<'a>>::new()
         }
     }
 
@@ -45,6 +73,13 @@ impl<'a> Context<'a> {
             class
         );
         return self.classes.len() - 1;
+    }
+
+    pub fn insert_function(&mut self, function: Function<'a>) -> usize {
+        self.functions.push (
+            function
+        );
+        return self.functions.len() - 1;
     }
 
     pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
@@ -136,7 +171,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> Value<'a> {
+    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> Value {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
@@ -162,7 +197,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &str, value: Value<'a>, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
+    pub fn set_symbol_value(&mut self, identifier: &str, value: Value, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get_mut(&env_id).unwrap();
@@ -189,7 +224,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &'a str, value: Value<'a>) {
+    pub fn insert_symbol(&mut self, identifier: &'a str, value: Value) {
 
         let id = *self
             .environment_stack
@@ -269,7 +304,8 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                    if let Value::Function { function_id, closure_id } = value {
+                        let Function { .. } = self.functions[*function_id];
                         new_envs_to_visit.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = value {
@@ -278,7 +314,8 @@ impl<'a> Context<'a> {
                     else if let Value::Class ( class_id ) = value {
                         let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
-                            if let Value::Function ( Function { closure_id, .. } ) = value {
+                            if let Value::Function { function_id, closure_id } = value {
+                                let Function { .. } = self.functions[*function_id];
                                 new_envs_to_visit.push(*closure_id);
                             }
                         }
@@ -289,7 +326,8 @@ impl<'a> Context<'a> {
                             if let Value::Class ( class_id ) = b.as_ref() {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
-                                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                                    if let Value::Function { function_id, closure_id } = value {
+                                        let Function { .. } = self.functions[*function_id];
                                         new_envs_to_visit.push(*closure_id);
                                     }
                                 }
@@ -329,7 +367,8 @@ impl<'a> Context<'a> {
                     let Class { methods, super_class, .. } = &self.classes[*class_id];
 
                     for value in methods.values() {
-                        if let Value::Function ( Function { closure_id, .. } ) = value {
+                        if let Value::Function { function_id, closure_id } = value {
+                            let Function { .. } = self.functions[*function_id];
                             env_ids_to_mark_stack.push(*closure_id);
                         }
                     }
@@ -340,7 +379,8 @@ impl<'a> Context<'a> {
                         if let Value::Class ( class_id ) = b.as_ref() {
                             let Class { methods, super_class, .. } = &self.classes[*class_id];
                             for value in methods.values() {
-                                if let Value::Function ( Function { closure_id, .. } ) = value {
+                                if let Value::Function { function_id, closure_id } = value {
+                                    let Function { .. } = self.functions[*function_id];
                                     env_ids_to_mark_stack.push(*closure_id);
                                 }
                             }
@@ -360,7 +400,8 @@ impl<'a> Context<'a> {
                     if let Value::Class ( class_id ) = property_value {
                         let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
-                            if let Value::Function ( Function { closure_id, .. } ) = value {
+                            if let Value::Function { function_id, closure_id } = value {
+                                let Function { .. } = self.functions[*function_id];
                                 env_ids_to_mark_stack.push(*closure_id);
                             }
                         }
@@ -371,7 +412,8 @@ impl<'a> Context<'a> {
                             if let Value::Class ( class_id ) = b.as_ref() {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
-                                    if let Value::Function ( Function { closure_id, .. } ) = value {
+                                    if let Value::Function { function_id, closure_id } = value {
+                                        let Function { .. } = self.functions[*function_id];
                                         env_ids_to_mark_stack.push(*closure_id);
                                     }
                                 }
@@ -382,7 +424,8 @@ impl<'a> Context<'a> {
                             }
                         }
                     }
-                    else if let Value::Function ( Function { closure_id, .. } ) = property_value {
+                    else if let Value::Function { function_id, closure_id } = property_value {
+                        let Function { .. } = self.functions[*function_id];
                         env_ids_to_mark_stack.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = property_value {

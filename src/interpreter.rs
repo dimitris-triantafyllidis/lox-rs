@@ -11,8 +11,8 @@ use statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
-    pub class: Box<Value<'a>>,
-    pub properties: HashMap<&'a str, Value<'a>>,
+    pub class: Box<Value>,
+    pub properties: HashMap<&'a str, Value>,
     pub reachable: bool
 }
 
@@ -26,25 +26,24 @@ pub enum NativeFunction {
 pub struct Function<'a> {
     pub pars: Vec<&'a str>,
     pub body: Statement<'a>,
-    pub closure_id: usize,
     pub is_native: bool,
     pub native_function: NativeFunction
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
-    pub methods: HashMap<&'a str, Value<'a>>,
-    pub super_class: Option<Box<Value<'a>>>,
+    pub methods: HashMap<&'a str, Value>,
+    pub super_class: Option<Box<Value>>,
     pub name: String
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value<'a> {
+pub enum Value {
     Nil,
     Boolean (bool),
     Number (f64),
     String (String),
-    Function (Function<'a>),
+    Function {function_id: usize, closure_id: usize},
     Class (usize),
     Instance (usize)
 }
@@ -56,13 +55,13 @@ pub enum Control {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NodeResult<'a> {
-    pub value: Value<'a>,
+pub struct NodeResult {
+    pub value: Value,
     pub control: Control
 }
 
-impl<'a> NodeResult<'a> {
-    pub fn new(value: Value<'a>, control: Control) -> Self {
+impl<'a> NodeResult {
+    pub fn new(value: Value, control: Control) -> Self {
         return Self {
             value,
             control
@@ -90,9 +89,8 @@ impl<'a> Interpreter<'a> {
         let mut context = Context::new();
         context.push_new_environment_auto();
 
-        context.insert_symbol (
-            "clock",
-            Value::Function (
+        let function_id =
+            context.insert_function (
                 Function {
                     pars: Vec::new(),
                     body: Statement::Block (
@@ -100,11 +98,17 @@ impl<'a> Interpreter<'a> {
                             statements: Vec::new()
                         }
                     ),
-                    closure_id: 0,
                     is_native: true,
                     native_function: NativeFunction::Clock
                 }
-            )
+            );
+
+        context.insert_symbol (
+            "clock",
+            Value::Function {
+                function_id,
+                closure_id: 0
+            }
         );
 
         Self {
@@ -119,7 +123,7 @@ impl<'a> Interpreter<'a> {
         std::process::exit(1);
     }
 
-    pub fn evaluate_literal(&mut self, expr: &expression::Literal<'a>) -> NodeResult<'a> {
+    pub fn evaluate_literal(&mut self, expr: &expression::Literal<'a>) -> NodeResult {
 
         let Literal { token } = expr;
 
@@ -153,7 +157,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_variable(&mut self, expr: &expression::Variable<'a>) -> NodeResult<'a> {
+    pub fn evaluate_variable(&mut self, expr: &expression::Variable<'a>) -> NodeResult {
 
         let Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
@@ -164,7 +168,7 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn evaluate_this(&mut self) -> NodeResult<'a> {
+    pub fn evaluate_this(&mut self) -> NodeResult {
 
         NodeResult::new (
             self.context.get_symbol_value("this", &mut None, &mut None),
@@ -173,7 +177,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_super(&mut self, expr: &expression::Super<'a>) -> NodeResult<'a> {
+    pub fn evaluate_super(&mut self, expr: &expression::Super<'a>) -> NodeResult {
 
         let Super { property, lookup_hop_count, env_slot_idx } = expr;
 
@@ -188,7 +192,8 @@ impl<'a> Interpreter<'a> {
                 let Class { methods, super_class, .. } = &self.context.classes[*class_id];
                 if methods.contains_key(&property.lexeme) {
                     value = methods.get(&property.lexeme).unwrap().clone();
-                    if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
+                    if let Value::Function { function_id, ref mut closure_id } = value {
+                        let Function { .. } = self.context.functions[function_id];
                         self.context.push_new_environment(Some(*closure_id));
                         self.context.insert_symbol("this", instance_value);
                         *closure_id = self.context.next_env_id - 1;
@@ -211,7 +216,7 @@ impl<'a> Interpreter<'a> {
         panic!("Undefined property '{}'.", property.lexeme);
     }
 
-    pub fn evaluate_set(&mut self, expr: &expression::Set<'a>) -> NodeResult<'a> {
+    pub fn evaluate_set(&mut self, expr: &expression::Set<'a>) -> NodeResult {
 
         let Set { instance, property, value } = expr;
 
@@ -232,7 +237,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_get_internal(&mut self, instance_value: &Value<'a>, property: &Token<'a>) -> Option<Value<'a>> {
+    pub fn evaluate_get_internal(&mut self, instance_value: &Value, property: &Token<'a>) -> Option<Value> {
 
         if let Value::Instance ( instance_id ) = instance_value {
             let instance = self.context.instances.get(instance_id).unwrap();
@@ -249,7 +254,8 @@ impl<'a> Interpreter<'a> {
                         let Class { methods, super_class, .. } = &self.context.classes[*class_id];
                         if methods.contains_key(&property.lexeme) {
                             value = methods.get(&property.lexeme).unwrap().clone();
-                            if let Value::Function ( Function { ref mut closure_id, .. } ) = value {
+                            if let Value::Function { function_id, ref mut closure_id } = value {
+                                let Function { .. } = self.context.functions[function_id];
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol("this", instance_value.clone());
                                 *closure_id = self.context.next_env_id - 1;
@@ -277,7 +283,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_get(&mut self, expr: &expression::Get<'a>) -> NodeResult<'a> {
+    pub fn evaluate_get(&mut self, expr: &expression::Get<'a>) -> NodeResult {
 
         let Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref()).value;
@@ -293,7 +299,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_unary(&mut self, expr: &expression::UnaryOperation<'a>) -> NodeResult<'a> {
+    pub fn evaluate_unary(&mut self, expr: &expression::UnaryOperation<'a>) -> NodeResult {
 
         let expression::UnaryOperation { operator: op, right: rhs } = expr;
         let rhs_result = self.evaluate_expression(rhs);
@@ -320,7 +326,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_parentheses(&mut self, expr: &expression::Parentheses<'a>) -> NodeResult<'a> {
+    pub fn evaluate_parentheses(&mut self, expr: &expression::Parentheses<'a>) -> NodeResult {
 
         let expression::Parentheses { expression: e } = expr;
         let expression_result = self.evaluate_expression(e);
@@ -331,7 +337,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_assignment(&mut self, expr: &expression::Assignment<'a>) -> NodeResult<'a> {
+    pub fn evaluate_assignment(&mut self, expr: &expression::Assignment<'a>) -> NodeResult {
 
         let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
         let rhs_result = self.evaluate_expression(rhs);
@@ -345,7 +351,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn op_add(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_add(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Number(vl + vr);
         }
@@ -357,7 +363,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_sub(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_sub(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Number(vl - vr);
         }
@@ -366,7 +372,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_mul(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_mul(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Number(vl * vr);
         }
@@ -375,7 +381,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_div(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_div(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Number(vl / vr);
         }
@@ -384,15 +390,15 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_equal(&self, vl: Value, vr: Value) -> Value {
         return Value::Boolean(vl == vr);
     }
 
-    pub fn op_not_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_not_equal(&self, vl: Value, vr: Value) -> Value {
         return Value::Boolean(vl != vr);
     }
 
-    pub fn op_less(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_less(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Boolean(vl < vr);
         }
@@ -401,7 +407,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_less_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_less_equal(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Boolean(vl <= vr);
         }
@@ -410,7 +416,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_greater(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_greater(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Boolean(vl > vr);
         }
@@ -419,7 +425,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_greater_equal(&self, vl: Value<'a>, vr: Value<'a>) -> Value<'a> {
+    pub fn op_greater_equal(&self, vl: Value, vr: Value) -> Value {
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             return Value::Boolean(vl >= vr);
         }
@@ -428,7 +434,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_binary(&mut self, expr: &expression::BinaryOperation<'a>) -> NodeResult<'a> {
+    pub fn evaluate_binary(&mut self, expr: &expression::BinaryOperation<'a>) -> NodeResult {
 
         let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
 
@@ -452,7 +458,7 @@ impl<'a> Interpreter<'a> {
         panic!();
     }
 
-    pub fn evaluate_logical_or(&mut self, expr: &expression::LogicalOr<'a>) -> NodeResult<'a> {
+    pub fn evaluate_logical_or(&mut self, expr: &expression::LogicalOr<'a>) -> NodeResult {
 
         let LogicalOr { left: lhs, right: rhs } = expr;
 
@@ -468,7 +474,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_logical_and(&mut self, expr: &expression::LogicalAnd<'a>) -> NodeResult<'a> {
+    pub fn evaluate_logical_and(&mut self, expr: &expression::LogicalAnd<'a>) -> NodeResult {
 
         let LogicalAnd { left: lhs, right: rhs } = expr;
 
@@ -484,10 +490,10 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_function_call(&mut self, callee: &Value<'a>, arguments: &[Value<'a>]) -> Value<'a> {
+    pub fn evaluate_function_call(&mut self, callee: &Value, arguments: &[Value]) -> Value {
 
-        if let Value::Function ( Function { pars, body, closure_id, is_native, native_function } ) = callee {
-
+        if let Value::Function { function_id, closure_id } = callee {
+            let Function { pars, body, is_native, native_function } = &self.context.functions[*function_id].clone();
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(*closure_id));
@@ -540,13 +546,14 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_call(&mut self, expr: &expression::Call<'a>) -> NodeResult<'a> {
+    pub fn evaluate_call(&mut self, expr: &expression::Call<'a>) -> NodeResult {
 
         let Call { callee, arguments } = &expr;
 
         let callee = self.evaluate_expression(callee).value;
 
-        if let Value::Function ( Function { pars, .. } ) = &callee {
+        if let Value::Function { function_id, .. } = &callee {
+            let Function { ref pars, .. } = self.context.functions[*function_id];
             if pars.len() == arguments.len() {
 
                 let mut argument_values = Vec::<Value>::new();
@@ -588,7 +595,8 @@ impl<'a> Interpreter<'a> {
                 &new_instance,
                 &init_token
             ) {
-                if let Value::Function ( Function { ref pars, .. } ) = init_bound_function {
+                if let Value::Function { function_id, .. } = init_bound_function {
+                    let Function { ref pars, .. } = self.context.functions[function_id];
                     if pars.len() == arguments.len() {
 
                         let mut argument_values = Vec::<Value>::new();
@@ -621,7 +629,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn evaluate_expression(&mut self, expr: &expression::Expression<'a>) -> NodeResult<'a> {
+    pub fn evaluate_expression(&mut self, expr: &expression::Expression<'a>) -> NodeResult {
 
         match expr {
             expression::Expression::Literal         (expr) => return self.evaluate_literal(expr),
@@ -641,7 +649,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_statement(&mut self, statement: &Statement<'a>) -> NodeResult<'a> {
+    pub fn execute_statement(&mut self, statement: &Statement<'a>) -> NodeResult {
 
         self.statement_exec_count += 1;
 
@@ -669,7 +677,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_expression_statement(&mut self, stmt: &statement::Expression<'a>) -> NodeResult<'a> {
+    pub fn execute_expression_statement(&mut self, stmt: &statement::Expression<'a>) -> NodeResult {
 
         let statement::Expression { expr } = stmt;
         let expr_result = self.evaluate_expression(&expr);
@@ -677,7 +685,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_print_statement(&mut self, stmt: &statement::Print<'a>) -> NodeResult<'a> {
+    pub fn execute_print_statement(&mut self, stmt: &statement::Print<'a>) -> NodeResult {
 
         let Print { expr } = stmt;
 
@@ -715,7 +723,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, expr_result.control );
     }
 
-    pub fn execute_return_statement(&mut self, stmt: &statement::Return<'a>) -> NodeResult<'a> {
+    pub fn execute_return_statement(&mut self, stmt: &statement::Return<'a>) -> NodeResult {
 
         let statement::Return { expr } = stmt;
 
@@ -730,7 +738,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_while_statement(&mut self, stmt: &statement::While<'a>) -> NodeResult<'a> {
+    pub fn execute_while_statement(&mut self, stmt: &statement::While<'a>) -> NodeResult {
 
         let While { condition: statement::Expression { expr }, body } = stmt;
 
@@ -750,7 +758,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_for_statement(&mut self, stmt: &statement::For<'a>) -> NodeResult<'a> {
+    pub fn execute_for_statement(&mut self, stmt: &statement::For<'a>) -> NodeResult {
 
         let For {
             init: initializer_statement,
@@ -789,7 +797,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_if_statement(&mut self, stmt: &statement::If<'a>) -> NodeResult<'a> {
+    pub fn execute_if_statement(&mut self, stmt: &statement::If<'a>) -> NodeResult {
 
         let If { condition: statement::Expression { expr }, then_statement, else_statement } = stmt;
         let condition_expression_value = self.evaluate_expression(expr).value;
@@ -804,7 +812,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_function_declaration_statement(&mut self, stmt: &statement::FunctionDeclaration<'a>) -> NodeResult<'a> {
+    pub fn execute_function_declaration_statement(&mut self, stmt: &statement::FunctionDeclaration<'a>) -> NodeResult {
 
         let FunctionDeclaration { id, pars, body } = stmt;
 
@@ -814,23 +822,28 @@ impl<'a> Interpreter<'a> {
             par_lexemes.push(par.lexeme);
         }
 
-        self.context.insert_symbol (
-            &id.lexeme,
-            Value::Function (
+        let function_id =
+            self.context.insert_function (
                 Function {
                     pars: par_lexemes,
                     body: *body.clone(),
-                    closure_id: self.context.get_current_environment_id(),
                     is_native: false,
                     native_function: NativeFunction::None,
                 }
-            )
+            );
+
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Function {
+                function_id,
+                closure_id: self.context.get_current_environment_id(),
+            }
         );
 
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_class_declaration_statement(&mut self, stmt: &statement::ClassDeclaration<'a>) -> NodeResult<'a> {
+    pub fn execute_class_declaration_statement(&mut self, stmt: &statement::ClassDeclaration<'a>) -> NodeResult {
 
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
@@ -868,17 +881,23 @@ impl<'a> Interpreter<'a> {
                 par_lexemes.push(par.lexeme);
             }
 
-            class_method_map.insert (
-                id.clone(),
-                Value::Function (
+            let function_id =
+                self.context.insert_function (
                     Function {
                         pars: par_lexemes,
                         body: *body.clone(),
-                        closure_id: self.context.get_current_environment_id(),
+
                         is_native: false,
                         native_function: NativeFunction::Clock
                     }
-                )
+                );
+
+            class_method_map.insert (
+                id.clone(),
+                Value::Function {
+                    function_id,
+                    closure_id: self.context.get_current_environment_id(),
+                }
             );
         }
 
@@ -912,7 +931,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_variable_declaration_statement(&mut self, stmt: &statement::VariableDeclaration<'a>) -> NodeResult<'a> {
+    pub fn execute_variable_declaration_statement(&mut self, stmt: &statement::VariableDeclaration<'a>) -> NodeResult {
 
         let VariableDeclaration { id, init } = stmt;
 
@@ -927,7 +946,7 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_block_statement(&mut self, stmt: &statement::Block<'a>) -> NodeResult<'a> {
+    pub fn execute_block_statement(&mut self, stmt: &statement::Block<'a>) -> NodeResult {
 
         let Block { statements } = stmt;
 

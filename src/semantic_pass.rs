@@ -78,7 +78,7 @@ impl<'a> SemanticPass<'a> {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
         else {
-            let expression::Super { lookup_hop_count, env_slot_idx, .. } = expr;
+            let expression::Super { lookup_hop_count, .. } = expr;
             if !lookup_hop_count.is_none() {
                 panic!();
             }
@@ -300,17 +300,22 @@ impl<'a> SemanticPass<'a> {
             par_lexemes.push(par.lexeme);
         }
 
-        self.context.insert_symbol (
-            &id.lexeme,
-            Value::Function (
+        let function_id =
+            self.context.insert_function (
                 Function {
                     pars: par_lexemes,
                     body: *body.clone(),
-                    closure_id,
                     is_native: false,
                     native_function: NativeFunction::None
                 }
-            )
+            );
+
+        self.context.insert_symbol (
+            &id.lexeme,
+            Value::Function {
+                function_id,
+                closure_id
+            }
         );
 
         self.context.push_new_environment_auto();
