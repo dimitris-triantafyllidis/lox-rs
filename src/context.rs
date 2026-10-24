@@ -30,32 +30,6 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
 
-
-pub fn insert_symbol_split(
-    environments: &mut HashMap<usize, Environment<'a>>,
-    environment_stack: &[usize],
-    identifier: &'a str,
-    value: Value,
-) {
-    let id = *environment_stack
-        .last()
-        .expect("Interpreter context is empty");
-
-    let env = environments
-        .get_mut(&id)
-        .expect("Environment id does not exist");
-
-    if let Some(idx) = env.symbols.iter().position(|(name, _)| *name == identifier) {
-        if environment_stack.len() > 1 {
-            panic!("{identifier}: Already a variable with this name in this scope.");
-        } else {
-            env.symbols[idx].1 = value;
-        }
-    } else {
-        env.symbols.push((identifier, value));
-    }
-}
-
     pub fn new() -> Self {
         Self {
             environments: HashMap::<usize, Environment>::new(),
