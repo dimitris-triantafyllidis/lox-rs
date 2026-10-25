@@ -147,7 +147,8 @@ pub mod statement {
         pub pars: Vec<Token<'a>>,
         pub body: Box<Statement<'a>>,
         pub is_initializer: bool,
-        pub is_method: bool
+        pub is_method: bool,
+        pub context_function_slot_idx: Option<usize>
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -280,7 +281,8 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
                             pars: parameters,
                             body: Box::new(body),
                             is_initializer: false,
-                            is_method: false
+                            is_method: false,
+                            context_function_slot_idx: None
                         }
                     ),
                     cursor

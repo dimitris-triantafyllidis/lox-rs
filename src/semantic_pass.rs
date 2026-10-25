@@ -21,7 +21,7 @@ pub enum ClassContext {
 pub struct SemanticPass<'a> {
     pub context: Context<'a>,
     pub function_context_stack: Vec<FunctionContext>,
-    pub class_context_stack: Vec<ClassContext>
+    pub class_context_stack: Vec<ClassContext>,
 }
 
 impl<'a> SemanticPass<'a> {
@@ -31,6 +31,23 @@ impl<'a> SemanticPass<'a> {
         let mut context = Context::new();
         context.push_new_environment_auto();
 
+        let function_id =
+            context.insert_function (
+                Function {
+                    pars: Vec::new(),
+                    body: Statement::Block (
+                        Block {
+                            statements: Vec::new()
+                        }
+                    ),
+                    is_native: true,
+                    native_function: NativeFunction::Clock,
+                    is_initializer: false,
+                    is_method: false,
+                    name: "clock".to_string()
+                }
+            );
+
         context.insert_symbol (
             "class",
             Value::Nil
@@ -39,10 +56,14 @@ impl<'a> SemanticPass<'a> {
         let function_context_stack = Vec::<FunctionContext>::new();
         let class_context_stack = Vec::<ClassContext>::new();
 
+        if function_id != 0 {
+            panic!("Internal resolver error");
+        }
+
         Self {
             context,
             function_context_stack,
-            class_context_stack
+            class_context_stack,
         }
     }
 
@@ -286,7 +307,14 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_function_declaration_statement(&mut self, stmt: &mut statement::FunctionDeclaration<'a>) {
 
-        let FunctionDeclaration { id, pars, body, .. } = stmt;
+        let FunctionDeclaration { id, pars, body, context_function_slot_idx, .. } = stmt;
+
+        if !context_function_slot_idx.is_none() {
+            panic!("Internal resolver error");
+        }
+        else {
+            *context_function_slot_idx = Some(self.context.functions.len());
+        }
 
         let function_context = self.function_context_stack.last().cloned().unwrap();
         let mut closure_id = self.context.get_current_environment_id();
@@ -303,23 +331,27 @@ impl<'a> SemanticPass<'a> {
             par_lexemes.push(par.lexeme);
         }
 
-        let function_id =
-            self.context.insert_function (
-                Function {
-                    pars: par_lexemes,
-                    body: *body.clone(),
-                    is_native: false,
-                    native_function: NativeFunction::None,
-                    is_initializer: false,
-                    is_method: false,
-                    name: id.lexeme.to_string()
-                }
-            );
+        let is_initializer = function_context == FunctionContext::Initializer;
+        let is_method      = function_context == FunctionContext::Method;
+
+        let function_id = self.context.functions.len();
+
+        self.context.insert_function (
+            Function {
+                pars: par_lexemes,
+                body: *body.clone(),
+                is_native: false,
+                native_function: NativeFunction::None,
+                is_initializer,
+                is_method,
+                name: id.lexeme.to_string()
+            }
+        );
 
         self.context.insert_symbol (
             &id.lexeme,
             Value::Function {
-                function_id,
+                context_function_slot_idx: context_function_slot_idx.unwrap(),
                 closure_id
             }
         );
@@ -346,6 +378,8 @@ impl<'a> SemanticPass<'a> {
         else {
             panic!("Expected block statement");
         }
+
+        self.context.functions[function_id].body = *body.clone();
 
         self.context.pop_environment();
     }

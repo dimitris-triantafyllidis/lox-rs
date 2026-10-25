@@ -46,7 +46,10 @@ pub enum Value {
     Boolean (bool),
     Number (f64),
     String (String),
-    Function {function_id: usize, closure_id: usize},
+    Function {
+        context_function_slot_idx: usize,
+        closure_id: usize
+    },
     Class (usize),
     Instance (usize)
 }
@@ -87,32 +90,18 @@ pub struct Interpreter<'a> {
 
 impl<'a> Interpreter<'a> {
 
-    pub fn new() -> Self {
+    pub fn new(ctx: Context<'a>) -> Self {
 
         let mut context = Context::new();
-        context.push_new_environment_auto();
 
-        let function_id =
-            context.insert_function (
-                Function {
-                    pars: Vec::new(),
-                    body: Statement::Block (
-                        Block {
-                            statements: Vec::new()
-                        }
-                    ),
-                    is_native: true,
-                    native_function: NativeFunction::Clock,
-                    is_initializer: false,
-                    is_method: false,
-                    name: "clock".to_string()
-                }
-            );
+        context.functions = ctx.functions;
+
+        context.push_new_environment_auto();
 
         context.insert_symbol (
             "clock",
             Value::Function {
-                function_id,
+                context_function_slot_idx: 0,
                 closure_id: 0
             }
         );
@@ -198,8 +187,8 @@ impl<'a> Interpreter<'a> {
                 let Class { methods, super_class, .. } = &self.context.classes[*class_id];
                 if methods.contains_key(&property.lexeme) {
                     value = methods.get(&property.lexeme).unwrap().clone();
-                    if let Value::Function { function_id, ref mut closure_id } = value {
-                        let Function { .. } = self.context.functions[function_id];
+                    if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
+                        let Function { .. } = self.context.functions[context_function_slot_idx];
                         self.context.push_new_environment(Some(*closure_id));
                         self.context.insert_symbol("this", instance_value);
                         *closure_id = self.context.next_env_id - 1;
@@ -260,8 +249,8 @@ impl<'a> Interpreter<'a> {
                         let Class { methods, super_class, .. } = &self.context.classes[*class_id];
                         if methods.contains_key(&property.lexeme) {
                             value = methods.get(&property.lexeme).unwrap().clone();
-                            if let Value::Function { function_id, ref mut closure_id } = value {
-                                let Function { .. } = self.context.functions[function_id];
+                            if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
+                                let Function { .. } = self.context.functions[context_function_slot_idx];
                                 self.context.push_new_environment(Some(*closure_id));
                                 self.context.insert_symbol("this", instance_value.clone());
                                 *closure_id = self.context.next_env_id - 1;
@@ -498,8 +487,8 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_function_call(&mut self, callee: &Value, arguments: &[Value]) -> Value {
 
-        if let Value::Function { function_id, closure_id } = callee {
-            let Function { pars, body, is_native, native_function, is_initializer, .. } = &self.context.functions[*function_id].clone();
+        if let Value::Function { context_function_slot_idx, closure_id } = callee {
+            let Function { pars, body, is_native, native_function, is_initializer, .. } = &self.context.functions[*context_function_slot_idx].clone();
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(*closure_id));
@@ -572,8 +561,8 @@ impl<'a> Interpreter<'a> {
 
         let callee = self.evaluate_expression(callee).value;
 
-        if let Value::Function { function_id, .. } = &callee {
-            let Function { ref pars, .. } = self.context.functions[*function_id];
+        if let Value::Function { context_function_slot_idx, .. } = &callee {
+            let Function { ref pars, .. } = self.context.functions[*context_function_slot_idx];
             if pars.len() == arguments.len() {
 
                 let mut argument_values = Vec::<Value>::new();
@@ -615,8 +604,8 @@ impl<'a> Interpreter<'a> {
                 &new_instance,
                 &init_token
             ) {
-                if let Value::Function { function_id, .. } = init_bound_function {
-                    let Function { ref pars, .. } = self.context.functions[function_id];
+                if let Value::Function { context_function_slot_idx, .. } = init_bound_function {
+                    let Function { ref pars, .. } = self.context.functions[context_function_slot_idx];
                     if pars.len() == arguments.len() {
 
                         let mut argument_values = Vec::<Value>::new();
@@ -724,8 +713,8 @@ impl<'a> Interpreter<'a> {
             Value::String(s) => {
                 println!("{s}");
             },
-            Value::Function { function_id, .. } => {
-                let Function { is_native, is_method, name, .. } = &self.context.functions[function_id];
+            Value::Function { context_function_slot_idx, .. } => {
+                let Function { is_native, is_method, name, .. } = &self.context.functions[context_function_slot_idx];
                 if *is_method {
                     println!("<fn method>")
                 }
@@ -843,31 +832,16 @@ impl<'a> Interpreter<'a> {
 
     pub fn execute_function_declaration_statement(&mut self, stmt: &statement::FunctionDeclaration<'a>) -> NodeResult {
 
-        let FunctionDeclaration { id, pars, body, .. } = stmt;
+        let FunctionDeclaration { id, context_function_slot_idx, .. } = stmt;
 
-        let mut par_lexemes = Vec::<&'a str>::new();
-
-        for par in pars {
-            par_lexemes.push(par.lexeme);
+        if context_function_slot_idx.is_none() {
+            panic!("Internal interpreter error: {}", id.lexeme);
         }
-
-        let function_id =
-            self.context.insert_function (
-                Function {
-                    pars: par_lexemes,
-                    body: *body.clone(),
-                    is_native: false,
-                    native_function: NativeFunction::None,
-                    is_initializer: false,
-                    is_method: false,
-                    name: id.lexeme.to_string()
-                }
-            );
 
         self.context.insert_symbol (
             &id.lexeme,
             Value::Function {
-                function_id,
+                context_function_slot_idx: context_function_slot_idx.unwrap(),
                 closure_id: self.context.get_current_environment_id(),
             }
         );
@@ -905,31 +879,12 @@ impl<'a> Interpreter<'a> {
         let mut class_method_map = HashMap::<Token, Value>::new();
 
         for method_decl in method_decls {
-            let FunctionDeclaration { id, pars, body, .. } = method_decl;
-
-            let mut par_lexemes = Vec::<&'a str>::new();
-
-            for par in pars {
-                par_lexemes.push(par.lexeme);
-            }
-
-            let function_id =
-                self.context.insert_function (
-                    Function {
-                        pars: par_lexemes,
-                        body: *body.clone(),
-                        is_native: false,
-                        native_function: NativeFunction::Clock,
-                        is_initializer: id.lexeme == "init",
-                        is_method: true,
-                        name: id.lexeme.to_string()
-                    }
-                );
+            let FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
 
             class_method_map.insert (
                 id.clone(),
                 Value::Function {
-                    function_id,
+                    context_function_slot_idx: context_function_slot_idx.unwrap(),
                     closure_id: self.context.get_current_environment_id(),
                 }
             );

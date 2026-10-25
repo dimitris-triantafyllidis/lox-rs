@@ -34,7 +34,7 @@ fn run_file(file_path: &String) {
             let mut syntax_tree = parse(&tokens);
             let mut semantic_pass = SemanticPass::new();
             semantic_pass.visit(&mut syntax_tree);
-            let mut interpreter = Interpreter::new();
+            let mut interpreter = Interpreter::new(semantic_pass.context);
             interpreter.execute(&syntax_tree);
         },
         io::Result::Err(e) => {

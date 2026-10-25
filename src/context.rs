@@ -278,8 +278,8 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let Value::Function { function_id, closure_id } = value {
-                        let Function { .. } = self.functions[*function_id];
+                    if let Value::Function { context_function_slot_idx, closure_id } = value {
+                        let Function { .. } = self.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = value {
@@ -288,8 +288,8 @@ impl<'a> Context<'a> {
                     else if let Value::Class ( class_id ) = value {
                         let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
-                            if let Value::Function { function_id, closure_id } = value {
-                                let Function { .. } = self.functions[*function_id];
+                            if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                let Function { .. } = self.functions[*context_function_slot_idx];
                                 new_envs_to_visit.push(*closure_id);
                             }
                         }
@@ -300,8 +300,8 @@ impl<'a> Context<'a> {
                             if let Value::Class ( class_id ) = b.as_ref() {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
-                                    if let Value::Function { function_id, closure_id } = value {
-                                        let Function { .. } = self.functions[*function_id];
+                                    if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                        let Function { .. } = self.functions[*context_function_slot_idx];
                                         new_envs_to_visit.push(*closure_id);
                                     }
                                 }
@@ -341,8 +341,8 @@ impl<'a> Context<'a> {
                     let Class { methods, super_class, .. } = &self.classes[*class_id];
 
                     for value in methods.values() {
-                        if let Value::Function { function_id, closure_id } = value {
-                            let Function { .. } = self.functions[*function_id];
+                        if let Value::Function { context_function_slot_idx, closure_id } = value {
+                            let Function { .. } = self.functions[*context_function_slot_idx];
                             env_ids_to_mark_stack.push(*closure_id);
                         }
                     }
@@ -353,8 +353,8 @@ impl<'a> Context<'a> {
                         if let Value::Class ( class_id ) = b.as_ref() {
                             let Class { methods, super_class, .. } = &self.classes[*class_id];
                             for value in methods.values() {
-                                if let Value::Function { function_id, closure_id } = value {
-                                    let Function { .. } = self.functions[*function_id];
+                                if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                    let Function { .. } = self.functions[*context_function_slot_idx];
                                     env_ids_to_mark_stack.push(*closure_id);
                                 }
                             }
@@ -374,8 +374,8 @@ impl<'a> Context<'a> {
                     if let Value::Class ( class_id ) = property_value {
                         let Class { methods, super_class, .. } = &self.classes[*class_id];
                         for value in methods.values() {
-                            if let Value::Function { function_id, closure_id } = value {
-                                let Function { .. } = self.functions[*function_id];
+                            if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                let Function { .. } = self.functions[*context_function_slot_idx];
                                 env_ids_to_mark_stack.push(*closure_id);
                             }
                         }
@@ -386,8 +386,8 @@ impl<'a> Context<'a> {
                             if let Value::Class ( class_id ) = b.as_ref() {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
-                                    if let Value::Function { function_id, closure_id } = value {
-                                        let Function { .. } = self.functions[*function_id];
+                                    if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                        let Function { .. } = self.functions[*context_function_slot_idx];
                                         env_ids_to_mark_stack.push(*closure_id);
                                     }
                                 }
@@ -398,8 +398,8 @@ impl<'a> Context<'a> {
                             }
                         }
                     }
-                    else if let Value::Function { function_id, closure_id } = property_value {
-                        let Function { .. } = self.functions[*function_id];
+                    else if let Value::Function { context_function_slot_idx, closure_id } = property_value {
+                        let Function { .. } = self.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = property_value {
