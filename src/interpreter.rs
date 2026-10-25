@@ -499,7 +499,7 @@ impl<'a> Interpreter<'a> {
     pub fn evaluate_function_call(&mut self, callee: &Value, arguments: &[Value]) -> Value {
 
         if let Value::Function { function_id, closure_id } = callee {
-            let Function { pars, body, is_native, native_function, .. } = &self.context.functions[*function_id].clone();
+            let Function { pars, body, is_native, native_function, is_initializer, .. } = &self.context.functions[*function_id].clone();
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(*closure_id));
@@ -531,8 +531,15 @@ impl<'a> Interpreter<'a> {
                     for ref statement in statements {
                         let statement_result = self.execute_statement(statement);
                         if statement_result.control == Control::FunctionReturn {
-                            self.context.pop_environment();
-                            return statement_result.value;
+                            if *is_initializer {
+                                let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
+                                self.context.pop_environment();
+                                return return_value;
+                            }
+                            else {
+                                self.context.pop_environment();
+                                return statement_result.value;
+                            }
                         }
                     }
                 }
@@ -540,8 +547,15 @@ impl<'a> Interpreter<'a> {
                     panic!("Expected block statement");
                 }
 
-                self.context.pop_environment();
-                return Value::Nil;
+                if *is_initializer {
+                    let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
+                    self.context.pop_environment();
+                    return return_value;
+                }
+                else {
+                    self.context.pop_environment();
+                    return Value::Nil;
+                }
             }
             else {
                 panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
@@ -711,7 +725,7 @@ impl<'a> Interpreter<'a> {
                 println!("{s}");
             },
             Value::Function { function_id, .. } => {
-                let Function { pars, body, is_native, is_initializer, is_method, native_function, name } = &self.context.functions[function_id];
+                let Function { is_native, is_method, name, .. } = &self.context.functions[function_id];
                 if *is_method {
                     println!("<fn method>")
                 }
