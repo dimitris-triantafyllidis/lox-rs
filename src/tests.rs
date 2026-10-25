@@ -37,11 +37,20 @@ fn parse_expectations(source: &str) -> Expectations {
 
             if let Some(error) = annotation.strip_prefix("Error at ") {
                 if let Some((token, message)) = error.split_once(": ") {
-                    compile_error = Some(CompileError {
-                        token: token.trim().trim_matches('\'').to_string(),
-                        message: message.trim().to_string(),
-                    });
+                    compile_error = Some (
+                        CompileError {
+                            token: token.trim().trim_matches('\'').to_string(),
+                            message: message.trim().to_string(),
+                        }
+                    );
                 }
+            } else if let Some(message) = annotation.strip_prefix("Error: ") {
+                compile_error = Some (
+                    CompileError {
+                        token: String::new(),
+                        message: message.trim().to_string(),
+                    }
+                );
             } else if let Some((_, expected)) =
                 line.split_once("// expect:")
             {
@@ -99,9 +108,9 @@ fn run_lox_test(path: &Path) {
             path.display(),
             stdout
         );
-
         assert!(
-            stderr.contains(&token) && stderr.contains(&message),
+            (token.is_empty() || stderr.contains(&token))
+                && stderr.contains(&message),
             "Expected compile error at token '{}' with message '{}' in {}, but got stderr:\n{}",
             token,
             message,

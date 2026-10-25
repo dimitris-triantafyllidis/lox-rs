@@ -1,3 +1,5 @@
+use std::process;
+
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum TokenKind {
 
@@ -141,6 +143,10 @@ pub fn lexer_match_string_literal<'a>(characters: &'a str, cursor_start: usize, 
 
         while cursor_end < characters.len() {
             if characters.as_bytes()[cursor_end] != b'"' {
+                if cursor_end == characters.len() - 1 {
+                    eprintln!("[line {}] Error: Unterminated string.", line_number);
+                    process::exit(1);
+                }
                 cursor_end += 1;
             }
             else if characters.as_bytes()[cursor_end] == b'"' {
