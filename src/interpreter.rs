@@ -27,7 +27,10 @@ pub struct Function<'a> {
     pub pars: Vec<&'a str>,
     pub body: Statement<'a>,
     pub is_native: bool,
-    pub native_function: NativeFunction
+    pub is_initializer: bool,
+    pub is_method: bool,
+    pub native_function: NativeFunction,
+    pub name: String
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -99,7 +102,10 @@ impl<'a> Interpreter<'a> {
                         }
                     ),
                     is_native: true,
-                    native_function: NativeFunction::Clock
+                    native_function: NativeFunction::Clock,
+                    is_initializer: false,
+                    is_method: false,
+                    name: "clock".to_string()
                 }
             );
 
@@ -493,7 +499,7 @@ impl<'a> Interpreter<'a> {
     pub fn evaluate_function_call(&mut self, callee: &Value, arguments: &[Value]) -> Value {
 
         if let Value::Function { function_id, closure_id } = callee {
-            let Function { pars, body, is_native, native_function } = &self.context.functions[*function_id].clone();
+            let Function { pars, body, is_native, native_function, .. } = &self.context.functions[*function_id].clone();
             if pars.len() == arguments.len() {
 
                 self.context.push_new_environment(Some(*closure_id));
@@ -704,8 +710,17 @@ impl<'a> Interpreter<'a> {
             Value::String(s) => {
                 println!("{s}");
             },
-            Value::Function{..} => {
-                println!("<fn>");
+            Value::Function { function_id, .. } => {
+                let Function { pars, body, is_native, is_initializer, is_method, native_function, name } = &self.context.functions[function_id];
+                if *is_method {
+                    println!("<fn method>")
+                }
+                else if *is_native {
+                    println!("<native fn>");
+                }
+                else {
+                    println!("<fn {name}>");
+                }
             },
             Value::Class ( class_id ) => {
                 let Class { name, ..} = &self.context.classes[class_id];
@@ -814,7 +829,7 @@ impl<'a> Interpreter<'a> {
 
     pub fn execute_function_declaration_statement(&mut self, stmt: &statement::FunctionDeclaration<'a>) -> NodeResult {
 
-        let FunctionDeclaration { id, pars, body } = stmt;
+        let FunctionDeclaration { id, pars, body, .. } = stmt;
 
         let mut par_lexemes = Vec::<&'a str>::new();
 
@@ -829,6 +844,9 @@ impl<'a> Interpreter<'a> {
                     body: *body.clone(),
                     is_native: false,
                     native_function: NativeFunction::None,
+                    is_initializer: false,
+                    is_method: false,
+                    name: id.lexeme.to_string()
                 }
             );
 
@@ -873,7 +891,7 @@ impl<'a> Interpreter<'a> {
         let mut class_method_map = HashMap::<Token, Value>::new();
 
         for method_decl in method_decls {
-            let FunctionDeclaration { id, pars, body } = method_decl;
+            let FunctionDeclaration { id, pars, body, .. } = method_decl;
 
             let mut par_lexemes = Vec::<&'a str>::new();
 
@@ -886,9 +904,11 @@ impl<'a> Interpreter<'a> {
                     Function {
                         pars: par_lexemes,
                         body: *body.clone(),
-
                         is_native: false,
-                        native_function: NativeFunction::Clock
+                        native_function: NativeFunction::Clock,
+                        is_initializer: id.lexeme == "init",
+                        is_method: true,
+                        name: id.lexeme.to_string()
                     }
                 );
 

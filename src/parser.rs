@@ -145,7 +145,9 @@ pub mod statement {
     pub struct FunctionDeclaration<'a> {
         pub id: Token<'a>,
         pub pars: Vec<Token<'a>>,
-        pub body: Box<Statement<'a>>
+        pub body: Box<Statement<'a>>,
+        pub is_initializer: bool,
+        pub is_method: bool
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -276,7 +278,9 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
                         FunctionDeclaration {
                             id: identifier,
                             pars: parameters,
-                            body: Box::new(body)
+                            body: Box::new(body),
+                            is_initializer: false,
+                            is_method: false
                         }
                     ),
                     cursor

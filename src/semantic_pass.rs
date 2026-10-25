@@ -286,7 +286,7 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_function_declaration_statement(&mut self, stmt: &mut statement::FunctionDeclaration<'a>) {
 
-        let FunctionDeclaration { id, pars, body } = stmt;
+        let FunctionDeclaration { id, pars, body, .. } = stmt;
 
         let function_context = self.function_context_stack.last().cloned().unwrap();
         let mut closure_id = self.context.get_current_environment_id();
@@ -309,7 +309,10 @@ impl<'a> SemanticPass<'a> {
                     pars: par_lexemes,
                     body: *body.clone(),
                     is_native: false,
-                    native_function: NativeFunction::None
+                    native_function: NativeFunction::None,
+                    is_initializer: false,
+                    is_method: false,
+                    name: id.lexeme.to_string()
                 }
             );
 
