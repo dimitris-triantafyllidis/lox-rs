@@ -229,6 +229,9 @@ impl<'a> SemanticPass<'a> {
 
         match expr {
             Some ( statement::Expression { expr } ) => {
+                if self.function_context_stack.last().unwrap() == &FunctionContext::Initializer {
+                    panic!("Error at 'return': Can't return a value from an initializer.");
+                }
                 self.visit_expression(expr);
             },
             None => { }
