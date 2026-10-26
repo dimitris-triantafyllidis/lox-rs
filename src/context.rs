@@ -297,7 +297,7 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( class_id ) = b.as_ref() {
+                            if let Value::Class ( class_id ) = b {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
                                     if let Value::Function { context_function_slot_idx, closure_id } = value {
@@ -336,9 +336,9 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class ( class_id ) = instance.class.as_ref() {
+                if let Value::Class ( class_id ) = instance.class {
 
-                    let Class { methods, super_class, .. } = &self.classes[*class_id];
+                    let Class { methods, super_class, .. } = &self.classes[class_id];
 
                     for value in methods.values() {
                         if let Value::Function { context_function_slot_idx, closure_id } = value {
@@ -350,7 +350,7 @@ impl<'a> Context<'a> {
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        if let Value::Class ( class_id ) = b.as_ref() {
+                        if let Value::Class ( class_id ) = b {
                             let Class { methods, super_class, .. } = &self.classes[*class_id];
                             for value in methods.values() {
                                 if let Value::Function { context_function_slot_idx, closure_id } = value {
@@ -383,7 +383,7 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( class_id ) = b.as_ref() {
+                            if let Value::Class ( class_id ) = b {
                                 let Class { methods, super_class, .. } = &self.classes[*class_id];
                                 for value in methods.values() {
                                     if let Value::Function { context_function_slot_idx, closure_id } = value {

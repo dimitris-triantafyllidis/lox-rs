@@ -11,7 +11,7 @@ use statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
-    pub class: Box<Value>,
+    pub class: Value,
     pub properties: HashMap<&'a str, Value>,
     pub reachable: bool
 }
@@ -36,7 +36,7 @@ pub struct Function<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
     pub methods: HashMap<&'a str, Value>,
-    pub super_class: Option<Box<Value>>,
+    pub super_class: Option<Value>,
     pub name: String
 }
 
@@ -181,10 +181,10 @@ impl<'a> Interpreter<'a> {
         let instance_value = self.context.get_symbol_value("this", &mut None, &mut None);
         let mut value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy)));
+        let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
         while let Some(box_value) = method_lookup_class {
-            if let Value::Class ( class_id ) = box_value.as_ref() {
-                let Class { methods, super_class, .. } = &self.context.classes[*class_id];
+            if let Value::Class ( class_id ) = box_value {
+                let Class { methods, super_class, .. } = &self.context.classes[class_id];
                 if methods.contains_key(&property.lexeme) {
                     value = methods.get(&property.lexeme).unwrap().clone();
                     if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
@@ -245,8 +245,8 @@ impl<'a> Interpreter<'a> {
             else {
                 let mut method_lookup_class = Some(instance.class.clone());
                 while let Some(box_value) = method_lookup_class {
-                    if let Value::Class ( class_id ) = box_value.as_ref() {
-                        let Class { methods, super_class, .. } = &self.context.classes[*class_id];
+                    if let Value::Class ( class_id ) = box_value {
+                        let Class { methods, super_class, .. } = &self.context.classes[class_id];
                         if methods.contains_key(&property.lexeme) {
                             value = methods.get(&property.lexeme).unwrap().clone();
                             if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
@@ -586,7 +586,7 @@ impl<'a> Interpreter<'a> {
                 Value::Instance (
                     self.context.insert_instance (
                         Instance {
-                            class:      Box::new(callee.clone()),
+                            class:      callee.clone(),
                             properties: HashMap::<&'a str, Value>::new(),
                             reachable:  false
                         }
@@ -732,7 +732,7 @@ impl<'a> Interpreter<'a> {
             Value::Instance ( instance_id ) => {
                 let instance = self.context.instances.get(&instance_id).unwrap();
                 let Instance { class, .. } = instance;
-                let Value::Class ( class_id ) = class.as_ref() else { panic!() };
+                let Value::Class ( class_id ) = class else { panic!() };
                 let Class { name, .. } = &self.context.classes[*class_id];
                 println!("{} instance", name)
             }
@@ -853,7 +853,7 @@ impl<'a> Interpreter<'a> {
 
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
-        let super_class_result: Option<Box<Value>>;
+        let super_class_result: Option<Value>;
 
         if let Some ( expr ) = super_class {
             let super_class_value: Value;
@@ -864,7 +864,7 @@ impl<'a> Interpreter<'a> {
                 panic!("Expected variable expression");
             }
             if let Value::Class {..} = super_class_value {
-                super_class_result = Some(Box::new(super_class_value.clone()));
+                super_class_result = Some(super_class_value.clone());
                 self.context.push_new_environment_auto();
                 self.context.insert_symbol("super", super_class_value);
             }
