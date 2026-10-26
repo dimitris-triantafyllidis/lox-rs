@@ -299,74 +299,67 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind == TokenKind::Identifier {
-
-        let identifier = tokens[cursor].clone();
-        cursor += 1;
-
-        let super_class: Option<expression::Expression>;
-
-        if tokens[cursor].kind == TokenKind::Less {
-            cursor += 1;
-            if tokens[cursor].kind == TokenKind::Identifier {
-                if tokens[cursor] == identifier {
-                    syntax_error(tokens, cursor, &"A class can't inherit from itself.");
-                }
-                super_class = Some (
-                    expression::Expression::Variable (
-                        Variable {
-                            identifier: tokens[cursor].clone(),
-                            lookup_hop_count: None,
-                            env_slot_idx: None
-                        }
-                    )
-                );
-                cursor += 1;
-            }
-            else {
-                syntax_error(tokens, cursor, &"Expect superclass name.");
-            }
-        }
-        else {
-            super_class = None;
-        }
-
-        if tokens[cursor].kind == TokenKind::LeftBrace {
-
-            let mut methods = Vec::<statement::FunctionDeclaration>::new();
-            cursor += 1;
-
-            loop {
-                if tokens[cursor].kind == TokenKind::RightBrace {
-                    return (
-                        Statement::ClassDeclaration (
-                            ClassDeclaration {
-                                id: identifier,
-                                method_decls: methods,
-                                super_class: super_class
-                            }
-                        ),
-                        cursor + 1
-                    );
-                }
-                else {
-                    let method: Statement;
-                    (method, cursor) = parse_function_declaration(tokens, cursor);
-
-                    if let Statement::FunctionDeclaration (m) = method {
-                        methods.push(m);
-                    }
-                }
-            }
-        }
-        else {
-            syntax_error(tokens, cursor, &"Expected '{{'");
-        }
-    }
-    else {
+    if tokens[cursor].kind != TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expected identifier");
     }
 
+    let identifier = tokens[cursor].clone();
+    cursor += 1;
+
+    let super_class: Option<expression::Expression>;
+
+    if tokens[cursor].kind == TokenKind::Less {
+        cursor += 1;
+        if tokens[cursor].kind != TokenKind::Identifier {
+            syntax_error(tokens, cursor, &"Expect superclass name.");
+        }
+        if tokens[cursor] == identifier {
+            syntax_error(tokens, cursor, &"A class can't inherit from itself.");
+        }
+        super_class = Some (
+            expression::Expression::Variable (
+                Variable {
+                    identifier: tokens[cursor].clone(),
+                    lookup_hop_count: None,
+                    env_slot_idx: None
+                }
+            )
+        );
+        cursor += 1;
+    }
+    else {
+        super_class = None;
+    }
+
+    if tokens[cursor].kind != TokenKind::LeftBrace {
+        syntax_error(tokens, cursor, &"Expected '{{'");
+    }
+
+    let mut methods = Vec::<statement::FunctionDeclaration>::new();
+    cursor += 1;
+
+    loop {
+        if tokens[cursor].kind == TokenKind::RightBrace {
+            return (
+                Statement::ClassDeclaration (
+                    ClassDeclaration {
+                        id: identifier,
+                        method_decls: methods,
+                        super_class: super_class
+                    }
+                ),
+                cursor + 1
+            );
+        }
+        else {
+            let method: Statement;
+            (method, cursor) = parse_function_declaration(tokens, cursor);
+
+            if let Statement::FunctionDeclaration (m) = method {
+                methods.push(m);
+            }
+        }
+    }
 }
 
 pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
@@ -375,37 +368,30 @@ pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
     let id: Token;
     let expr: expression::Expression;
 
-    if tokens[cursor].kind == TokenKind::Identifier {
-        id = tokens[cursor].clone();
-        cursor += 1;
-        if tokens[cursor].kind == TokenKind::Equal {
-            (expr, cursor) = parse_expression(tokens, cursor + 1);
-            if tokens[cursor].kind == TokenKind::Semicolon {
-                return (
-                    Statement::VariableDeclaration ( VariableDeclaration { id: id, init: Some(statement::Expression { expr }) } ),
-                    cursor + 1
-                );
-            }
-            else {
-                syntax_error(tokens, cursor, &"Expected ';'");
-            }
-        }
-        else {
-            if tokens[cursor].kind == TokenKind::Semicolon {
-                return (
-                    Statement::VariableDeclaration ( VariableDeclaration { id: id, init: None } ),
-                    cursor + 1
-                );
-            }
-            else {
-                syntax_error(tokens, cursor, &"Expected ';'");
-            }
-        }
-    }
-    else {
+    if tokens[cursor].kind != TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expect variable name.");
     }
-
+    id = tokens[cursor].clone();
+    cursor += 1;
+    if tokens[cursor].kind == TokenKind::Equal {
+        (expr, cursor) = parse_expression(tokens, cursor + 1);
+        if tokens[cursor].kind != TokenKind::Semicolon {
+            syntax_error(tokens, cursor, &"Expected ';'");
+        }
+        return (
+            Statement::VariableDeclaration ( VariableDeclaration { id: id, init: Some(statement::Expression { expr }) } ),
+            cursor + 1
+        );
+    }
+    else {
+        if tokens[cursor].kind != TokenKind::Semicolon {
+            syntax_error(tokens, cursor, &"Expected ';'");
+        }
+        return (
+            Statement::VariableDeclaration ( VariableDeclaration { id: id, init: None } ),
+            cursor + 1
+        );
+    }
 }
 
 pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
@@ -533,15 +519,13 @@ pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
-        return (
-            Statement::Expression ( statement::Expression { expr } ),
-            cursor + 1
-        );
-    } else {
+    if tokens[cursor].kind != TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
-
+    return (
+        Statement::Expression ( statement::Expression { expr } ),
+        cursor + 1
+    );
 }
 
 pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
@@ -579,15 +563,13 @@ pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statem
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
-        return (
-            Statement::Print ( Print { expr } ),
-            cursor + 1
-        );
-    } else {
+    if tokens[cursor].kind != TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
-
+    return (
+        Statement::Print ( Print { expr } ),
+        cursor + 1
+    );
 }
 
 pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
@@ -601,15 +583,13 @@ pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (State
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
-        return (
-            Statement::Return ( Return { expr: Some(statement::Expression { expr }) } ),
-            cursor + 1
-        );
-    } else {
+    if tokens[cursor].kind != TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
-
+    return (
+        Statement::Return ( Return { expr: Some(statement::Expression { expr }) } ),
+        cursor + 1
+    );
 }
 
 pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
@@ -672,48 +652,46 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
 
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
-    if tokens[cursor].kind == TokenKind::Equal {
-        let cursor_equals = cursor;
-        cursor += 1;
-        let value_expr: expression::Expression;
-
-        (value_expr, cursor) = parse_assignment(tokens, cursor);
-
-        match expr {
-            expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
-                return (
-                    expression::Expression::Assignment (
-                        Assignment {
-                            left: t,
-                            lookup_hop_count,
-                            env_slot_idx,
-                            expression: Box::<expression::Expression>::new(value_expr)
-                        }
-                    ),
-                    cursor
-                );
-            },
-            expression::Expression::Get ( Get { instance, property } ) => {
-                return (
-                    expression::Expression::Set (
-                        Set {
-                            instance: instance,
-                            property: property,
-                            value: Box::new(value_expr)
-                        }
-                    ),
-                    cursor
-                );
-            }
-            _ => {
-                syntax_error(tokens, cursor_equals, &"Invalid assignment target.");
-            }
-        }
-    }
-    else {
+    if tokens[cursor].kind != TokenKind::Equal {
         return (expr, cursor);
     }
 
+    let cursor_equals = cursor;
+    cursor += 1;
+    let value_expr: expression::Expression;
+
+    (value_expr, cursor) = parse_assignment(tokens, cursor);
+
+    match expr {
+        expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
+            return (
+                expression::Expression::Assignment (
+                    Assignment {
+                        left: t,
+                        lookup_hop_count,
+                        env_slot_idx,
+                        expression: Box::<expression::Expression>::new(value_expr)
+                    }
+                ),
+                cursor
+            );
+        },
+        expression::Expression::Get ( Get { instance, property } ) => {
+            return (
+                expression::Expression::Set (
+                    Set {
+                        instance: instance,
+                        property: property,
+                        value: Box::new(value_expr)
+                    }
+                ),
+                cursor
+            );
+        }
+        _ => {
+            syntax_error(tokens, cursor_equals, &"Invalid assignment target.");
+        }
+    }
 }
 
 pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
@@ -721,20 +699,15 @@ pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
     loop {
-
-        if tokens[cursor].kind == TokenKind::Or
-        {
-            let left = Box::<expression::Expression>::new(expr);
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::LogicalOr ( LogicalOr { left, right } );
-            cursor = new_cursor;
-        }
-        else {
+        if tokens[cursor].kind != TokenKind::Or {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::LogicalOr ( LogicalOr { left, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
@@ -746,20 +719,15 @@ pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression:
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
     loop {
-
-        if tokens[cursor].kind == TokenKind::And
-        {
-            let left = Box::<expression::Expression>::new(expr);
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_equality(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::LogicalAnd ( LogicalAnd { left, right } );
-            cursor = new_cursor;
-        }
-        else {
+        if tokens[cursor].kind != TokenKind::And {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_equality(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::LogicalAnd ( LogicalAnd { left, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
@@ -771,23 +739,19 @@ pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
     loop {
-
         if
-            tokens[cursor].kind == TokenKind::EqualEqual ||
-            tokens[cursor].kind == TokenKind::BangEqual
+            tokens[cursor].kind != TokenKind::EqualEqual &&
+            tokens[cursor].kind != TokenKind::BangEqual
         {
-            let left = Box::<expression::Expression>::new(expr);
-            let operator = tokens[cursor].clone();
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
-            cursor = new_cursor;
-        }
-        else {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        let operator = tokens[cursor].clone();
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
@@ -801,23 +765,20 @@ pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
     loop {
 
         if
-            tokens[cursor].kind == TokenKind::Greater      ||
-            tokens[cursor].kind == TokenKind::GreaterEqual ||
-            tokens[cursor].kind == TokenKind::Less         ||
-            tokens[cursor].kind == TokenKind::LessEqual
+            tokens[cursor].kind != TokenKind::Greater      &&
+            tokens[cursor].kind != TokenKind::GreaterEqual &&
+            tokens[cursor].kind != TokenKind::Less         &&
+            tokens[cursor].kind != TokenKind::LessEqual
         {
-            let left = Box::<expression::Expression>::new(expr);
-            let operator = tokens[cursor].clone();
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_term(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
-            cursor = new_cursor;
-        }
-        else {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        let operator = tokens[cursor].clone();
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_term(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
