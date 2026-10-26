@@ -182,30 +182,26 @@ impl<'a> Interpreter<'a> {
         let mut value: Value;
 
         let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
-        while let Some(box_value) = method_lookup_class {
-            if let Value::Class ( class_id ) = box_value {
-                let Class { methods, super_class, .. } = &self.context.classes[class_id];
-                if methods.contains_key(&property.lexeme) {
-                    value = methods.get(&property.lexeme).unwrap().clone();
-                    if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
-                        let Function { .. } = self.context.functions[context_function_slot_idx];
-                        self.context.push_new_environment(Some(*closure_id));
-                        self.context.insert_symbol("this", instance_value);
-                        *closure_id = self.context.next_env_id - 1;
-                        self.context.pop_environment();
-                        return NodeResult { value, control: Control::Continue };
-                    }
-                    else {
-                        panic!("Expected function value");
-                    }
-                }
-                else {
-                    method_lookup_class = super_class.clone();
-                    continue;
-                }
+        while let Some(maybe_value) = method_lookup_class {
+            let Value::Class ( class_id ) = maybe_value else {
+                panic!("Expected class value");
+            };
+            let Class { methods, super_class, .. } = &self.context.classes[class_id];
+            if methods.contains_key(&property.lexeme) {
+                value = methods.get(&property.lexeme).unwrap().clone();
+                let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
+                    panic!("Expected function value");
+                };
+                let Function { .. } = self.context.functions[context_function_slot_idx];
+                self.context.push_new_environment(Some(*closure_id));
+                self.context.insert_symbol("this", instance_value);
+                *closure_id = self.context.next_env_id - 1;
+                self.context.pop_environment();
+                return NodeResult { value, control: Control::Continue };
             }
             else {
-                panic!("Expected class value");
+                method_lookup_class = super_class.clone();
+                continue;
             }
         }
         panic!("Undefined property '{}'.", property.lexeme);
@@ -218,63 +214,53 @@ impl<'a> Interpreter<'a> {
         let instance = self.evaluate_expression(instance.as_ref()).value;
         let value = self.evaluate_expression(value).value;
 
-        if let Value::Instance ( instance_id ) = instance {
-            let instance_value = self.context.instances.get_mut(&instance_id).unwrap();
-            instance_value.properties.insert(property.lexeme, value.clone());
-            return NodeResult::new (
-                value,
-                Control::Continue
-            );
-        }
-        else {
-            panic!("Only instances have fields.");
-        }
-
+        let Value::Instance ( instance_id ) = instance else {  panic!("Only instances have fields."); };
+        let instance_value = self.context.instances.get_mut(&instance_id).unwrap();
+        instance_value.properties.insert(property.lexeme, value.clone());
+        return NodeResult::new (
+            value,
+            Control::Continue
+        );
     }
 
     pub fn evaluate_get_internal(&mut self, instance_value: &Value, property: &Token<'a>) -> Option<Value> {
 
-        if let Value::Instance ( instance_id ) = instance_value {
-            let instance = self.context.instances.get(instance_id).unwrap();
-            let mut value: Value;
+        let Value::Instance ( instance_id ) = instance_value else {
+            panic!("Only instances have properties.");
+        };
+        let instance = self.context.instances.get(instance_id).unwrap();
+        let mut value: Value;
 
-            if instance.properties.contains_key(&property.lexeme) {
-                value = instance.properties.get(&property.lexeme).unwrap().clone();
-                return Some(value);
-            }
-            else {
-                let mut method_lookup_class = Some(instance.class.clone());
-                while let Some(box_value) = method_lookup_class {
-                    if let Value::Class ( class_id ) = box_value {
-                        let Class { methods, super_class, .. } = &self.context.classes[class_id];
-                        if methods.contains_key(&property.lexeme) {
-                            value = methods.get(&property.lexeme).unwrap().clone();
-                            if let Value::Function { context_function_slot_idx, ref mut closure_id } = value {
-                                let Function { .. } = self.context.functions[context_function_slot_idx];
-                                self.context.push_new_environment(Some(*closure_id));
-                                self.context.insert_symbol("this", instance_value.clone());
-                                *closure_id = self.context.next_env_id - 1;
-                                self.context.pop_environment();
-                                return Some(value);
-                            }
-                            else {
-                                panic!("Expected function value");
-                            }
-                        }
-                        else {
-                            method_lookup_class = super_class.clone();
-                            continue;
-                        }
-                    }
-                    else {
-                        panic!("Expected class value");
-                    }
-                }
-                return None;
-            }
+        if instance.properties.contains_key(&property.lexeme) {
+            value = instance.properties.get(&property.lexeme).unwrap().clone();
+            return Some(value);
         }
         else {
-            panic!("Only instances have properties.");
+            let mut method_lookup_class = Some(instance.class.clone());
+            while let Some(maybe_value) = method_lookup_class {
+                let Value::Class ( class_id ) = maybe_value else {
+                    panic!("Expected class value");
+                };
+                let Class { methods, super_class, .. } = &self.context.classes[class_id];
+                if methods.contains_key(&property.lexeme) {
+                    value = methods.get(&property.lexeme).unwrap().clone();
+                    let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
+                        panic!("Expected function value");
+                    };
+                    let Function { .. } = self.context.functions[context_function_slot_idx];
+                    self.context.push_new_environment(Some(*closure_id));
+                    self.context.insert_symbol("this", instance_value.clone());
+                    *closure_id = self.context.next_env_id - 1;
+                    self.context.pop_environment();
+                    return Some(value);
+
+                }
+                else {
+                    method_lookup_class = super_class.clone();
+                    continue;
+                }
+            }
+            return None;
         }
     }
 
@@ -283,15 +269,13 @@ impl<'a> Interpreter<'a> {
         let Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref()).value;
 
-        if let Some(value) = self.evaluate_get_internal(&instance_value, property) {
-            return NodeResult::new (
-                value,
-                Control::Continue
-            );
-        }
-        else {
+        let Some(value) = self.evaluate_get_internal(&instance_value, property) else {
             self.runtime_error(&std::format!("Undefined property '{}'.", property.lexeme));
-        }
+        };
+        return NodeResult::new (
+            value,
+            Control::Continue
+        );
     }
 
     pub fn evaluate_unary(&mut self, expr: &expression::UnaryOperation<'a>) -> NodeResult {
@@ -300,15 +284,13 @@ impl<'a> Interpreter<'a> {
         let rhs_result = self.evaluate_expression(rhs);
 
         if op.kind == TokenKind::Minus {
-            if let Value::Number (v) = rhs_result.value {
-                return NodeResult::new (
-                    Value::Number (-v),
-                    Control::Continue
-                )
-            }
-            else {
+            let Value::Number (v) = rhs_result.value else {
                 self.runtime_error("Operand must be a number.");
-            }
+            };
+            return NodeResult::new (
+                Value::Number (-v),
+                Control::Continue
+            )
         }
         else if op.kind == TokenKind::Bang {
             return NodeResult::new (
@@ -329,7 +311,6 @@ impl<'a> Interpreter<'a> {
             expression_result.value,
             Control::Continue
         )
-
     }
 
     pub fn evaluate_assignment(&mut self, expr: &expression::Assignment<'a>) -> NodeResult {
@@ -343,7 +324,6 @@ impl<'a> Interpreter<'a> {
             rhs_result.value,
             Control::Continue
         )
-
     }
 
     pub fn op_add(&self, vl: Value, vr: Value) -> Value {
@@ -359,30 +339,24 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn op_sub(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Number(vl - vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Number(vl - vr);
     }
 
     pub fn op_mul(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Number(vl * vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Number(vl * vr);
     }
 
     pub fn op_div(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Number(vl / vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Number(vl / vr);
     }
 
     pub fn op_equal(&self, vl: Value, vr: Value) -> Value {
@@ -394,39 +368,31 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn op_less(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Boolean(vl < vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Boolean(vl < vr);
     }
 
     pub fn op_less_equal(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Boolean(vl <= vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Boolean(vl <= vr);
     }
 
     pub fn op_greater(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Boolean(vl > vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Boolean(vl > vr);
     }
 
     pub fn op_greater_equal(&self, vl: Value, vr: Value) -> Value {
-        if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
-            return Value::Boolean(vl >= vr);
-        }
-        else {
+        let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
-        }
+        };
+        return Value::Boolean(vl >= vr);
     }
 
     pub fn evaluate_binary(&mut self, expr: &expression::BinaryOperation<'a>) -> NodeResult {
