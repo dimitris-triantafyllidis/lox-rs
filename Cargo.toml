@@ -15,6 +15,10 @@ name = "lox"
 path = "src/lox.rs"
 
 [[bin]]
+name = "lox-scan"
+path = "src/lox-scan.rs"
+
+[[bin]]
 name = "benchmark"
 path = "src/benchmark.rs"
 

@@ -1,5 +1,3 @@
-
-
 use std::{
     fs,
     path::Path,
@@ -27,7 +25,8 @@ fn parse_expectations(source: &str) -> Expectations {
             line.split_once("// expect runtime error:")
         {
             runtime_error = Some(expected.trim().to_string());
-        } else if let Some((_, annotation)) =
+        }
+        else if let Some((_, annotation)) =
             line.split_once("// ")
         {
             let annotation = annotation
@@ -44,17 +43,19 @@ fn parse_expectations(source: &str) -> Expectations {
                         }
                     );
                 }
-            } else if let Some(message) = annotation.strip_prefix("Error: ") {
+            }
+            else if let Some(message) = annotation.strip_prefix("Error: ") {
                 compile_error = Some (
                     CompileError {
                         token: String::new(),
                         message: message.trim().to_string(),
                     }
                 );
-            } else if let Some((_, expected)) =
+            }
+            else if let Some((_, expected)) =
                 line.split_once("// expect:")
             {
-                output.push(expected.trim().to_string());
+                output.push(expected.trim_start().to_string());
             }
         }
     }
@@ -63,6 +64,84 @@ fn parse_expectations(source: &str) -> Expectations {
         output,
         runtime_error,
         compile_error,
+    }
+}
+
+fn run_lox_scanning_test(path: &Path) {
+    let source = fs::read_to_string(path)
+        .expect("Failed to read Lox test");
+
+    let expectations = parse_expectations(&source);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_lox-scan"))
+        .arg(path)
+        .output()
+        .expect("Failed to execute interpreter");
+
+    let stdout = String::from_utf8(output.stdout)
+        .expect("stdout was not valid UTF-8");
+
+    let stderr = String::from_utf8(output.stderr)
+        .expect("stderr was not valid UTF-8");
+
+    if let Some(expected_error) = expectations.runtime_error {
+        assert! (
+            !output.status.success(),
+            "Expected runtime error '{}' in {}, but interpreter exited successfully.\nstdout:\n{}",
+            expected_error,
+            path.display(),
+            stdout
+        );
+
+        assert! (
+            stderr.contains(&expected_error),
+            "Expected error message '{}' in {}, but got stderr:\n{}",
+            expected_error,
+            path.display(),
+            stderr
+        );
+    }
+    else if let Some(CompileError { token, message }) =
+        expectations.compile_error
+    {
+        assert! (
+            !output.status.success(),
+            "Expected compile error in {}, but interpreter exited successfully.\nstdout:\n{}",
+            path.display(),
+            stdout
+        );
+        assert! (
+            (token.is_empty() || stderr.contains(&token))
+                && stderr.contains(&message),
+            "Expected compile error at token '{}' with message '{}' in {}, but got stderr:\n{}",
+            token,
+            message,
+            path.display(),
+            stderr
+        );
+    }
+    else {
+        assert! (
+            output.status.success(),
+            "Interpreter failed on {}.\nstdout:\n{}\nstderr:\n{}",
+            path.display(),
+            stdout,
+            stderr
+        );
+
+        let expected = if expectations.output.is_empty() {
+            String::new()
+        }
+        else {
+            format!("{}\n", expectations.output.join("\n"))
+        };
+
+        assert_eq! (
+            stdout,
+            expected,
+            "Output mismatch in {}",
+            path.display()
+        );
     }
 }
 
@@ -84,7 +163,7 @@ fn run_lox_test(path: &Path) {
         .expect("stderr was not valid UTF-8");
 
     if let Some(expected_error) = expectations.runtime_error {
-        assert!(
+        assert! (
             !output.status.success(),
             "Expected runtime error '{}' in {}, but interpreter exited successfully.\nstdout:\n{}",
             expected_error,
@@ -92,23 +171,24 @@ fn run_lox_test(path: &Path) {
             stdout
         );
 
-        assert!(
+        assert! (
             stderr.contains(&expected_error),
             "Expected error message '{}' in {}, but got stderr:\n{}",
             expected_error,
             path.display(),
             stderr
         );
-    } else if let Some(CompileError { token, message }) =
+    }
+    else if let Some(CompileError { token, message }) =
         expectations.compile_error
     {
-        assert!(
+        assert! (
             !output.status.success(),
             "Expected compile error in {}, but interpreter exited successfully.\nstdout:\n{}",
             path.display(),
             stdout
         );
-        assert!(
+        assert! (
             (token.is_empty() || stderr.contains(&token))
                 && stderr.contains(&message),
             "Expected compile error at token '{}' with message '{}' in {}, but got stderr:\n{}",
@@ -117,8 +197,9 @@ fn run_lox_test(path: &Path) {
             path.display(),
             stderr
         );
-    } else {
-        assert!(
+    }
+    else {
+        assert! (
             output.status.success(),
             "Interpreter failed on {}.\nstdout:\n{}\nstderr:\n{}",
             path.display(),
@@ -128,11 +209,12 @@ fn run_lox_test(path: &Path) {
 
         let expected = if expectations.output.is_empty() {
             String::new()
-        } else {
+        }
+        else {
             format!("{}\n", expectations.output.join("\n"))
         };
 
-        assert_eq!(
+        assert_eq! (
             stdout,
             expected,
             "Output mismatch in {}",
@@ -1411,39 +1493,33 @@ fn test_print_missing_argument() {
 // scanning
 
 #[test]
-#[ignore]
 fn test_scanning_identifiers() {
-    run_lox_test(Path::new("test/scanning/identifiers.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/identifiers.lox"));
 }
 
 #[test]
-#[ignore]
 fn test_scanning_keywords() {
-    run_lox_test(Path::new("test/scanning/keywords.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/keywords.lox"));
 }
 
 #[test]
-#[ignore]
 fn test_scanning_numbers() {
-    run_lox_test(Path::new("test/scanning/numbers.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/numbers.lox"));
 }
 
 #[test]
-#[ignore]
 fn test_scanning_punctuators() {
-    run_lox_test(Path::new("test/scanning/punctuators.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/punctuators.lox"));
 }
 
 #[test]
-#[ignore]
 fn test_scanning_strings() {
-    run_lox_test(Path::new("test/scanning/strings.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/strings.lox"));
 }
 
 #[test]
-#[ignore]
 fn test_scanning_whitespace() {
-    run_lox_test(Path::new("test/scanning/whitespace.lox"));
+    run_lox_scanning_test(Path::new("test/scanning/whitespace.lox"));
 }
 
 // logical_operator
