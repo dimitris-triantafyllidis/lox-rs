@@ -1,10 +1,6 @@
 use std::{env, fs, io, process::ExitCode};
 
 mod lexer;
-mod parser;
-mod interpreter;
-mod context;
-mod semantic_pass;
 
 use crate::lexer::*;
 
