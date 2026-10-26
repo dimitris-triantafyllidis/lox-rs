@@ -232,74 +232,67 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind == TokenKind::Identifier {
-
-        let identifier = tokens[cursor].clone();
-        cursor += 1;
-
-        if tokens[cursor].kind == TokenKind::LeftParenthesis {
-
-            let mut parameters = Vec::<Token>::new();
-            cursor += 1;
-
-            loop {
-                if tokens[cursor].kind == TokenKind::RightParenthesis {
-                    cursor += 1;
-                    break;
-                }
-                else if parameters.len() < 255 {
-                    if tokens[cursor].kind == TokenKind::Identifier {
-                        parameters.push(tokens[cursor].clone());
-                        cursor += 1;
-                    }
-                    else {
-                        syntax_error(tokens, cursor, &"Expect variable name.");
-                    }
-                    if tokens[cursor].kind == TokenKind::Comma {
-                        cursor += 1;
-                    }
-                    else if tokens[cursor].kind == TokenKind::RightParenthesis {
-                        cursor += 1;
-                        break;
-                    }
-                    else {
-                        syntax_error(tokens, cursor, &"Expect ')' after parameters.");
-                    }
-                }
-                else {
-                    syntax_error(tokens, cursor, &"Can't have more than 255 parameters.");
-                }
-            }
-
-            if tokens[cursor].kind == TokenKind::LeftBrace {
-                cursor += 1;
-                let (body, cursor) = parse_block(tokens, cursor);
-                return (
-                    Statement::FunctionDeclaration (
-                        FunctionDeclaration {
-                            id: identifier,
-                            pars: parameters,
-                            body: Box::new(body),
-                            is_initializer: false,
-                            is_method: false,
-                            context_function_slot_idx: None
-                        }
-                    ),
-                    cursor
-                )
-            }
-            else {
-                syntax_error(tokens, cursor, &"Expect '{' before function body.");
-            }
-        }
-        else {
-            syntax_error(tokens, cursor, &"Expected '('");
-        }
-    }
-    else {
+    if tokens[cursor].kind != TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expect variable name.");
     }
 
+    let identifier = tokens[cursor].clone();
+    cursor += 1;
+
+    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+        syntax_error(tokens, cursor, &"Expected '('");
+    }
+
+    let mut parameters = Vec::<Token>::new();
+    cursor += 1;
+
+    loop {
+        if tokens[cursor].kind == TokenKind::RightParenthesis {
+            cursor += 1;
+            break;
+        }
+        else if parameters.len() < 255 {
+            if tokens[cursor].kind == TokenKind::Identifier {
+                parameters.push(tokens[cursor].clone());
+                cursor += 1;
+            }
+            else {
+                syntax_error(tokens, cursor, &"Expect variable name.");
+            }
+            if tokens[cursor].kind == TokenKind::Comma {
+                cursor += 1;
+            }
+            else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                cursor += 1;
+                break;
+            }
+            else {
+                syntax_error(tokens, cursor, &"Expect ')' after parameters.");
+            }
+        }
+        else {
+            syntax_error(tokens, cursor, &"Can't have more than 255 parameters.");
+        }
+    }
+
+    if tokens[cursor].kind != TokenKind::LeftBrace {
+        syntax_error(tokens, cursor, &"Expect '{' before function body.");
+    }
+    cursor += 1;
+    let (body, cursor) = parse_block(tokens, cursor);
+    return (
+        Statement::FunctionDeclaration (
+            FunctionDeclaration {
+                id: identifier,
+                pars: parameters,
+                body: Box::new(body),
+                is_initializer: false,
+                is_method: false,
+                context_function_slot_idx: None
+            }
+        ),
+        cursor
+    )
 }
 
 pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {

@@ -453,71 +453,68 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_function_call(&mut self, callee: &Value, arguments: &[Value]) -> Value {
 
-        if let Value::Function { context_function_slot_idx, closure_id } = callee {
-            let Function { pars, body, is_native, native_function, is_initializer, .. } = &self.context.functions[*context_function_slot_idx].clone();
-            if pars.len() == arguments.len() {
+        let Value::Function { context_function_slot_idx, closure_id } = callee else {
+            panic!("Expected function value");
+        };
+        let Function { pars, body, is_native, native_function, is_initializer, .. } = &self.context.functions[*context_function_slot_idx].clone();
+        if pars.len() == arguments.len() {
 
-                self.context.push_new_environment(Some(*closure_id));
+            self.context.push_new_environment(Some(*closure_id));
 
-                if *is_native {
-                    match native_function {
-                        NativeFunction::Clock => {
-                            self.context.pop_environment();
-                                let ms = SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_millis();
-                            return Value::Number((ms as f64) / 1000.0);
-                        },
-                        NativeFunction::None => {
-                            panic!()
-                        }
+            if *is_native {
+                match native_function {
+                    NativeFunction::Clock => {
+                        self.context.pop_environment();
+                            let ms = SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap()
+                                .as_millis();
+                        return Value::Number((ms as f64) / 1000.0);
+                    },
+                    NativeFunction::None => {
+                        panic!()
                     }
-                }
-
-                for i in 0..pars.len() {
-                    self.context.insert_symbol (
-                        &pars[i],
-                        arguments[i].clone()
-                    );
-                }
-
-                if let Statement::Block ( Block { statements } ) = &body {
-                    for ref statement in statements {
-                        let statement_result = self.execute_statement(statement);
-                        if statement_result.control == Control::FunctionReturn {
-                            if *is_initializer {
-                                let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
-                                self.context.pop_environment();
-                                return return_value;
-                            }
-                            else {
-                                self.context.pop_environment();
-                                return statement_result.value;
-                            }
-                        }
-                    }
-                }
-                else {
-                    panic!("Expected block statement");
-                }
-
-                if *is_initializer {
-                    let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
-                    self.context.pop_environment();
-                    return return_value;
-                }
-                else {
-                    self.context.pop_environment();
-                    return Value::Nil;
                 }
             }
+
+            for i in 0..pars.len() {
+                self.context.insert_symbol (
+                    &pars[i],
+                    arguments[i].clone()
+                );
+            }
+
+            let Statement::Block ( Block { statements } ) = &body else {
+                panic!("Expected block statement");
+            };
+            for ref statement in statements {
+                let statement_result = self.execute_statement(statement);
+                if statement_result.control == Control::FunctionReturn {
+                    if *is_initializer {
+                        let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
+                        self.context.pop_environment();
+                        return return_value;
+                    }
+                    else {
+                        self.context.pop_environment();
+                        return statement_result.value;
+                    }
+                }
+            }
+
+
+            if *is_initializer {
+                let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
+                self.context.pop_environment();
+                return return_value;
+            }
             else {
-                panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
+                self.context.pop_environment();
+                return Value::Nil;
             }
         }
         else {
-            panic!("Expected function value");
+            panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
         }
     }
 
@@ -529,22 +526,20 @@ impl<'a> Interpreter<'a> {
 
         if let Value::Function { context_function_slot_idx, .. } = &callee {
             let Function { ref pars, .. } = self.context.functions[*context_function_slot_idx];
-            if pars.len() == arguments.len() {
-
-                let mut argument_values = Vec::<Value>::new();
-
-                for i in 0..pars.len() {
-                    argument_values.push(self.evaluate_expression(&arguments[i]).value);
-                }
-
-                return NodeResult::new (
-                    self.evaluate_function_call(&callee, &argument_values),
-                    Control::Continue
-                );
-            }
-            else {
+            if pars.len() != arguments.len() {
                 panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
             }
+
+            let mut argument_values = Vec::<Value>::new();
+
+            for i in 0..pars.len() {
+                argument_values.push(self.evaluate_expression(&arguments[i]).value);
+            }
+
+            return NodeResult::new (
+                self.evaluate_function_call(&callee, &argument_values),
+                Control::Continue
+            );
         }
         else if let Value::Class ( .. ) = &callee {
 
@@ -571,26 +566,24 @@ impl<'a> Interpreter<'a> {
                 &init_token
             ) {
                 if let Value::Function { context_function_slot_idx, .. } = init_bound_function {
+
                     let Function { ref pars, .. } = self.context.functions[context_function_slot_idx];
-                    if pars.len() == arguments.len() {
 
-                        let mut argument_values = Vec::<Value>::new();
-
-                        for i in 0..pars.len() {
-                            argument_values.push(self.evaluate_expression(&arguments[i]).value);
-                        }
-
-                        self.evaluate_function_call(&init_bound_function, &argument_values);
-                    }
-                    else {
+                    if pars.len() != arguments.len() {
                         panic!("Expected {} arguments but got {}.", pars.len(), arguments.len());
+                    };
+
+                    let mut argument_values = Vec::<Value>::new();
+
+                    for i in 0..pars.len() {
+                        argument_values.push(self.evaluate_expression(&arguments[i]).value);
                     }
+
+                    self.evaluate_function_call(&init_bound_function, &argument_values);
                 }
             }
-            else {
-                if arguments.len() != 0 {
-                    panic!("Expected 0 arguments but got {}.", arguments.len());
-                }
+            else if arguments.len() != 0 {
+                panic!("Expected 0 arguments but got {}.", arguments.len());
             }
 
             return NodeResult::new (
@@ -829,14 +822,13 @@ impl<'a> Interpreter<'a> {
             else {
                 panic!("Expected variable expression");
             }
-            if let Value::Class {..} = super_class_value {
-                super_class_result = Some(super_class_value.clone());
-                self.context.push_new_environment_auto();
-                self.context.insert_symbol("super", super_class_value);
-            }
-            else {
+
+            let Value::Class {..} = super_class_value else {
                 panic!("Superclass must be a class.");
-            }
+            };
+            super_class_result = Some(super_class_value.clone());
+            self.context.push_new_environment_auto();
+            self.context.insert_symbol("super", super_class_value);
         }
         else {
             super_class_result = None;
