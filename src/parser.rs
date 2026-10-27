@@ -908,19 +908,17 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
         }
         else if tokens[cursor].kind == TokenKind::Dot {
             cursor += 1;
-            if tokens[cursor].kind == TokenKind::Identifier {
-                let identifier = tokens[cursor].clone();
-                cursor += 1;
-                expr = expression::Expression::Get (
-                    Get {
-                        instance: Box::new(expr),
-                        property: identifier
-                    }
-                )
-            }
-            else {
+            if tokens[cursor].kind != TokenKind::Identifier {
                 syntax_error(tokens, cursor, &"Expect property name after '.'.");
             }
+            let identifier = tokens[cursor].clone();
+            cursor += 1;
+            expr = expression::Expression::Get (
+                Get {
+                    instance: Box::new(expr),
+                    property: identifier
+                }
+            )
         }
         else {
             break;

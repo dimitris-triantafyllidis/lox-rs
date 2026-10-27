@@ -406,7 +406,6 @@ impl<'a> Context<'a> {
     }
 
     pub fn gc_collect(&mut self) {
-
         self.gc_clear_flags();
 
         let env_stack = self.environment_stack.clone();
