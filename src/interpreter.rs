@@ -36,7 +36,7 @@ pub struct Function<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
     pub methods: HashMap<&'a str, usize>,
-    pub super_class: Option<Value>,
+    pub super_class: Option<usize>,
     pub name: String
 }
 
@@ -52,7 +52,8 @@ pub enum Value {
     },
     Class {
         context_class_slot_idx: usize,
-        closure_id: usize
+        closure_id: usize,
+        super_class: Option<Box<Value>>
     },
     Instance (usize)
 }
@@ -184,16 +185,16 @@ impl<'a> Interpreter<'a> {
         let instance_value = self.context.get_symbol_value("this", &mut None, &mut None);
         let value: Value;
 
-        let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
+        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy)));
         while let Some(maybe_value) = method_lookup_class {
-            let Value::Class { context_class_slot_idx, closure_id } = maybe_value else {
+            let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value.as_ref() else {
                 panic!("Expected class value");
             };
-            let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
+            let Class { ref methods, .. } = self.context.classes[*context_class_slot_idx];
             if methods.contains_key(&property.lexeme) {
                 let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
                 let Function { .. } = self.context.functions[context_function_slot_idx];
-                self.context.push_new_environment(Some(closure_id));
+                self.context.push_new_environment(Some(*closure_id));
                 self.context.insert_symbol("this", instance_value.clone());
                 value = Value::Function {
                     context_function_slot_idx,
@@ -239,16 +240,16 @@ impl<'a> Interpreter<'a> {
             return Some(value);
         }
         else {
-            let mut method_lookup_class = Some(instance.class.clone());
+            let mut method_lookup_class = Some(Box::new(instance.class.clone()));
             while let Some(maybe_value) = method_lookup_class {
-                let Value::Class { context_class_slot_idx, closure_id } = maybe_value else {
+                let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value.as_ref() else {
                     panic!("Expected class value");
                 };
-                let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
+                let Class { methods, .. } = &self.context.classes[*context_class_slot_idx];
                 if methods.contains_key(&property.lexeme) {
                     let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
                     let Function { .. } = self.context.functions[context_function_slot_idx];
-                    self.context.push_new_environment(Some(closure_id));
+                    self.context.push_new_environment(Some(*closure_id));
                     self.context.insert_symbol("this", instance_value.clone());
                     value = Value::Function {
                         context_function_slot_idx,
@@ -505,7 +506,6 @@ impl<'a> Interpreter<'a> {
                 }
             }
 
-
             if *is_initializer {
                 let return_value = self.context.get_symbol_value("this", &mut Some(1), &mut Some(0)).clone();
                 self.context.pop_environment();
@@ -629,8 +629,12 @@ impl<'a> Interpreter<'a> {
             self.context.instances.len();
 
         if working_set_size > self.working_set_size * 3 / 2 && working_set_size > 256 {
+            // println!("gc started with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
             self.context.gc_collect();
             self.working_set_size = working_set_size;
+            // println!("Class slot count: {}", self.context.classes.len());
+            // println!("gc finished with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
+            // println!();
         }
 
         match statement {
@@ -813,28 +817,29 @@ impl<'a> Interpreter<'a> {
 
     pub fn execute_class_declaration_statement(&mut self, stmt: &statement::ClassDeclaration<'a>) -> NodeResult {
 
-        let ClassDeclaration { id, method_decls, super_class } = stmt;
+        let ClassDeclaration { id, method_decls, super_class: super_class_expr } = stmt;
 
-        let super_class_result: Option<Value>;
+        let super_class_value: Option<Box<Value>>;
+        let super_class_context_class_slot_idx: Option<usize>;
 
-        if let Some ( expr ) = super_class {
-            let super_class_value: Value;
-            if let expression::Expression::Variable(expr) = expr {
-                super_class_value = self.evaluate_variable(expr).value;
-            }
-            else {
+        if let Some ( expr ) = super_class_expr {
+
+            let expression::Expression::Variable(expr) = expr else {
                 panic!("Expected variable expression");
-            }
+            };
 
-            let Value::Class {..} = super_class_value else {
+            super_class_value = Some(Box::new(self.evaluate_variable(expr).value));
+
+            let Value::Class { context_class_slot_idx, .. } = super_class_value.as_ref().unwrap().as_ref().clone() else {
                 panic!("Superclass must be a class.");
             };
-            super_class_result = Some(super_class_value.clone());
+            super_class_context_class_slot_idx = Some(context_class_slot_idx);
             self.context.push_new_environment_auto();
-            self.context.insert_symbol("super", super_class_value);
+            self.context.insert_symbol("super", super_class_value.as_ref().unwrap().as_ref().clone());
         }
         else {
-            super_class_result = None;
+            super_class_value = None;
+            super_class_context_class_slot_idx = None;
         }
 
         let mut class_method_map = HashMap::<Token, usize>::new();
@@ -850,7 +855,7 @@ impl<'a> Interpreter<'a> {
 
         let class_closure_id = self.context.get_current_environment_id();
 
-        if let Some(..) = super_class {
+        if let Some(..) = super_class_expr {
             self.context.pop_environment();
         }
 
@@ -864,7 +869,7 @@ impl<'a> Interpreter<'a> {
             self.context.insert_class (
                 Class {
                     methods: class_method_lexeme_map,
-                    super_class: super_class_result,
+                    super_class: super_class_context_class_slot_idx,
                     name: id.lexeme.to_string()
                 }
             );
@@ -873,7 +878,8 @@ impl<'a> Interpreter<'a> {
             &id.lexeme,
             Value::Class {
                 context_class_slot_idx,
-                closure_id: class_closure_id
+                closure_id: class_closure_id,
+                super_class: super_class_value
             }
         );
 
