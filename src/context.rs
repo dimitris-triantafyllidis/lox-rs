@@ -280,8 +280,8 @@ impl<'a> Context<'a> {
                     else if let Value::Instance ( instance_id ) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
                     }
-                    else if let Value::Class ( class_id ) = value {
-                        let Class { methods, super_class, .. } = &self.classes[*class_id];
+                    else if let Value::Class { context_class_slot_idx, ..} = value {
+                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
                         for value in methods.values() {
                             if let Value::Function { context_function_slot_idx, closure_id } = value {
                                 let Function { .. } = self.functions[*context_function_slot_idx];
@@ -292,10 +292,10 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class ( class_id ) = b else {
+                            let Value::Class { context_class_slot_idx, ..} = b else {
                                 panic!("gc: Expected class value");
                             };
-                            let Class { methods, super_class, .. } = &self.classes[*class_id];
+                            let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
                             for value in methods.values() {
                                 if let Value::Function { context_function_slot_idx, closure_id } = value {
                                     let Function { .. } = self.functions[*context_function_slot_idx];
@@ -329,9 +329,9 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class ( class_id ) = instance.class {
+                if let Value::Class { context_class_slot_idx, ..} = instance.class {
 
-                    let Class { methods, super_class, .. } = &self.classes[class_id];
+                    let Class { methods, super_class, .. } = &self.classes[context_class_slot_idx];
 
                     for value in methods.values() {
                         if let Value::Function { context_function_slot_idx, closure_id } = value {
@@ -343,10 +343,10 @@ impl<'a> Context<'a> {
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        let Value::Class ( class_id ) = b else {
+                        let Value::Class { context_class_slot_idx, ..} = b else {
                             panic!("gc: Expected class value");
                         };
-                        let Class { methods, super_class, .. } = &self.classes[*class_id];
+                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
                         for value in methods.values() {
                             if let Value::Function { context_function_slot_idx, closure_id } = value {
                                 let Function { .. } = self.functions[*context_function_slot_idx];
@@ -363,8 +363,8 @@ impl<'a> Context<'a> {
 
                 for (_, property_value) in &instance.properties {
 
-                    if let Value::Class ( class_id ) = property_value {
-                        let Class { methods, super_class, .. } = &self.classes[*class_id];
+                    if let Value::Class { context_class_slot_idx, ..} = property_value {
+                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
                         for value in methods.values() {
                             if let Value::Function { context_function_slot_idx, closure_id } = value {
                                 let Function { .. } = self.functions[*context_function_slot_idx];
@@ -375,10 +375,10 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class ( class_id ) = b else {
+                            let Value::Class { context_class_slot_idx, ..} = b else {
                                 panic!("gc: Expected class value");
                             };
-                            let Class { methods, super_class, .. } = &self.classes[*class_id];
+                            let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
                             for value in methods.values() {
                                 if let Value::Function { context_function_slot_idx, closure_id } = value {
                                     let Function { .. } = self.functions[*context_function_slot_idx];

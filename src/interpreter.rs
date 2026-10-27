@@ -50,7 +50,9 @@ pub enum Value {
         context_function_slot_idx: usize,
         closure_id: usize
     },
-    Class (usize),
+    Class {
+        context_class_slot_idx: usize
+    },
     Instance (usize)
 }
 
@@ -183,10 +185,10 @@ impl<'a> Interpreter<'a> {
 
         let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
         while let Some(maybe_value) = method_lookup_class {
-            let Value::Class ( class_id ) = maybe_value else {
+            let Value::Class { context_class_slot_idx } = maybe_value else {
                 panic!("Expected class value");
             };
-            let Class { methods, super_class, .. } = &self.context.classes[class_id];
+            let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
             if methods.contains_key(&property.lexeme) {
                 value = methods.get(&property.lexeme).unwrap().clone();
                 let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
@@ -238,10 +240,10 @@ impl<'a> Interpreter<'a> {
         else {
             let mut method_lookup_class = Some(instance.class.clone());
             while let Some(maybe_value) = method_lookup_class {
-                let Value::Class ( class_id ) = maybe_value else {
+                let Value::Class { context_class_slot_idx } = maybe_value else {
                     panic!("Expected class value");
                 };
-                let Class { methods, super_class, .. } = &self.context.classes[class_id];
+                let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
                 if methods.contains_key(&property.lexeme) {
                     value = methods.get(&property.lexeme).unwrap().clone();
                     let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
@@ -541,7 +543,7 @@ impl<'a> Interpreter<'a> {
                 Control::Continue
             );
         }
-        else if let Value::Class ( .. ) = &callee {
+        else if let Value::Class { .. } = &callee {
 
             let new_instance =
                 Value::Instance (
@@ -684,15 +686,15 @@ impl<'a> Interpreter<'a> {
                     println!("<fn {name}>");
                 }
             },
-            Value::Class ( class_id ) => {
-                let Class { name, ..} = &self.context.classes[class_id];
+            Value::Class { context_class_slot_idx, .. } => {
+                let Class { name, ..} = &self.context.classes[context_class_slot_idx];
                 println!("{}", name);
             },
             Value::Instance ( instance_id ) => {
                 let instance = self.context.instances.get(&instance_id).unwrap();
                 let Instance { class, .. } = instance;
-                let Value::Class ( class_id ) = class else { panic!() };
-                let Class { name, .. } = &self.context.classes[*class_id];
+                let Value::Class { context_class_slot_idx, .. } = class else { panic!() };
+                let Class { name, .. } = &self.context.classes[*context_class_slot_idx];
                 println!("{} instance", name)
             }
         }
@@ -858,7 +860,7 @@ impl<'a> Interpreter<'a> {
             class_method_lexeme_map.insert(method_token.lexeme, value);
         }
 
-        let class_id =
+        let context_class_slot_idx =
             self.context.insert_class (
                 Class {
                     methods: class_method_lexeme_map,
@@ -869,9 +871,9 @@ impl<'a> Interpreter<'a> {
 
         self.context.insert_symbol (
             &id.lexeme,
-            Value::Class (
-                class_id
-            )
+            Value::Class {
+                context_class_slot_idx
+            }
         );
 
         return NodeResult::new ( Value::Nil, Control::Continue );
