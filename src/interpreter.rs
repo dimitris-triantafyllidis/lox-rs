@@ -35,7 +35,7 @@ pub struct Function<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class<'a> {
-    pub methods: HashMap<&'a str, Value>,
+    pub methods: HashMap<&'a str, usize>,
     pub super_class: Option<Value>,
     pub name: String
 }
@@ -51,7 +51,8 @@ pub enum Value {
         closure_id: usize
     },
     Class {
-        context_class_slot_idx: usize
+        context_class_slot_idx: usize,
+        closure_id: usize
     },
     Instance (usize)
 }
@@ -181,23 +182,23 @@ impl<'a> Interpreter<'a> {
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
         let mut env_slot_idx_mut_copy = *env_slot_idx;
         let instance_value = self.context.get_symbol_value("this", &mut None, &mut None);
-        let mut value: Value;
+        let value: Value;
 
         let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
         while let Some(maybe_value) = method_lookup_class {
-            let Value::Class { context_class_slot_idx } = maybe_value else {
+            let Value::Class { context_class_slot_idx, closure_id } = maybe_value else {
                 panic!("Expected class value");
             };
             let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
             if methods.contains_key(&property.lexeme) {
-                value = methods.get(&property.lexeme).unwrap().clone();
-                let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
-                    panic!("Expected function value");
-                };
+                let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
                 let Function { .. } = self.context.functions[context_function_slot_idx];
-                self.context.push_new_environment(Some(*closure_id));
-                self.context.insert_symbol("this", instance_value);
-                *closure_id = self.context.next_env_id - 1;
+                self.context.push_new_environment(Some(closure_id));
+                self.context.insert_symbol("this", instance_value.clone());
+                value = Value::Function {
+                    context_function_slot_idx,
+                    closure_id: self.context.next_env_id - 1
+                };
                 self.context.pop_environment();
                 return NodeResult { value, control: Control::Continue };
             }
@@ -231,7 +232,7 @@ impl<'a> Interpreter<'a> {
             panic!("Only instances have properties.");
         };
         let instance = self.context.instances.get(instance_id).unwrap();
-        let mut value: Value;
+        let value: Value;
 
         if instance.properties.contains_key(&property.lexeme) {
             value = instance.properties.get(&property.lexeme).unwrap().clone();
@@ -240,19 +241,19 @@ impl<'a> Interpreter<'a> {
         else {
             let mut method_lookup_class = Some(instance.class.clone());
             while let Some(maybe_value) = method_lookup_class {
-                let Value::Class { context_class_slot_idx } = maybe_value else {
+                let Value::Class { context_class_slot_idx, closure_id } = maybe_value else {
                     panic!("Expected class value");
                 };
                 let Class { methods, super_class, .. } = &self.context.classes[context_class_slot_idx];
                 if methods.contains_key(&property.lexeme) {
-                    value = methods.get(&property.lexeme).unwrap().clone();
-                    let Value::Function { context_function_slot_idx, ref mut closure_id } = value else {
-                        panic!("Expected function value");
-                    };
+                    let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
                     let Function { .. } = self.context.functions[context_function_slot_idx];
-                    self.context.push_new_environment(Some(*closure_id));
+                    self.context.push_new_environment(Some(closure_id));
                     self.context.insert_symbol("this", instance_value.clone());
-                    *closure_id = self.context.next_env_id - 1;
+                    value = Value::Function {
+                        context_function_slot_idx,
+                        closure_id: self.context.next_env_id - 1
+                    };
                     self.context.pop_environment();
                     return Some(value);
 
@@ -836,25 +837,24 @@ impl<'a> Interpreter<'a> {
             super_class_result = None;
         }
 
-        let mut class_method_map = HashMap::<Token, Value>::new();
+        let mut class_method_map = HashMap::<Token, usize>::new();
 
         for method_decl in method_decls {
             let FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
 
             class_method_map.insert (
                 id.clone(),
-                Value::Function {
-                    context_function_slot_idx: context_function_slot_idx.unwrap(),
-                    closure_id: self.context.get_current_environment_id(),
-                }
+                context_function_slot_idx.unwrap()
             );
         }
+
+        let class_closure_id = self.context.get_current_environment_id();
 
         if let Some(..) = super_class {
             self.context.pop_environment();
         }
 
-        let mut class_method_lexeme_map = HashMap::<&'a str, Value>::new();
+        let mut class_method_lexeme_map = HashMap::<&'a str, usize>::new();
 
         for (method_token, value) in class_method_map {
             class_method_lexeme_map.insert(method_token.lexeme, value);
@@ -872,7 +872,8 @@ impl<'a> Interpreter<'a> {
         self.context.insert_symbol (
             &id.lexeme,
             Value::Class {
-                context_class_slot_idx
+                context_class_slot_idx,
+                closure_id: class_closure_id
             }
         );
 

@@ -280,28 +280,19 @@ impl<'a> Context<'a> {
                     else if let Value::Instance ( instance_id ) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
                     }
-                    else if let Value::Class { context_class_slot_idx, ..} = value {
-                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
-                        for value in methods.values() {
-                            if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                let Function { .. } = self.functions[*context_function_slot_idx];
-                                new_envs_to_visit.push(*closure_id);
-                            }
-                        }
+                    else if let Value::Class { context_class_slot_idx, closure_id } = value {
 
+                        new_envs_to_visit.push(*closure_id);
+
+                        let Class { super_class, .. } = &self.classes[*context_class_slot_idx];
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class { context_class_slot_idx, ..} = b else {
+                            let Value::Class { context_class_slot_idx, closure_id } = b else {
                                 panic!("gc: Expected class value");
                             };
-                            let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
-                            for value in methods.values() {
-                                if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                    let Function { .. } = self.functions[*context_function_slot_idx];
-                                    new_envs_to_visit.push(*closure_id);
-                                }
-                            }
+                            let Class { super_class, .. } = &self.classes[*context_class_slot_idx];
+                            new_envs_to_visit.push(*closure_id);
                             s = super_class;
                         }
 
@@ -329,30 +320,19 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class { context_class_slot_idx, ..} = instance.class {
+                if let Value::Class { context_class_slot_idx, closure_id} = instance.class {
 
-                    let Class { methods, super_class, .. } = &self.classes[context_class_slot_idx];
-
-                    for value in methods.values() {
-                        if let Value::Function { context_function_slot_idx, closure_id } = value {
-                            let Function { .. } = self.functions[*context_function_slot_idx];
-                            env_ids_to_mark_stack.push(*closure_id);
-                        }
-                    }
+                    let Class { super_class, .. } = &self.classes[context_class_slot_idx];
+                    env_ids_to_mark_stack.push(closure_id);
 
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        let Value::Class { context_class_slot_idx, ..} = b else {
+                        let Value::Class { context_class_slot_idx, closure_id } = b else {
                             panic!("gc: Expected class value");
                         };
-                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
-                        for value in methods.values() {
-                            if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                let Function { .. } = self.functions[*context_function_slot_idx];
-                                env_ids_to_mark_stack.push(*closure_id);
-                            }
-                        }
+                        let Class { super_class, .. } = &self.classes[*context_class_slot_idx];
+                        env_ids_to_mark_stack.push(*closure_id);
                         s = super_class;
 
                     }
@@ -363,28 +343,18 @@ impl<'a> Context<'a> {
 
                 for (_, property_value) in &instance.properties {
 
-                    if let Value::Class { context_class_slot_idx, ..} = property_value {
-                        let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
-                        for value in methods.values() {
-                            if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                let Function { .. } = self.functions[*context_function_slot_idx];
-                                env_ids_to_mark_stack.push(*closure_id);
-                            }
-                        }
+                    if let Value::Class { context_class_slot_idx, closure_id } = property_value {
+                        let Class { super_class, .. } = &self.classes[*context_class_slot_idx];
+                        env_ids_to_mark_stack.push(*closure_id);
 
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class { context_class_slot_idx, ..} = b else {
+                            let Value::Class { context_class_slot_idx, closure_id } = b else {
                                 panic!("gc: Expected class value");
                             };
-                            let Class { methods, super_class, .. } = &self.classes[*context_class_slot_idx];
-                            for value in methods.values() {
-                                if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                    let Function { .. } = self.functions[*context_function_slot_idx];
-                                    env_ids_to_mark_stack.push(*closure_id);
-                                }
-                            }
+                            let Class { super_class, .. } = &self.classes[*context_class_slot_idx];
+                            env_ids_to_mark_stack.push(*closure_id);
                             s = super_class;
                         }
                     }
