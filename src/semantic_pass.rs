@@ -98,27 +98,23 @@ impl<'a> SemanticPass<'a> {
         if self.class_context_stack.is_empty() {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
-        else {
-            let expression::Super { lookup_hop_count, .. } = expr;
-            if !lookup_hop_count.is_none() {
-                panic!();
-            }
-            self.context.find_symbol("super", &mut None, &mut None);
+        let expression::Super { lookup_hop_count, .. } = expr;
+        if !lookup_hop_count.is_none() {
+            panic!();
         }
+        self.context.find_symbol("super", &mut None, &mut None);
     }
 
     pub fn visit_unary(&mut self, expr: &mut expression::UnaryOperation<'a>) {
 
         let expression::UnaryOperation { operator: _, right: rhs } = expr;
         self.visit_expression(rhs);
-
     }
 
     pub fn visit_parentheses(&mut self, expr: &mut expression::Parentheses<'a>) {
 
         let expression::Parentheses { expression: e } = expr;
         self.visit_expression(e);
-
     }
 
     pub fn visit_get(&mut self, expr: &mut expression::Get<'a>) {
@@ -169,7 +165,6 @@ impl<'a> SemanticPass<'a> {
         let expression::LogicalOr { left: lhs, right: rhs } = expr;
         self.visit_expression(lhs);
         self.visit_expression(rhs);
-
     }
 
     pub fn visit_logical_and(&mut self, expr: &mut expression::LogicalAnd<'a>) {
@@ -177,7 +172,6 @@ impl<'a> SemanticPass<'a> {
         let expression::LogicalAnd { left: lhs, right: rhs } = expr;
         self.visit_expression(lhs);
         self.visit_expression(rhs);
-
     }
 
     pub fn visit_call(&mut self, expr: &mut expression::Call<'a>) {
@@ -302,7 +296,6 @@ impl<'a> SemanticPass<'a> {
         if let Some(statement) = else_statement {
             self.visit_statement(statement);
         }
-
     }
 
     pub fn visit_function_declaration_statement(&mut self, stmt: &mut statement::FunctionDeclaration<'a>) {
@@ -365,18 +358,16 @@ impl<'a> SemanticPass<'a> {
             );
         }
 
-        if let Statement::Block ( Block { statements } ) = body.as_mut() {
-            for statement in statements {
-                self.visit_statement(statement);
-            }
-
-            if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
-                self.context.pop_environment();
-            }
-
-        }
-        else {
+        let Statement::Block ( Block { statements } ) = body.as_mut() else {
             panic!("Expected block statement");
+        };
+
+        for statement in statements {
+            self.visit_statement(statement);
+        }
+
+        if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
+            self.context.pop_environment();
         }
 
         self.context.functions[function_id].body = *body.clone();
@@ -384,18 +375,15 @@ impl<'a> SemanticPass<'a> {
         self.context.pop_environment();
     }
 
-
     pub fn visit_class_declaration_statement(&mut self, stmt: &mut statement::ClassDeclaration<'a>) {
 
         let ClassDeclaration { id, method_decls, super_class } = stmt;
 
         if let Some ( expr ) = super_class {
-            if let expression::Expression::Variable(expr) = expr {
-                self.visit_variable(expr);
-            }
-            else {
+            let expression::Expression::Variable(expr) = expr else {
                 panic!("Expected variable expression");
-            }
+            };
+            self.visit_variable(expr);
         }
 
         self.class_context_stack.push(ClassContext::Class);

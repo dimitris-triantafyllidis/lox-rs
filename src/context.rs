@@ -85,6 +85,7 @@ impl<'a> Context<'a> {
     }
 
     pub fn pop_environment(&mut self) {
+
         self.environment_stack.pop();
     }
 
@@ -130,12 +131,10 @@ impl<'a> Context<'a> {
                         .expect("Environment id does not exist");
 
                     if hops_left == 0 {
-                        if let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
-                            return id;
-                        }
-                        else {
+                        let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
                             panic!("Undefined variable '{}'.", identifier);
-                        }
+                        };
+                        return id;
                     }
 
                     hops_left -= 1;
@@ -153,17 +152,15 @@ impl<'a> Context<'a> {
         match env_slot_idx {
 
             None => {
-                if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
-                    return env.symbols[idx].1.clone();
-                }
-                else {
+                let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
                     if identifier == "super" {
                         panic!("Can't use 'super' in a class with no superclass.");
                     }
                     else {
                         panic!("Symbol not found");
                     }
-                }
+                };
+                return env.symbols[idx].1.clone();
             },
             Some(idx) => {
                 return env.symbols[*idx].1.clone();
@@ -178,19 +175,17 @@ impl<'a> Context<'a> {
 
         match env_slot_idx {
             None => {
-                if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
-                    env.symbols[idx].1 = value;
-                    *env_slot_idx = Some(idx);
-                    return;
-                }
-                else {
+                let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
                     if identifier == "super" {
                         panic!("Can't use 'super' in a class with no superclass.");
                     }
                     else {
                         panic!("Symbol not found");
                     }
-                }
+                };
+                env.symbols[idx].1 = value;
+                *env_slot_idx = Some(idx);
+                return;
             },
             Some(idx) => {
                 env.symbols[*idx].1 = value;
@@ -297,19 +292,17 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( class_id ) = b {
-                                let Class { methods, super_class, .. } = &self.classes[*class_id];
-                                for value in methods.values() {
-                                    if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                        let Function { .. } = self.functions[*context_function_slot_idx];
-                                        new_envs_to_visit.push(*closure_id);
-                                    }
-                                }
-                                s = super_class;
-                            }
-                            else {
+                            let Value::Class ( class_id ) = b else {
                                 panic!("gc: Expected class value");
+                            };
+                            let Class { methods, super_class, .. } = &self.classes[*class_id];
+                            for value in methods.values() {
+                                if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                    let Function { .. } = self.functions[*context_function_slot_idx];
+                                    new_envs_to_visit.push(*closure_id);
+                                }
                             }
+                            s = super_class;
                         }
 
                     }
@@ -350,19 +343,18 @@ impl<'a> Context<'a> {
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        if let Value::Class ( class_id ) = b {
-                            let Class { methods, super_class, .. } = &self.classes[*class_id];
-                            for value in methods.values() {
-                                if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                    let Function { .. } = self.functions[*context_function_slot_idx];
-                                    env_ids_to_mark_stack.push(*closure_id);
-                                }
-                            }
-                            s = super_class;
-                        }
-                        else {
+                        let Value::Class ( class_id ) = b else {
                             panic!("gc: Expected class value");
+                        };
+                        let Class { methods, super_class, .. } = &self.classes[*class_id];
+                        for value in methods.values() {
+                            if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                let Function { .. } = self.functions[*context_function_slot_idx];
+                                env_ids_to_mark_stack.push(*closure_id);
+                            }
                         }
+                        s = super_class;
+
                     }
                 }
                 else {
@@ -383,19 +375,17 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            if let Value::Class ( class_id ) = b {
-                                let Class { methods, super_class, .. } = &self.classes[*class_id];
-                                for value in methods.values() {
-                                    if let Value::Function { context_function_slot_idx, closure_id } = value {
-                                        let Function { .. } = self.functions[*context_function_slot_idx];
-                                        env_ids_to_mark_stack.push(*closure_id);
-                                    }
-                                }
-                                s = super_class;
-                            }
-                            else {
+                            let Value::Class ( class_id ) = b else {
                                 panic!("gc: Expected class value");
+                            };
+                            let Class { methods, super_class, .. } = &self.classes[*class_id];
+                            for value in methods.values() {
+                                if let Value::Function { context_function_slot_idx, closure_id } = value {
+                                    let Function { .. } = self.functions[*context_function_slot_idx];
+                                    env_ids_to_mark_stack.push(*closure_id);
+                                }
                             }
+                            s = super_class;
                         }
                     }
                     else if let Value::Function { context_function_slot_idx, closure_id } = property_value {

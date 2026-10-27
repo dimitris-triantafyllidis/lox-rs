@@ -792,21 +792,18 @@ pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
     loop {
 
         if
-            tokens[cursor].kind == TokenKind::Plus  ||
-            tokens[cursor].kind == TokenKind::Minus
+            tokens[cursor].kind != TokenKind::Plus  &&
+            tokens[cursor].kind != TokenKind::Minus
         {
-            let left = Box::<expression::Expression>::new(expr);
-            let operator = tokens[cursor].clone();
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_factor(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
-            cursor = new_cursor;
-        }
-        else {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        let operator = tokens[cursor].clone();
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_factor(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
@@ -819,21 +816,18 @@ pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Ex
     loop {
 
         if
-            tokens[cursor].kind == TokenKind::Star  ||
-            tokens[cursor].kind == TokenKind::Slash
+            tokens[cursor].kind != TokenKind::Star  &&
+            tokens[cursor].kind != TokenKind::Slash
         {
-            let left = Box::<expression::Expression>::new(expr);
-            let operator = tokens[cursor].clone();
-            cursor += 1;
-            let (right_expr, new_cursor) = parse_unary(tokens, cursor);
-            let right = Box::<expression::Expression>::new(right_expr);
-            expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
-            cursor = new_cursor;
-        }
-        else {
             break;
         }
-
+        let left = Box::<expression::Expression>::new(expr);
+        let operator = tokens[cursor].clone();
+        cursor += 1;
+        let (right_expr, new_cursor) = parse_unary(tokens, cursor);
+        let right = Box::<expression::Expression>::new(right_expr);
+        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        cursor = new_cursor;
     }
 
     return (expr, cursor);
