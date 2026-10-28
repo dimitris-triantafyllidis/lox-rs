@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::lexer::*;
 use crate::parser::*;
 use crate::context::*;
@@ -377,13 +379,42 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_class_declaration_statement(&mut self, stmt: &mut statement::ClassDeclaration<'a>) {
 
-        let ClassDeclaration { id, method_decls, super_class } = stmt;
+        let ClassDeclaration { id, method_decls, super_class, context_class_slot_idx } = stmt;
+
+        if let Some(..) = context_class_slot_idx {
+            panic!("Internal resolver error");
+        }
+        else {
+            *context_class_slot_idx = Some(self.context.classes.len());
+        }
+
+        let super_class_value: Option<Box<Value>>;
+        let super_class_context_class_slot_idx: Option<usize>;
 
         if let Some ( expr ) = super_class {
+
             let expression::Expression::Variable(expr) = expr else {
                 panic!("Expected variable expression");
             };
+
             self.visit_variable(expr);
+            super_class_value = Some (
+                Box::new (
+                    self.context.get_symbol_value (
+                        expr.identifier.lexeme,
+                        &mut expr.lookup_hop_count,
+                        &mut expr.env_slot_idx
+                    )
+                )
+            );
+            let Value::Class { context_class_slot_idx, .. } = super_class_value.as_ref().unwrap().as_ref().clone() else {
+                panic!("Superclass must be a class.");
+            };
+            super_class_context_class_slot_idx = Some(context_class_slot_idx);
+        }
+        else {
+            super_class_value = None;
+            super_class_context_class_slot_idx = None;
         }
 
         self.class_context_stack.push(ClassContext::Class);
@@ -398,7 +429,7 @@ impl<'a> SemanticPass<'a> {
             self.context.insert_symbol("super", Value::Nil);
         }
 
-        for method_decl in method_decls {
+        for method_decl in method_decls.iter_mut() {
             let FunctionDeclaration { id, .. } = method_decl;
             if id.lexeme == "init" {
                 self.function_context_stack.push(FunctionContext::Initializer);
@@ -410,9 +441,47 @@ impl<'a> SemanticPass<'a> {
             self.function_context_stack.pop();
         }
 
+        let mut class_method_map = HashMap::<Token, usize>::new();
+
+        for method_decl in method_decls {
+            let FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
+
+            class_method_map.insert (
+                id.clone(),
+                context_function_slot_idx.unwrap()
+            );
+        }
+
+        let mut class_method_lexeme_map = HashMap::<&'a str, usize>::new();
+
+        for (method_token, value) in class_method_map {
+            class_method_lexeme_map.insert(method_token.lexeme, value);
+        }
+
+        let class_closure_id = self.context.get_current_environment_id();
+
         if let Some(..) = super_class {
             self.context.pop_environment();
         }
+
+        self.context.insert_class (
+            Class {
+                methods: class_method_lexeme_map,
+                super_class: super_class_context_class_slot_idx,
+                name: id.lexeme.to_string()
+            }
+        );
+
+        self.context.set_symbol_value (
+            &id.lexeme,
+            Value::Class {
+                context_class_slot_idx: context_class_slot_idx.unwrap(),
+                closure_id: class_closure_id,
+                super_class: super_class_value
+            },
+            &mut Some(0),
+            &mut None
+        );
 
         self.class_context_stack.pop();
 

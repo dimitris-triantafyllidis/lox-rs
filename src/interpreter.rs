@@ -99,6 +99,7 @@ impl<'a> Interpreter<'a> {
         let mut context = Context::new();
 
         context.functions = ctx.functions;
+        context.classes = ctx.classes;
 
         context.push_new_environment_auto();
 
@@ -817,10 +818,9 @@ impl<'a> Interpreter<'a> {
 
     pub fn execute_class_declaration_statement(&mut self, stmt: &statement::ClassDeclaration<'a>) -> NodeResult {
 
-        let ClassDeclaration { id, method_decls, super_class: super_class_expr } = stmt;
+        let ClassDeclaration { id, super_class: super_class_expr, context_class_slot_idx, .. } = stmt;
 
         let super_class_value: Option<Box<Value>>;
-        let super_class_context_class_slot_idx: Option<usize>;
 
         if let Some ( expr ) = super_class_expr {
 
@@ -830,27 +830,14 @@ impl<'a> Interpreter<'a> {
 
             super_class_value = Some(Box::new(self.evaluate_variable(expr).value));
 
-            let Value::Class { context_class_slot_idx, .. } = super_class_value.as_ref().unwrap().as_ref().clone() else {
+            let Value::Class { .. } = super_class_value.as_ref().unwrap().as_ref().clone() else {
                 panic!("Superclass must be a class.");
             };
-            super_class_context_class_slot_idx = Some(context_class_slot_idx);
             self.context.push_new_environment_auto();
             self.context.insert_symbol("super", super_class_value.as_ref().unwrap().as_ref().clone());
         }
         else {
             super_class_value = None;
-            super_class_context_class_slot_idx = None;
-        }
-
-        let mut class_method_map = HashMap::<Token, usize>::new();
-
-        for method_decl in method_decls {
-            let FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
-
-            class_method_map.insert (
-                id.clone(),
-                context_function_slot_idx.unwrap()
-            );
         }
 
         let class_closure_id = self.context.get_current_environment_id();
@@ -859,25 +846,10 @@ impl<'a> Interpreter<'a> {
             self.context.pop_environment();
         }
 
-        let mut class_method_lexeme_map = HashMap::<&'a str, usize>::new();
-
-        for (method_token, value) in class_method_map {
-            class_method_lexeme_map.insert(method_token.lexeme, value);
-        }
-
-        let context_class_slot_idx =
-            self.context.insert_class (
-                Class {
-                    methods: class_method_lexeme_map,
-                    super_class: super_class_context_class_slot_idx,
-                    name: id.lexeme.to_string()
-                }
-            );
-
         self.context.insert_symbol (
             &id.lexeme,
             Value::Class {
-                context_class_slot_idx,
+                context_class_slot_idx: context_class_slot_idx.unwrap(),
                 closure_id: class_closure_id,
                 super_class: super_class_value
             }

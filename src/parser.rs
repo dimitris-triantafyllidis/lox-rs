@@ -155,7 +155,8 @@ pub mod statement {
     pub struct ClassDeclaration<'a> {
         pub id: Token<'a>,
         pub method_decls: Vec<statement::FunctionDeclaration<'a>>,
-        pub super_class: Option<super::expression::Expression<'a>>
+        pub super_class: Option<super::expression::Expression<'a>>,
+        pub context_class_slot_idx: Option<usize>
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -345,7 +346,8 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
                     ClassDeclaration {
                         id: identifier,
                         method_decls: methods,
-                        super_class: super_class
+                        super_class: super_class,
+                        context_class_slot_idx: None
                     }
                 ),
                 cursor + 1
