@@ -384,13 +384,6 @@ impl<'a> SemanticPass<'a> {
 
         let ClassDeclaration { id, method_decls, super_class, context_class_slot_idx } = stmt;
 
-        if let Some(..) = context_class_slot_idx {
-            panic!("Internal resolver error");
-        }
-        else {
-            *context_class_slot_idx = Some(self.defs.classes.len());
-        }
-
         let super_class_value: Option<Box<Value>>;
         let super_class_context_class_slot_idx: Option<usize>;
 
@@ -465,6 +458,13 @@ impl<'a> SemanticPass<'a> {
 
         if let Some(..) = super_class {
             self.context.pop_environment();
+        }
+
+        if let Some(..) = context_class_slot_idx {
+            panic!("Internal resolver error");
+        }
+        else {
+            *context_class_slot_idx = Some(self.defs.classes.len());
         }
 
         self.defs.insert_class (
