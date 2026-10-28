@@ -22,7 +22,7 @@ or
 cargo test --release
 ```
 
-### Run the banchmarks
+### Run the benchmarks
 
 ```
 cargo run --release --bin benchmark
