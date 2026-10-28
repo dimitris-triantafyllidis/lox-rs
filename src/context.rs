@@ -18,25 +18,16 @@ impl<'a> Environment<'a> {
     }
 }
 
-pub struct Context<'a> {
-    pub environments: HashMap<usize, Environment<'a>>,
-    pub environment_stack: Vec<usize>,
-    pub next_env_id: usize,
-    pub instances: HashMap<usize, Instance<'a>>,
-    pub next_instance_id: usize,
+#[derive(Clone)]
+pub struct Definitions<'a> {
     pub classes: Vec<Class<'a>>,
     pub functions: Vec<Function<'a>>
 }
 
-impl<'a> Context<'a> {
+impl<'a> Definitions<'a> {
 
     pub fn new() -> Self {
         Self {
-            environments: HashMap::<usize, Environment>::new(),
-            environment_stack: Vec::<usize>::new(),
-            next_env_id: 0,
-            instances: HashMap::<usize, Instance<'a>>::new(),
-            next_instance_id: 0,
             classes: Vec::<Class>::new(),
             functions: Vec::<Function<'a>>::new()
         }
@@ -54,6 +45,27 @@ impl<'a> Context<'a> {
             function
         );
         return self.functions.len() - 1;
+    }
+}
+
+pub struct Context<'a> {
+    pub environments: HashMap<usize, Environment<'a>>,
+    pub environment_stack: Vec<usize>,
+    pub next_env_id: usize,
+    pub instances: HashMap<usize, Instance<'a>>,
+    pub next_instance_id: usize
+}
+
+impl<'a> Context<'a> {
+
+    pub fn new() -> Self {
+        Self {
+            environments: HashMap::<usize, Environment>::new(),
+            environment_stack: Vec::<usize>::new(),
+            next_env_id: 0,
+            instances: HashMap::<usize, Instance<'a>>::new(),
+            next_instance_id: 0
+        }
     }
 
     pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
@@ -249,7 +261,7 @@ impl<'a> Context<'a> {
         );
     }
 
-    pub fn gc_follow_and_mark(&mut self, env_id: usize) {
+    pub fn gc_follow_and_mark(&mut self, env_id: usize, defs: &Definitions) {
 
         let mut env_ids_to_mark_stack = Vec::<usize>::new();
         let mut instance_ids_to_mark_stack = Vec::<usize>::new();
@@ -274,7 +286,7 @@ impl<'a> Context<'a> {
 
                 for (_, value) in &env.symbols {
                     if let Value::Function { context_function_slot_idx, closure_id } = value {
-                        let Function { .. } = self.functions[*context_function_slot_idx];
+                        let Function { .. } = defs.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = value {
@@ -352,7 +364,7 @@ impl<'a> Context<'a> {
                         }
                     }
                     else if let Value::Function { context_function_slot_idx, closure_id } = property_value {
-                        let Function { .. } = self.functions[*context_function_slot_idx];
+                        let Function { .. } = defs.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = property_value {
@@ -368,14 +380,14 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn gc_collect(&mut self) {
+    pub fn gc_collect(&mut self, defs: &Definitions) {
         self.gc_clear_flags();
 
         let env_stack = self.environment_stack.clone();
 
         for env_chain_root_id in env_stack {
             let env_id = env_chain_root_id;
-            self.gc_follow_and_mark(env_id);
+            self.gc_follow_and_mark(env_id, defs);
         }
 
         self.gc_sweep();

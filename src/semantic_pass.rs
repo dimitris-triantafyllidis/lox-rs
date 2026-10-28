@@ -24,17 +24,19 @@ pub struct SemanticPass<'a> {
     pub context: Context<'a>,
     pub function_context_stack: Vec<FunctionContext>,
     pub class_context_stack: Vec<ClassContext>,
+    pub defs: Definitions<'a>
 }
 
 impl<'a> SemanticPass<'a> {
 
     pub fn new() -> Self {
 
+        let mut defs = Definitions::new();
         let mut context = Context::new();
         context.push_new_environment_auto();
 
         let function_id =
-            context.insert_function (
+            defs.insert_function (
                 Function {
                     pars: Vec::new(),
                     body: Statement::Block (
@@ -64,6 +66,7 @@ impl<'a> SemanticPass<'a> {
 
         Self {
             context,
+            defs,
             function_context_stack,
             class_context_stack,
         }
@@ -308,7 +311,7 @@ impl<'a> SemanticPass<'a> {
             panic!("Internal resolver error");
         }
         else {
-            *context_function_slot_idx = Some(self.context.functions.len());
+            *context_function_slot_idx = Some(self.defs.functions.len());
         }
 
         let function_context = self.function_context_stack.last().cloned().unwrap();
@@ -329,9 +332,9 @@ impl<'a> SemanticPass<'a> {
         let is_initializer = function_context == FunctionContext::Initializer;
         let is_method      = function_context == FunctionContext::Method;
 
-        let function_id = self.context.functions.len();
+        let function_id = self.defs.functions.len();
 
-        self.context.insert_function (
+        self.defs.insert_function (
             Function {
                 pars: par_lexemes,
                 body: *body.clone(),
@@ -372,7 +375,7 @@ impl<'a> SemanticPass<'a> {
             self.context.pop_environment();
         }
 
-        self.context.functions[function_id].body = *body.clone();
+        self.defs.functions[function_id].body = *body.clone();
 
         self.context.pop_environment();
     }
@@ -385,7 +388,7 @@ impl<'a> SemanticPass<'a> {
             panic!("Internal resolver error");
         }
         else {
-            *context_class_slot_idx = Some(self.context.classes.len());
+            *context_class_slot_idx = Some(self.defs.classes.len());
         }
 
         let super_class_value: Option<Box<Value>>;
@@ -464,7 +467,7 @@ impl<'a> SemanticPass<'a> {
             self.context.pop_environment();
         }
 
-        self.context.insert_class (
+        self.defs.insert_class (
             Class {
                 methods: class_method_lexeme_map,
                 super_class: super_class_context_class_slot_idx,

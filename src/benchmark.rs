@@ -69,8 +69,9 @@ fn run_file(file_path: &String) {
             let mut syntax_tree = parse(&tokens);
             let mut semantic_pass = SemanticPass::new();
             semantic_pass.visit(&mut syntax_tree);
+            let defs = semantic_pass.defs.clone();
             let mut interpreter = Interpreter::new(semantic_pass.context);
-            interpreter.execute(&syntax_tree);
+            interpreter.execute(&syntax_tree, &defs);
         },
         io::Result::Err(e) => {
             eprintln!("io error: {}", e);
