@@ -174,6 +174,17 @@ impl<'a> Interpreter<'a> {
 
     }
 
+    pub fn make_bound_method(&mut self, context_function_slot_idx: usize, closure_id: usize, instance: &Value) -> Value {
+
+        self.context.push_new_environment(Some(closure_id));
+        self.context.insert_symbol("this", instance.clone());
+        self.context.pop_environment();
+        return Value::Function {
+            context_function_slot_idx,
+            closure_id: self.context.next_env_id - 1
+        };
+    }
+
     pub fn evaluate_super(&mut self, expr: &expression::Super<'a>, defs: &'a Definitions) -> NodeResult {
 
         let Super { property, lookup_hop_count, env_slot_idx } = expr;
@@ -181,29 +192,22 @@ impl<'a> Interpreter<'a> {
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
         let mut env_slot_idx_mut_copy = *env_slot_idx;
         let instance_value = self.context.get_symbol_value("this", &mut None, &mut None);
-        let value: Value;
 
-        let mut method_lookup_class = Some(Box::new(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy)));
+        let mut method_lookup_class = Some(self.context.get_symbol_value("super", &mut lookup_hop_count_mut_copy, &mut env_slot_idx_mut_copy));
         while let Some(maybe_value) = method_lookup_class {
-            let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value.as_ref() else {
+            let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value else {
                 panic!("Expected class value");
             };
-            let Class { ref methods, .. } = defs.classes[*context_class_slot_idx];
-            if methods.contains_key(&property.lexeme) {
-                let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
-                self.context.push_new_environment(Some(*closure_id));
-                self.context.insert_symbol("this", instance_value.clone());
-                value = Value::Function {
-                    context_function_slot_idx,
-                    closure_id: self.context.next_env_id - 1
-                };
-                self.context.pop_environment();
-                return NodeResult { value, control: Control::Continue };
-            }
-            else {
-                method_lookup_class = super_class.clone();
+            let Class { ref methods, .. } = defs.classes[context_class_slot_idx];
+            let Some(context_function_slot_idx) = methods.get(&property.lexeme) else {
+                method_lookup_class = super_class.map(|boxed| *boxed);
                 continue;
-            }
+            };
+            return
+                NodeResult {
+                    value: self.make_bound_method(*context_function_slot_idx, closure_id, &instance_value),
+                    control: Control::Continue
+                };
         }
         panic!("Undefined property '{}'.", property.lexeme);
     }
@@ -230,35 +234,22 @@ impl<'a> Interpreter<'a> {
             panic!("Only instances have properties.");
         };
         let instance = self.context.instances.get(instance_id).unwrap();
-        let value: Value;
 
-        if instance.properties.contains_key(&property.lexeme) {
-            value = instance.properties.get(&property.lexeme).unwrap().clone();
-            return Some(value);
+        if let Some(value) = instance.properties.get(&property.lexeme) {
+            return Some(value.clone());
         }
         else {
-            let mut method_lookup_class = Some(Box::new(instance.class.clone()));
+            let mut method_lookup_class = Some(instance.class.clone());
             while let Some(maybe_value) = method_lookup_class {
-                let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value.as_ref() else {
+                let Value::Class { context_class_slot_idx, closure_id, super_class } = maybe_value else {
                     panic!("Expected class value");
                 };
-                let Class { methods, .. } = &defs.classes[*context_class_slot_idx];
-                if methods.contains_key(&property.lexeme) {
-                    let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
-                    self.context.push_new_environment(Some(*closure_id));
-                    self.context.insert_symbol("this", instance_value.clone());
-                    value = Value::Function {
-                        context_function_slot_idx,
-                        closure_id: self.context.next_env_id - 1
-                    };
-                    self.context.pop_environment();
-                    return Some(value);
-
-                }
-                else {
-                    method_lookup_class = super_class.clone();
+                let Class { methods, .. } = &defs.classes[context_class_slot_idx];
+                let Some(context_function_slot_idx) = methods.get(&property.lexeme) else {
+                    method_lookup_class = super_class.map(|boxed| *boxed);
                     continue;
-                }
+                };
+                return Some(self.make_bound_method(*context_function_slot_idx, closure_id, &instance_value));
             }
             return None;
         }
