@@ -1,0 +1,95 @@
+
+===== Benchmark: 'binary_trees.lox' =====
+stretch tree of depth:
+15
+check:
+-1
+num trees:
+32768
+depth:
+4
+check:
+-32768
+num trees:
+8192
+depth:
+6
+check:
+-8192
+num trees:
+2048
+depth:
+8
+check:
+-2048
+num trees:
+512
+depth:
+10
+check:
+-512
+num trees:
+128
+depth:
+12
+check:
+-128
+num trees:
+32
+depth:
+14
+check:
+-32
+long lived tree of depth:
+14
+check:
+-1
+elapsed:
+30.520000219345093
+
+===== Benchmark: 'equality.lox' =====
+loop
+5.128999948501587
+elapsed
+7.0320000648498535
+equals
+1.9030001163482666
+
+===== Benchmark: 'fib.lox' =====
+true
+9.934000015258789
+
+===== Benchmark: 'instantiation.lox' =====
+6.1529998779296875
+
+===== Benchmark: 'invocation.lox' =====
+3.92900013923645
+
+===== Benchmark: 'method_call.lox' =====
+true
+false
+2.446000099182129
+
+===== Benchmark: 'properties.lox' =====
+5.6519999504089355
+
+===== Benchmark: 'string_equality.lox' =====
+loop
+13.013999938964844
+elapsed
+13.889000177383423
+equals
+0.8750002384185791
+
+===== Benchmark: 'trees.lox' =====
+95.7480001449585
+
+===== Benchmark: 'zoo_batch.lox' =====
+19560000
+326
+10
+
+===== Benchmark: 'zoo.lox' =====
+10000002
+4.1549999713897705
+

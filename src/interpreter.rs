@@ -89,7 +89,8 @@ pub fn is_truthy(v: &Value) -> bool {
 pub struct Interpreter<'a> {
     pub context: Context<'a>,
     pub statement_exec_count: usize,
-    pub working_set_size: usize
+    pub working_set_size_after_last_gc: usize
+
 }
 
 impl<'a> Interpreter<'a> {
@@ -111,7 +112,7 @@ impl<'a> Interpreter<'a> {
         Self {
             context,
             statement_exec_count: 0,
-            working_set_size: 0
+            working_set_size_after_last_gc: 0
         }
     }
 
@@ -612,17 +613,22 @@ impl<'a> Interpreter<'a> {
 
         self.statement_exec_count += 1;
 
-        let working_set_size =
-            self.context.environments.len() +
-            self.context.instances.len();
+        if self.statement_exec_count % 16384 == 0 {
 
-        if working_set_size > self.working_set_size * 3 / 2 && working_set_size > 256 {
-            // println!("gc started with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
-            self.context.gc_collect(defs);
-            self.working_set_size = working_set_size;
-            // println!("Class slot count: {}", self.context.classes.len());
-            // println!("gc finished with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
-            // println!();
+            let working_set_size =
+                self.context.environments.len() +
+                self.context.instances.len();
+
+            if working_set_size > self.working_set_size_after_last_gc * 3 / 2 && working_set_size > 256 {
+               // println!("gc started with #envs: {}, #instances: {} at {}", self.context.environments.len(), self.context.instances.len(), self.statement_exec_count);
+                self.context.gc_collect(defs);
+                self.working_set_size_after_last_gc =
+                    self.context.environments.len() +
+                    self.context.instances.len();
+                // println!("Class slot count: {}", self.context.classes.len());
+                // println!("gc finished with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
+                //println!();
+            }
         }
 
         match statement {
