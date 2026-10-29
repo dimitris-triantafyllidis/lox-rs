@@ -191,7 +191,6 @@ impl<'a> Interpreter<'a> {
             let Class { ref methods, .. } = defs.classes[*context_class_slot_idx];
             if methods.contains_key(&property.lexeme) {
                 let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
-                let Function { .. } = defs.functions[context_function_slot_idx];
                 self.context.push_new_environment(Some(*closure_id));
                 self.context.insert_symbol("this", instance_value.clone());
                 value = Value::Function {
@@ -246,7 +245,6 @@ impl<'a> Interpreter<'a> {
                 let Class { methods, .. } = &defs.classes[*context_class_slot_idx];
                 if methods.contains_key(&property.lexeme) {
                     let context_function_slot_idx = methods.get(&property.lexeme).unwrap().clone();
-                    let Function { .. } = defs.functions[context_function_slot_idx];
                     self.context.push_new_environment(Some(*closure_id));
                     self.context.insert_symbol("this", instance_value.clone());
                     value = Value::Function {
