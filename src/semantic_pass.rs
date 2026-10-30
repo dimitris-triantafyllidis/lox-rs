@@ -37,7 +37,7 @@ impl<'a> SemanticPass<'a> {
 
         let function_id =
             defs.insert_function (
-                Function {
+                FunctionDefinition {
                     pars: Vec::new(),
                     body: Statement::Block (
                         Block {
@@ -335,7 +335,7 @@ impl<'a> SemanticPass<'a> {
         let function_id = self.defs.functions.len();
 
         self.defs.insert_function (
-            Function {
+            FunctionDefinition {
                 pars: par_lexemes,
                 body: *body.clone(),
                 is_native: false,
@@ -348,10 +348,12 @@ impl<'a> SemanticPass<'a> {
 
         self.context.insert_symbol (
             &id.lexeme,
-            Value::Function {
-                context_function_slot_idx: context_function_slot_idx.unwrap(),
-                closure_id
-            }
+            Value::Function (
+                Function {
+                    context_function_slot_idx: context_function_slot_idx.unwrap(),
+                    closure_id
+                }
+            )
         );
 
         self.context.push_new_environment_auto();
@@ -403,7 +405,7 @@ impl<'a> SemanticPass<'a> {
                     )
                 )
             );
-            let Value::Class { context_class_slot_idx, .. } = super_class_value.as_ref().unwrap().as_ref().clone() else {
+            let Value::Class ( Class { context_class_slot_idx, .. } ) = super_class_value.as_ref().unwrap().as_ref().clone() else {
                 panic!("Superclass must be a class.");
             };
             super_class_context_class_slot_idx = Some(context_class_slot_idx);
@@ -468,7 +470,7 @@ impl<'a> SemanticPass<'a> {
         }
 
         self.defs.insert_class (
-            Class {
+            ClassDefinition {
                 methods: class_method_lexeme_map,
                 super_class: super_class_context_class_slot_idx,
                 name: id.lexeme.to_string()
@@ -477,11 +479,13 @@ impl<'a> SemanticPass<'a> {
 
         self.context.set_symbol_value (
             &id.lexeme,
-            Value::Class {
-                context_class_slot_idx: context_class_slot_idx.unwrap(),
-                closure_id: class_closure_id,
-                super_class: super_class_value
-            },
+            Value::Class (
+                Class {
+                    context_class_slot_idx: context_class_slot_idx.unwrap(),
+                    closure_id: class_closure_id,
+                    super_class: super_class_value
+                },
+            ),
             &mut Some(0),
             &mut None
         );

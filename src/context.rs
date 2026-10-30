@@ -20,27 +20,27 @@ impl<'a> Environment<'a> {
 
 #[derive(Clone)]
 pub struct Definitions<'a> {
-    pub classes: Vec<Class<'a>>,
-    pub functions: Vec<Function<'a>>
+    pub classes: Vec<ClassDefinition<'a>>,
+    pub functions: Vec<FunctionDefinition<'a>>
 }
 
 impl<'a> Definitions<'a> {
 
     pub fn new() -> Self {
         Self {
-            classes: Vec::<Class>::new(),
-            functions: Vec::<Function<'a>>::new()
+            classes: Vec::<ClassDefinition>::new(),
+            functions: Vec::<FunctionDefinition<'a>>::new()
         }
     }
 
-    pub fn insert_class(&mut self, class: Class<'a>) -> usize {
+    pub fn insert_class(&mut self, class: ClassDefinition<'a>) -> usize {
         self.classes.push (
             class
         );
         return self.classes.len() - 1;
     }
 
-    pub fn insert_function(&mut self, function: Function<'a>) -> usize {
+    pub fn insert_function(&mut self, function: FunctionDefinition<'a>) -> usize {
         self.functions.push (
             function
         );
@@ -285,21 +285,21 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let Value::Function { context_function_slot_idx, closure_id } = value {
-                        let Function { .. } = defs.functions[*context_function_slot_idx];
+                    if let Value::Function ( Function { context_function_slot_idx, closure_id } ) = value {
+                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
                     }
-                    else if let Value::Class { closure_id, super_class, .. } = value {
+                    else if let Value::Class ( Class { closure_id, super_class, .. } ) = value {
 
                         new_envs_to_visit.push(*closure_id);
 
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class { closure_id, super_class, .. } = b.as_ref() else {
+                            let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
                                 panic!("gc: Expected class value");
                             };
                             new_envs_to_visit.push(*closure_id);
@@ -329,14 +329,14 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class { closure_id, super_class, .. } = instance.class.clone() {
+                if let Value::Class ( Class { closure_id, super_class, .. } ) = instance.class.clone() {
 
                     env_ids_to_mark_stack.push(closure_id);
 
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        let Value::Class { closure_id, super_class, .. } = b.as_ref() else {
+                        let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
                             panic!("gc: Expected class value");
                         };
                         env_ids_to_mark_stack.push(*closure_id);
@@ -350,21 +350,21 @@ impl<'a> Context<'a> {
 
                 for (_, property_value) in &instance.properties {
 
-                    if let Value::Class { closure_id, super_class, .. } = property_value {
+                    if let Value::Class ( Class { closure_id, super_class, .. } ) = property_value {
                         env_ids_to_mark_stack.push(*closure_id);
 
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class { closure_id, super_class, .. } = b.as_ref() else {
+                            let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
                                 panic!("gc: Expected class value");
                             };
                             env_ids_to_mark_stack.push(*closure_id);
                             s = super_class;
                         }
                     }
-                    else if let Value::Function { context_function_slot_idx, closure_id } = property_value {
-                        let Function { .. } = defs.functions[*context_function_slot_idx];
+                    else if let Value::Function ( Function { context_function_slot_idx, closure_id } ) = property_value {
+                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
                     }
                     else if let Value::Instance ( instance_id ) = property_value {
