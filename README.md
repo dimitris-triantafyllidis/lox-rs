@@ -25,5 +25,5 @@ cargo test --release
 ### Run the benchmarks
 
 ```
-cargo run --release --bin benchmark
+cargo run --release --bin lox-benchmark
 ```
