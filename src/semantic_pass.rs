@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use crate::lexer::*;
-use crate::parser::*;
 use crate::context::*;
 use crate::interpreter::*;
 
-use crate::parser::expression::*;
-use crate::parser::statement::*;
+use crate::expression as expression;
+use crate::statement as statement;
+
+use crate::expression::*;
+use crate::statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {

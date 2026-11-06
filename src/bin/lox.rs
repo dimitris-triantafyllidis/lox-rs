@@ -1,15 +1,9 @@
 use std::{env, fs, io, process::ExitCode};
 
-mod lexer;
-mod parser;
-mod interpreter;
-mod context;
-mod semantic_pass;
-
-use crate::lexer::*;
-use crate::parser::*;
-use crate::interpreter::*;
-use crate::semantic_pass::*;
+use lox_rs::lexer::*;
+use lox_rs::parser::*;
+use lox_rs::interpreter::*;
+use lox_rs::semantic_pass::*;
 
 fn main() -> ExitCode {
 

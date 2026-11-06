@@ -3,11 +3,15 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::lexer::*;
-use crate::parser::*;
 use crate::context::*;
 
-use expression::*;
-use statement::*;
+use crate::expression as expression;
+
+use crate::expression::*;
+
+use crate::statement as statement;
+
+use crate::statement::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
