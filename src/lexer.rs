@@ -1,4 +1,5 @@
 use std::process;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum TokenKind {
@@ -41,6 +42,57 @@ pub struct Token<'a> {
     pub kind: TokenKind,
     pub lexeme: &'a str,
     pub line_number: usize
+}
+
+impl<'a> fmt::Display for Token<'a> {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.kind {
+            TokenKind::LeftParenthesis  => write!(f, "LEFT_PAREN {} null",      self.lexeme),
+            TokenKind::RightParenthesis => write!(f, "RIGHT_PAREN {} null",     self.lexeme),
+            TokenKind::LeftBrace        => write!(f, "LEFT_BRACE {} null",      self.lexeme),
+            TokenKind::RightBrace       => write!(f, "RIGHT_BRACE {} null",     self.lexeme),
+            TokenKind::Semicolon        => write!(f, "SEMICOLON {} null",       self.lexeme),
+            TokenKind::Comma            => write!(f, "COMMA {} null",           self.lexeme),
+            TokenKind::Dot              => write!(f, "DOT {} null",             self.lexeme),
+            TokenKind::Minus            => write!(f, "MINUS {} null",           self.lexeme),
+            TokenKind::Plus             => write!(f, "PLUS {} null",            self.lexeme),
+            TokenKind::Slash            => write!(f, "SLASH {} null",           self.lexeme),
+            TokenKind::Star             => write!(f, "STAR {} null",            self.lexeme),
+            TokenKind::Bang             => write!(f, "BANG {} null",            self.lexeme),
+            TokenKind::BangEqual        => write!(f, "BANG_EQUAL {} null",      self.lexeme),
+            TokenKind::Equal            => write!(f, "EQUAL {} null",           self.lexeme),
+            TokenKind::EqualEqual       => write!(f, "EQUAL_EQUAL {} null",     self.lexeme),
+            TokenKind::Greater          => write!(f, "GREATER {} null",         self.lexeme),
+            TokenKind::GreaterEqual     => write!(f, "GREATER_EQUAL {} null",   self.lexeme),
+            TokenKind::Less             => write!(f, "LESS {} null",            self.lexeme),
+            TokenKind::LessEqual        => write!(f, "LESS_EQUAL {} null",      self.lexeme),
+            TokenKind::Identifier       => write!(f, "IDENTIFIER {} null",      self.lexeme),
+            TokenKind::String           => write!(f, "STRING {} {}",            self.lexeme, &self.lexeme[1..self.lexeme.len()-1]),
+            TokenKind::And              => write!(f, "AND {} null",             self.lexeme),
+            TokenKind::Class            => write!(f, "CLASS {} null",           self.lexeme),
+            TokenKind::Else             => write!(f, "ELSE {} null",            self.lexeme),
+            TokenKind::False            => write!(f, "FALSE {} null",           self.lexeme),
+            TokenKind::Fun              => write!(f, "FUN {} null",             self.lexeme),
+            TokenKind::For              => write!(f, "FOR {} null",             self.lexeme),
+            TokenKind::If               => write!(f, "IF {} null",              self.lexeme),
+            TokenKind::Nil              => write!(f, "NIL {} null",             self.lexeme),
+            TokenKind::Or               => write!(f, "OR {} null",              self.lexeme),
+            TokenKind::Print            => write!(f, "PRINT {} null",           self.lexeme),
+            TokenKind::Return           => write!(f, "RETURN {} null",          self.lexeme),
+            TokenKind::Super            => write!(f, "SUPER {} null",           self.lexeme),
+            TokenKind::This             => write!(f, "THIS {} null",            self.lexeme),
+            TokenKind::True             => write!(f, "TRUE {} null",            self.lexeme),
+            TokenKind::Var              => write!(f, "VAR {} null",             self.lexeme),
+            TokenKind::While            => write!(f, "WHILE {} null",           self.lexeme),
+            TokenKind::EOF              => write!(f, "EOF  null"),
+            TokenKind::Number => {
+                let value = self.lexeme.parse::<f64>().unwrap();
+                let formatted = if value.fract() == 0.0 { format!("{:.1}", value) } else { value.to_string() };
+                write!(f, "NUMBER {} {}", self.lexeme, formatted)
+            }
+        }
+    }
 }
 
 pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
@@ -116,55 +168,7 @@ pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
 pub fn print_token_stream(tokens: &[Token]) {
 
     for token in tokens {
-        match token.kind {
-            TokenKind::LeftParenthesis  => println!("LEFT_PAREN {} null", token.lexeme),
-            TokenKind::RightParenthesis => println!("RIGHT_PAREN {} null", token.lexeme),
-            TokenKind::LeftBrace        => println!("LEFT_BRACE {} null", token.lexeme),
-            TokenKind::RightBrace       => println!("RIGHT_BRACE {} null", token.lexeme),
-            TokenKind::Semicolon        => println!("SEMICOLON {} null", token.lexeme),
-            TokenKind::Comma            => println!("COMMA {} null", token.lexeme),
-            TokenKind::Dot              => println!("DOT {} null", token.lexeme),
-            TokenKind::Minus            => println!("MINUS {} null", token.lexeme),
-            TokenKind::Plus             => println!("PLUS {} null", token.lexeme),
-            TokenKind::Slash            => println!("SLASH {} null", token.lexeme),
-            TokenKind::Star             => println!("STAR {} null", token.lexeme),
-            TokenKind::Bang             => println!("BANG {} null", token.lexeme),
-            TokenKind::BangEqual        => println!("BANG_EQUAL {} null", token.lexeme),
-            TokenKind::Equal            => println!("EQUAL {} null", token.lexeme),
-            TokenKind::EqualEqual       => println!("EQUAL_EQUAL {} null", token.lexeme),
-            TokenKind::Greater          => println!("GREATER {} null", token.lexeme),
-            TokenKind::GreaterEqual     => println!("GREATER_EQUAL {} null", token.lexeme),
-            TokenKind::Less             => println!("LESS {} null", token.lexeme),
-            TokenKind::LessEqual        => println!("LESS_EQUAL {} null", token.lexeme),
-            TokenKind::Identifier       => println!("IDENTIFIER {} null", token.lexeme),
-            TokenKind::String           => println!("STRING {} {}", token.lexeme, &token.lexeme[1..token.lexeme.len()-1]),
-            TokenKind::Number           => {
-                let value = token.lexeme.parse::<f64>().unwrap();
-                if value.fract() == 0.0 {
-                    println!("NUMBER {} {:.1}", token.lexeme, token.lexeme.parse::<f64>().unwrap());
-                }
-                else {
-                    println!("NUMBER {} {}", token.lexeme, token.lexeme.parse::<f64>().unwrap());
-                }
-            },
-            TokenKind::And              => println!("AND {} null", token.lexeme),
-            TokenKind::Class            => println!("CLASS {} null", token.lexeme),
-            TokenKind::Else             => println!("ELSE {} null", token.lexeme),
-            TokenKind::False            => println!("FALSE {} null", token.lexeme),
-            TokenKind::Fun              => println!("FUN {} null", token.lexeme),
-            TokenKind::For              => println!("FOR {} null", token.lexeme),
-            TokenKind::If               => println!("IF {} null", token.lexeme),
-            TokenKind::Nil              => println!("NIL {} null", token.lexeme),
-            TokenKind::Or               => println!("OR {} null", token.lexeme),
-            TokenKind::Print            => println!("PRINT {} null", token.lexeme),
-            TokenKind::Return           => println!("RETURN {} null", token.lexeme),
-            TokenKind::Super            => println!("SUPER {} null", token.lexeme),
-            TokenKind::This             => println!("THIS {} null", token.lexeme),
-            TokenKind::True             => println!("TRUE {} null", token.lexeme),
-            TokenKind::Var              => println!("VAR {} null", token.lexeme),
-            TokenKind::While            => println!("WHILE {} null", token.lexeme),
-            TokenKind::EOF              => println!("EOF  null"),
-        }
+        println!("{}", token);
     }
 
 }
