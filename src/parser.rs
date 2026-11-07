@@ -4,8 +4,6 @@ use crate::expression as expression;
 use crate::statement as statement;
 
 use expression::*;
-
-
 use statement::*;
 
 pub fn syntax_error<'a>(tokens: &[Token<'a>], cursor: usize, message: &str) -> ! {
