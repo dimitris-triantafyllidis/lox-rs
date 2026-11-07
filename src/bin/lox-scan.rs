@@ -1,6 +1,6 @@
 use std::{env, fs, io, process::ExitCode};
 
-use lox_rs::*;
+use lox_rs::lexer as lexer;
 
 fn main() -> ExitCode {
 
@@ -21,7 +21,7 @@ fn run_file(file_path: &String) {
 
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
-            let tokens = lexer::lexer_scan(&s);
+            let tokens = lexer::scan(&s);
             lexer::print_token_stream(&tokens);
         },
         io::Result::Err(e) => {

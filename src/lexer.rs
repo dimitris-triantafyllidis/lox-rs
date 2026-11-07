@@ -43,7 +43,7 @@ pub struct Token<'a> {
     pub line_number: usize
 }
 
-pub fn lexer_scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
+pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
 
     let mut tokens = Vec::<Token<'a>>::new();
 
@@ -78,10 +78,10 @@ pub fn lexer_scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
 
         let matches = [
 
-            lexer_match_one_or_two_character_token (characters, cursor, line_number ),
-            lexer_match_keyword_or_identifier      (characters, cursor, line_number ),
-            lexer_match_string_literal             (characters, cursor, line_number ),
-            lexer_match_number_literal             (characters, cursor, line_number )
+            match_one_or_two_character_token (characters, cursor, line_number ),
+            match_keyword_or_identifier      (characters, cursor, line_number ),
+            match_string_literal             (characters, cursor, line_number ),
+            match_number_literal             (characters, cursor, line_number )
 
         ];
 
@@ -169,7 +169,7 @@ pub fn print_token_stream(tokens: &[Token]) {
 
 }
 
-fn lexer_match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
 
     // One-character tokens
 
@@ -212,7 +212,7 @@ fn lexer_match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize
 
 }
 
-fn lexer_match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
 
     let mut cursor_end = cursor_start;
 
@@ -259,7 +259,7 @@ fn lexer_match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usiz
 
 }
 
-fn lexer_match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)>  {
+fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)>  {
 
     let mut cursor_end = cursor_start;
 
@@ -301,7 +301,7 @@ fn lexer_match_string_literal<'a>(characters: &'a str, cursor_start: usize, line
 
 }
 
-fn lexer_match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
 
     let mut cursor_end = cursor_start;
 
