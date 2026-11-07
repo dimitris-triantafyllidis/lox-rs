@@ -1,22 +1,17 @@
 use crate::lexer::*;
-
-use crate::expression as expression;
-use crate::statement as statement;
-
-use expression::*;
-use statement::*;
+use crate::ast as ast;
 
 pub fn syntax_error<'a>(tokens: &[Token<'a>], cursor: usize, message: &str) -> ! {
     eprintln!("Syntax error in line {}, '{}': {}", tokens[cursor].line_number, tokens[cursor].lexeme, message);
     std::process::exit(1);
 }
 
-pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<Statement<'a>> {
+pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
 
     let mut cursor: usize = 0;
-    let mut stmt: Statement;
+    let mut stmt: ast::stmt::Statement;
 
-    let mut statements = Vec::<Statement>::new();
+    let mut statements = Vec::<ast::stmt::Statement>::new();
 
     loop {
 
@@ -32,7 +27,7 @@ pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<Statement<'a>> {
     return statements;
 }
 
-pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Var {
         return parse_variable_declaration(tokens, cursor + 1);
@@ -48,7 +43,7 @@ pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<
     }
 }
 
-pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -101,8 +96,8 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
     cursor += 1;
     let (body, cursor) = parse_block(tokens, cursor);
     return (
-        Statement::FunctionDeclaration (
-            FunctionDeclaration {
+        ast::stmt::Statement::FunctionDeclaration (
+            ast::stmt::FunctionDeclaration {
                 id: identifier,
                 pars: parameters,
                 body: Box::new(body),
@@ -115,7 +110,7 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
     )
 }
 
-pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -126,7 +121,7 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
     let identifier = tokens[cursor].clone();
     cursor += 1;
 
-    let super_class: Option<expression::Expression>;
+    let super_class: Option<ast::expr::Expression>;
 
     if tokens[cursor].kind == TokenKind::Less {
         cursor += 1;
@@ -137,8 +132,8 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
             syntax_error(tokens, cursor, &"A class can't inherit from itself.");
         }
         super_class = Some (
-            expression::Expression::Variable (
-                Variable {
+            ast::expr::Expression::Variable (
+                ast::expr::Variable {
                     identifier: tokens[cursor].clone(),
                     lookup_hop_count: None,
                     env_slot_idx: None
@@ -155,14 +150,14 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
         syntax_error(tokens, cursor, &"Expected '{{'");
     }
 
-    let mut methods = Vec::<statement::FunctionDeclaration>::new();
+    let mut methods = Vec::<ast::stmt::FunctionDeclaration>::new();
     cursor += 1;
 
     loop {
         if tokens[cursor].kind == TokenKind::RightBrace {
             return (
-                Statement::ClassDeclaration (
-                    ClassDeclaration {
+                ast::stmt::Statement::ClassDeclaration (
+                    ast::stmt::ClassDeclaration {
                         id: identifier,
                         method_decls: methods,
                         super_class: super_class,
@@ -173,21 +168,21 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Stat
             );
         }
         else {
-            let method: Statement;
+            let method: ast::stmt::Statement;
             (method, cursor) = parse_function_declaration(tokens, cursor);
 
-            if let Statement::FunctionDeclaration (m) = method {
+            if let ast::stmt::Statement::FunctionDeclaration (m) = method {
                 methods.push(m);
             }
         }
     }
 }
 
-pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
     let id: Token;
-    let expr: expression::Expression;
+    let expr: ast::expr::Expression;
 
     if tokens[cursor].kind != TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expect variable name.");
@@ -200,7 +195,7 @@ pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
             syntax_error(tokens, cursor, &"Expected ';'");
         }
         return (
-            Statement::VariableDeclaration ( VariableDeclaration { id: id, init: Some(statement::Expression { expr }) } ),
+            ast::stmt::Statement::VariableDeclaration ( ast::stmt::VariableDeclaration { id: id, init: Some(ast::stmt::Expression { expr }) } ),
             cursor + 1
         );
     }
@@ -209,13 +204,13 @@ pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
             syntax_error(tokens, cursor, &"Expected ';'");
         }
         return (
-            Statement::VariableDeclaration ( VariableDeclaration { id: id, init: None } ),
+            ast::stmt::Statement::VariableDeclaration ( ast::stmt::VariableDeclaration { id: id, init: None } ),
             cursor + 1
         );
     }
 }
 
-pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
@@ -240,7 +235,7 @@ pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a
     }
 }
 
-pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -261,9 +256,9 @@ pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statem
     let (body_statement, cursor) = parse_statement(tokens, cursor);
 
     return (
-        Statement::While (
-            While {
-                condition: statement::Expression { expr: condition_expression },
+        ast::stmt::Statement::While (
+            ast::stmt::While {
+                condition: ast::stmt::Expression { expr: condition_expression },
                 body: Box::new(body_statement)
             },
         ),
@@ -271,14 +266,14 @@ pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statem
     );
 }
 
-pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
-    let initializer_statement: Option<Box<Statement>>;
-    let condition_expression: Option<statement::Expression>;
-    let increment_expression: Option<statement::Expression>;
-    let body_statement: Box<Statement>;
+    let initializer_statement: Option<Box<ast::stmt::Statement>>;
+    let condition_expression: Option<ast::stmt::Expression>;
+    let increment_expression: Option<ast::stmt::Expression>;
+    let body_statement: Box<ast::stmt::Statement>;
 
     if tokens[cursor].kind != TokenKind::LeftParenthesis {
         syntax_error(tokens, cursor, &"Expected '('");
@@ -291,7 +286,7 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statemen
         cursor += 1;
     }
     else {
-        let is: Statement;
+        let is: ast::stmt::Statement;
         (is, cursor) = parse_declaration(tokens, cursor);
         initializer_statement = Some(Box::new(is));
     }
@@ -300,9 +295,9 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statemen
         condition_expression = None;
     }
     else {
-        let ce: expression::Expression;
+        let ce: ast::expr::Expression;
         (ce, cursor) = parse_expression(tokens, cursor);
-        condition_expression = Some ( statement::Expression { expr: ce } );
+        condition_expression = Some ( ast::stmt::Expression { expr: ce } );
     }
 
     cursor += 1;
@@ -311,20 +306,20 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statemen
         increment_expression = None;
     }
     else {
-        let ie: expression::Expression;
+        let ie: ast::expr::Expression;
         (ie, cursor) = parse_expression(tokens, cursor);
-        increment_expression = Some ( statement::Expression { expr: ie } );
+        increment_expression = Some ( ast::stmt::Expression { expr: ie } );
     }
 
     cursor += 1;
 
-    let bs: Statement;
+    let bs: ast::stmt::Statement;
     (bs, cursor) = parse_statement(tokens, cursor);
     body_statement = Box::new(bs);
 
     return (
-        Statement::For (
-            For {
+        ast::stmt::Statement::For (
+            ast::stmt::For {
                 init: initializer_statement,
                 cond: condition_expression,
                 incr: increment_expression,
@@ -336,7 +331,7 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statemen
 
 }
 
-pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
@@ -344,14 +339,14 @@ pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (S
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
-        Statement::Expression ( statement::Expression { expr } ),
+        ast::stmt::Statement::Expression ( ast::stmt::Expression { expr } ),
         cursor + 1
     );
 }
 
-pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
-    let mut statements = Vec::<Statement>::new();
+    let mut statements = Vec::<ast::stmt::Statement>::new();
     let mut cursor = cursor;
 
     loop {
@@ -365,7 +360,7 @@ pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, u
             syntax_error(tokens, cursor, &"Expected '}}'");
         }
 
-        let statement: Statement;
+        let statement: ast::stmt::Statement;
 
         (statement, cursor) = parse_declaration(tokens, cursor);
 
@@ -374,13 +369,13 @@ pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, u
     }
 
     return (
-        Statement::Block ( Block { statements } ),
+        ast::stmt::Statement::Block ( ast::stmt::Block { statements } ),
         cursor
     )
 
 }
 
-pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
@@ -388,16 +383,16 @@ pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statem
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
-        Statement::Print ( Print { expr } ),
+        ast::stmt::Statement::Print ( ast::stmt::Print { expr } ),
         cursor + 1
     );
 }
 
-pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     if tokens[cursor].kind == TokenKind::Semicolon {
         return (
-            Statement::Return ( Return { expr: None } ),
+            ast::stmt::Statement::Return ( ast::stmt::Return { expr: None } ),
             cursor + 1
         );
     }
@@ -408,12 +403,12 @@ pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (State
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
-        Statement::Return ( Return { expr: Some(statement::Expression { expr }) } ),
+        ast::stmt::Statement::Return ( ast::stmt::Return { expr: Some(ast::stmt::Expression { expr }) } ),
         cursor + 1
     );
 }
 
-pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement<'a>, usize) {
+pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -440,9 +435,9 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement
         let (else_statement, cursor) = parse_statement(tokens, cursor);
 
         return (
-            Statement::If (
-                If {
-                    condition: statement::Expression { expr: condition_expression },
+            ast::stmt::Statement::If (
+                ast::stmt::If {
+                    condition: ast::stmt::Expression { expr: condition_expression },
                     then_statement: Box::new(then_statement),
                     else_statement: Some(Box::new(else_statement))
                 }
@@ -452,9 +447,9 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement
     }
     else {
         return (
-            Statement::If (
-                If {
-                    condition: statement::Expression { expr: condition_expression },
+            ast::stmt::Statement::If (
+                ast::stmt::If {
+                    condition: ast::stmt::Expression { expr: condition_expression },
                     then_statement: Box::new(then_statement),
                     else_statement: None
                 }
@@ -465,11 +460,11 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (Statement
 
 }
 
-pub fn parse_expression<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_expression<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
     return parse_assignment(tokens, cursor);
 }
 
-pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
@@ -479,28 +474,28 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
 
     let cursor_equals = cursor;
     cursor += 1;
-    let value_expr: expression::Expression;
+    let value_expr: ast::expr::Expression;
 
     (value_expr, cursor) = parse_assignment(tokens, cursor);
 
     match expr {
-        expression::Expression::Variable ( Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
+        ast::expr::Expression::Variable ( ast::expr::Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
             return (
-                expression::Expression::Assignment (
-                    Assignment {
+                ast::expr::Expression::Assignment (
+                    ast::expr::Assignment {
                         left: t,
                         lookup_hop_count,
                         env_slot_idx,
-                        expression: Box::<expression::Expression>::new(value_expr)
+                        expression: Box::<ast::expr::Expression>::new(value_expr)
                     }
                 ),
                 cursor
             );
         },
-        expression::Expression::Get ( Get { instance, property } ) => {
+        ast::expr::Expression::Get ( ast::expr::Get { instance, property } ) => {
             return (
-                expression::Expression::Set (
-                    Set {
+                ast::expr::Expression::Set (
+                    ast::expr::Set {
                         instance: instance,
                         property: property,
                         value: Box::new(value_expr)
@@ -515,7 +510,7 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
     }
 }
 
-pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
@@ -523,11 +518,11 @@ pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
         if tokens[cursor].kind != TokenKind::Or {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         cursor += 1;
         let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::LogicalOr ( LogicalOr { left, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::LogicalOr ( ast::expr::LogicalOr { left, right } );
         cursor = new_cursor;
     }
 
@@ -535,7 +530,7 @@ pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
 
 }
 
-pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
@@ -543,11 +538,11 @@ pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression:
         if tokens[cursor].kind != TokenKind::And {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         cursor += 1;
         let (right_expr, new_cursor) = parse_equality(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::LogicalAnd ( LogicalAnd { left, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::LogicalAnd ( ast::expr::LogicalAnd { left, right } );
         cursor = new_cursor;
     }
 
@@ -555,7 +550,7 @@ pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression:
 
 }
 
-pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
@@ -566,12 +561,12 @@ pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
         {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         let operator = tokens[cursor].clone();
         cursor += 1;
         let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
         cursor = new_cursor;
     }
 
@@ -579,7 +574,7 @@ pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::
 
 }
 
-pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
@@ -593,12 +588,12 @@ pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
         {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         let operator = tokens[cursor].clone();
         cursor += 1;
         let (right_expr, new_cursor) = parse_term(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
         cursor = new_cursor;
     }
 
@@ -606,7 +601,7 @@ pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression
 
 }
 
-pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_factor(tokens, cursor);
 
@@ -618,19 +613,19 @@ pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
         {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         let operator = tokens[cursor].clone();
         cursor += 1;
         let (right_expr, new_cursor) = parse_factor(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
         cursor = new_cursor;
     }
 
     return (expr, cursor);
 }
 
-pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
@@ -642,12 +637,12 @@ pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Ex
         {
             break;
         }
-        let left = Box::<expression::Expression>::new(expr);
+        let left = Box::<ast::expr::Expression>::new(expr);
         let operator = tokens[cursor].clone();
         cursor += 1;
         let (right_expr, new_cursor) = parse_unary(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
-        expr = expression::Expression::BinaryOperation ( BinaryOperation { left, operator, right } );
+        let right = Box::<ast::expr::Expression>::new(right_expr);
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
         cursor = new_cursor;
     }
 
@@ -655,7 +650,7 @@ pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Ex
 
 }
 
-pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let mut cursor = cursor;
 
@@ -668,18 +663,18 @@ pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Exp
         cursor += 1;
 
         let (right_expr, new_cursor) = parse_unary(tokens, cursor);
-        let right = Box::<expression::Expression>::new(right_expr);
+        let right = Box::<ast::expr::Expression>::new(right_expr);
 
         cursor = new_cursor;
 
-        return (expression::Expression::UnaryOperation ( UnaryOperation { operator, right } ), cursor);
+        return (ast::expr::Expression::UnaryOperation ( ast::expr::UnaryOperation { operator, right } ), cursor);
     }
 
     return parse_call(tokens, cursor);
 
 }
 
-pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
@@ -688,13 +683,13 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
         if tokens[cursor].kind == TokenKind::LeftParenthesis {
 
             cursor += 1;
-            let mut arguments = Vec::<expression::Expression>::new();
+            let mut arguments = Vec::<ast::expr::Expression>::new();
 
             loop {
                 if tokens[cursor].kind == TokenKind::RightParenthesis {
                     cursor += 1;
-                    expr = expression::Expression::Call (
-                        Call {
+                    expr = ast::expr::Expression::Call (
+                        ast::expr::Call {
                             callee: Box::new(expr),
                             arguments
                         }
@@ -702,7 +697,7 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
                     break;
                 }
                 else if arguments.len() < 255 {
-                    let argument: expression::Expression;
+                    let argument: ast::expr::Expression;
                     (argument, cursor) = parse_expression(tokens, cursor);
                     arguments.push(argument);
                     if tokens[cursor].kind == TokenKind::Comma {
@@ -710,8 +705,8 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
                     }
                     else if tokens[cursor].kind == TokenKind::RightParenthesis {
                         cursor += 1;
-                        expr = expression::Expression::Call (
-                            Call {
+                        expr = ast::expr::Expression::Call (
+                            ast::expr::Call {
                                 callee: Box::new(expr),
                                 arguments
                             }
@@ -734,8 +729,8 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
             }
             let identifier = tokens[cursor].clone();
             cursor += 1;
-            expr = expression::Expression::Get (
-                Get {
+            expr = ast::expr::Expression::Get (
+                ast::expr::Get {
                     instance: Box::new(expr),
                     property: identifier
                 }
@@ -749,7 +744,7 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( expression::Expr
     return (expr, cursor);
 }
 
-pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expression::Expression<'a>, usize ) {
+pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     if
         tokens[cursor].kind == TokenKind::Nil    ||
@@ -759,8 +754,8 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
         tokens[cursor].kind == TokenKind::String
     {
         return (
-            expression::Expression::Literal (
-                Literal {
+            ast::expr::Expression::Literal (
+                ast::expr::Literal {
                     token: tokens[cursor].clone()
                 }
             ),
@@ -770,7 +765,7 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
 
     if tokens[cursor].kind == TokenKind::This {
         return (
-            expression::Expression::This,
+            ast::expr::Expression::This,
             cursor + 1
         );
     }
@@ -788,8 +783,8 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
 
         if tokens[cursor].kind == TokenKind::Identifier {
             return (
-                expression::Expression::Super (
-                    Super {
+                ast::expr::Expression::Super (
+                    ast::expr::Super {
                         property: tokens[cursor].clone(),
                         lookup_hop_count: None,
                         env_slot_idx: None
@@ -806,8 +801,8 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
 
     if tokens[cursor].kind == TokenKind::Identifier {
         return (
-            expression::Expression::Variable (
-                Variable {
+            ast::expr::Expression::Variable (
+                ast::expr::Variable {
                     identifier: tokens[cursor].clone(),
                     lookup_hop_count: None,
                     env_slot_idx: None
@@ -829,7 +824,7 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( expressio
 
         cursor += 1;
 
-        return ( expression::Expression::Parentheses ( Parentheses { expression: Box::<expression::Expression>::new(expr) } ), cursor);
+        return ( ast::expr::Expression::Parentheses ( ast::expr::Parentheses { expression: Box::<ast::expr::Expression>::new(expr) } ), cursor);
     }
 
     syntax_error(tokens, cursor, &"Expect expression.");

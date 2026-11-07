@@ -4,11 +4,7 @@ use crate::lexer::*;
 use crate::context::*;
 use crate::interpreter::*;
 
-use crate::expression as expression;
-use crate::statement as statement;
-
-use crate::expression::*;
-use crate::statement::*;
+use crate::ast as ast;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {
@@ -41,8 +37,8 @@ impl<'a> SemanticPass<'a> {
             defs.insert_function (
                 FunctionDefinition {
                     pars: Vec::new(),
-                    body: Statement::Block (
-                        Block {
+                    body: ast::stmt::Statement::Block (
+                        ast::stmt::Block {
                             statements: Vec::new()
                         }
                     ),
@@ -79,11 +75,11 @@ impl<'a> SemanticPass<'a> {
         std::process::exit(1);
     }
 
-    pub fn visit_literal(&mut self, _: &mut expression::Literal<'a>) { }
+    pub fn visit_literal(&mut self, _: &mut ast::expr::Literal<'a>) { }
 
-    pub fn visit_variable(&mut self, expr: &mut expression::Variable<'a>) {
+    pub fn visit_variable(&mut self, expr: &mut ast::expr::Variable<'a>) {
 
-        let Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
+        let ast::expr::Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
         if !lookup_hop_count.is_none() {
             panic!();
         }
@@ -100,53 +96,53 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_super(&self, expr: &mut expression::Super<'a>) {
+    pub fn visit_super(&self, expr: &mut ast::expr::Super<'a>) {
 
         if self.class_context_stack.is_empty() {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
-        let expression::Super { lookup_hop_count, .. } = expr;
+        let ast::expr::Super { lookup_hop_count, .. } = expr;
         if !lookup_hop_count.is_none() {
             panic!();
         }
         self.context.find_symbol("super", &mut None, &mut None);
     }
 
-    pub fn visit_unary(&mut self, expr: &mut expression::UnaryOperation<'a>) {
+    pub fn visit_unary(&mut self, expr: &mut ast::expr::UnaryOperation<'a>) {
 
-        let expression::UnaryOperation { operator: _, right: rhs } = expr;
+        let ast::expr::UnaryOperation { operator: _, right: rhs } = expr;
         self.visit_expression(rhs);
     }
 
-    pub fn visit_parentheses(&mut self, expr: &mut expression::Parentheses<'a>) {
+    pub fn visit_parentheses(&mut self, expr: &mut ast::expr::Parentheses<'a>) {
 
-        let expression::Parentheses { expression: e } = expr;
+        let ast::expr::Parentheses { expression: e } = expr;
         self.visit_expression(e);
     }
 
-    pub fn visit_get(&mut self, expr: &mut expression::Get<'a>) {
+    pub fn visit_get(&mut self, expr: &mut ast::expr::Get<'a>) {
 
-        let expression::Get { instance, .. } = expr;
+        let ast::expr::Get { instance, .. } = expr;
         self.visit_expression(instance);
     }
 
-    pub fn visit_set(&mut self, expr: &mut expression::Set<'a>) {
+    pub fn visit_set(&mut self, expr: &mut ast::expr::Set<'a>) {
 
-        let expression::Set { instance, value, .. } = expr;
+        let ast::expr::Set { instance, value, .. } = expr;
         self.visit_expression(instance);
         self.visit_expression(value);
     }
 
-    pub fn visit_assignment(&mut self, expr: &mut expression::Assignment<'a>) {
+    pub fn visit_assignment(&mut self, expr: &mut ast::expr::Assignment<'a>) {
 
-        let expression::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
+        let ast::expr::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
         self.visit_expression(rhs);
         self.context.find_symbol(lhs.lexeme, lookup_hop_count, env_slot_idx);
     }
 
-    pub fn visit_binary(&mut self, expr: &mut expression::BinaryOperation<'a>) {
+    pub fn visit_binary(&mut self, expr: &mut ast::expr::BinaryOperation<'a>) {
 
-        let expression::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
+        let ast::expr::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
 
         self.visit_expression(lhs);
         self.visit_expression(rhs);
@@ -167,90 +163,90 @@ impl<'a> SemanticPass<'a> {
 
     }
 
-    pub fn visit_logical_or(&mut self, expr: &mut expression::LogicalOr<'a>) {
+    pub fn visit_logical_or(&mut self, expr: &mut ast::expr::LogicalOr<'a>) {
 
-        let expression::LogicalOr { left: lhs, right: rhs } = expr;
+        let ast::expr::LogicalOr { left: lhs, right: rhs } = expr;
         self.visit_expression(lhs);
         self.visit_expression(rhs);
     }
 
-    pub fn visit_logical_and(&mut self, expr: &mut expression::LogicalAnd<'a>) {
+    pub fn visit_logical_and(&mut self, expr: &mut ast::expr::LogicalAnd<'a>) {
 
-        let expression::LogicalAnd { left: lhs, right: rhs } = expr;
+        let ast::expr::LogicalAnd { left: lhs, right: rhs } = expr;
         self.visit_expression(lhs);
         self.visit_expression(rhs);
     }
 
-    pub fn visit_call(&mut self, expr: &mut expression::Call<'a>) {
+    pub fn visit_call(&mut self, expr: &mut ast::expr::Call<'a>) {
 
-        let expression::Call { callee, arguments } = expr;
+        let ast::expr::Call { callee, arguments } = expr;
         self.visit_expression(callee);
         for argument in arguments {
             self.visit_expression(argument);
         }
     }
 
-    pub fn visit_expression(&mut self, expr: &mut expression::Expression<'a>) {
+    pub fn visit_expression(&mut self, expr: &mut ast::expr::Expression<'a>) {
 
         match expr {
-            expression::Expression::Literal         (expr) => self.visit_literal(expr),
-            expression::Expression::UnaryOperation  (expr) => self.visit_unary(expr),
-            expression::Expression::BinaryOperation (expr) => self.visit_binary(expr),
-            expression::Expression::Parentheses     (expr) => self.visit_parentheses(expr),
-            expression::Expression::Variable        (expr) => self.visit_variable(expr),
-            expression::Expression::This                   => self.visit_this(),
-            expression::Expression::Assignment      (expr) => self.visit_assignment(expr),
-            expression::Expression::LogicalOr       (expr) => self.visit_logical_or(expr),
-            expression::Expression::LogicalAnd      (expr) => self.visit_logical_and(expr),
-            expression::Expression::Call            (expr) => self.visit_call(expr),
-            expression::Expression::Get             (expr) => self.visit_get(expr),
-            expression::Expression::Set             (expr) => self.visit_set(expr),
-            expression::Expression::Super           (expr) => self.visit_super(expr),
+            ast::expr::Expression::Literal         (expr) => self.visit_literal(expr),
+            ast::expr::Expression::UnaryOperation  (expr) => self.visit_unary(expr),
+            ast::expr::Expression::BinaryOperation (expr) => self.visit_binary(expr),
+            ast::expr::Expression::Parentheses     (expr) => self.visit_parentheses(expr),
+            ast::expr::Expression::Variable        (expr) => self.visit_variable(expr),
+            ast::expr::Expression::This                   => self.visit_this(),
+            ast::expr::Expression::Assignment      (expr) => self.visit_assignment(expr),
+            ast::expr::Expression::LogicalOr       (expr) => self.visit_logical_or(expr),
+            ast::expr::Expression::LogicalAnd      (expr) => self.visit_logical_and(expr),
+            ast::expr::Expression::Call            (expr) => self.visit_call(expr),
+            ast::expr::Expression::Get             (expr) => self.visit_get(expr),
+            ast::expr::Expression::Set             (expr) => self.visit_set(expr),
+            ast::expr::Expression::Super           (expr) => self.visit_super(expr),
         }
 
     }
 
-    pub fn visit_statement(&mut self, statement: &mut Statement<'a>) {
+    pub fn visit_statement(&mut self, statement: &mut ast::stmt::Statement<'a>) {
 
         match statement {
-            Statement::Expression(stmt)          => self.visit_expression_statement(stmt),
-            Statement::Print(stmt)               => self.visit_print_statement(stmt),
-            Statement::Return(stmt)              => self.visit_return_statement(stmt),
-            Statement::While(stmt)               => self.visit_while_statement(stmt),
-            Statement::For(stmt)                 => self.visit_for_statement(stmt),
-            Statement::VariableDeclaration(stmt) => self.visit_variable_declaration_statement(stmt),
-            Statement::FunctionDeclaration(stmt) => {
+            ast::stmt::Statement::Expression(stmt)          => self.visit_expression_statement(stmt),
+            ast::stmt::Statement::Print(stmt)               => self.visit_print_statement(stmt),
+            ast::stmt::Statement::Return(stmt)              => self.visit_return_statement(stmt),
+            ast::stmt::Statement::While(stmt)               => self.visit_while_statement(stmt),
+            ast::stmt::Statement::For(stmt)                 => self.visit_for_statement(stmt),
+            ast::stmt::Statement::VariableDeclaration(stmt) => self.visit_variable_declaration_statement(stmt),
+            ast::stmt::Statement::FunctionDeclaration(stmt) => {
                 self.function_context_stack.push(FunctionContext::Function);
                 self.visit_function_declaration_statement(stmt);
                 self.function_context_stack.pop();
             },
-            Statement::ClassDeclaration(stmt)   => self.visit_class_declaration_statement(stmt),
-            Statement::Block(stmt)              => self.visit_block_statement(stmt),
-            Statement::If(stmt)                 => self.visit_if_statement(stmt),
+            ast::stmt::Statement::ClassDeclaration(stmt)   => self.visit_class_declaration_statement(stmt),
+            ast::stmt::Statement::Block(stmt)              => self.visit_block_statement(stmt),
+            ast::stmt::Statement::If(stmt)                 => self.visit_if_statement(stmt),
         }
 
     }
 
-    pub fn visit_expression_statement(&mut self, stmt: &mut statement::Expression<'a>) {
-        let statement::Expression { expr } = stmt;
+    pub fn visit_expression_statement(&mut self, stmt: &mut ast::stmt::Expression<'a>) {
+        let ast::stmt::Expression { expr } = stmt;
         self.visit_expression(expr);
     }
 
-    pub fn visit_print_statement(&mut self, stmt: &mut statement::Print<'a>) {
-        let statement::Print { expr } = stmt;
+    pub fn visit_print_statement(&mut self, stmt: &mut ast::stmt::Print<'a>) {
+        let ast::stmt::Print { expr } = stmt;
         self.visit_expression(expr);
     }
 
-    pub fn visit_return_statement(&mut self, stmt: &mut statement::Return<'a>) {
+    pub fn visit_return_statement(&mut self, stmt: &mut ast::stmt::Return<'a>) {
 
         if self.function_context_stack.is_empty() {
             panic!("Can't return from top-level code.")
         }
 
-        let statement::Return { expr } = stmt;
+        let ast::stmt::Return { expr } = stmt;
 
         match expr {
-            Some ( statement::Expression { expr } ) => {
+            Some ( ast::stmt::Expression { expr } ) => {
                 if self.function_context_stack.last().unwrap() == &FunctionContext::Initializer {
                     panic!("Error at 'return': Can't return a value from an initializer.");
                 }
@@ -261,15 +257,15 @@ impl<'a> SemanticPass<'a> {
 
     }
 
-    pub fn visit_while_statement(&mut self, stmt: &mut statement::While<'a>) {
-        let While { condition: statement::Expression { expr }, body } = stmt;
+    pub fn visit_while_statement(&mut self, stmt: &mut ast::stmt::While<'a>) {
+        let ast::stmt::While { condition: ast::stmt::Expression { expr }, body } = stmt;
         self.visit_expression(expr);
         self.visit_statement(body);
     }
 
-    pub fn visit_for_statement(&mut self, stmt: &mut statement::For<'a>) {
+    pub fn visit_for_statement(&mut self, stmt: &mut ast::stmt::For<'a>) {
 
-        let statement::For {
+        let ast::stmt::For {
             init: initializer_statement,
             cond: condition_expression,
             incr: increment_expression,
@@ -282,22 +278,22 @@ impl<'a> SemanticPass<'a> {
             self.visit_statement(statement);
         }
 
-        if let Some ( statement::Expression { expr } ) = condition_expression {
+        if let Some ( ast::stmt::Expression { expr } ) = condition_expression {
             self.visit_expression(expr);
         }
 
         self.visit_statement(body_statement);
 
-        if let Some ( statement::Expression { expr } ) = increment_expression {
+        if let Some ( ast::stmt::Expression { expr } ) = increment_expression {
             self.visit_expression(expr);
         }
 
         self.context.pop_environment();
     }
 
-    pub fn visit_if_statement(&mut self, stmt: &mut statement::If<'a>) {
+    pub fn visit_if_statement(&mut self, stmt: &mut ast::stmt::If<'a>) {
 
-        let If { condition: statement::Expression { expr }, then_statement, else_statement } = stmt;
+        let ast::stmt::If { condition: ast::stmt::Expression { expr }, then_statement, else_statement } = stmt;
         self.visit_expression(expr);
         self.visit_statement(then_statement);
         if let Some(statement) = else_statement {
@@ -305,9 +301,9 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_function_declaration_statement(&mut self, stmt: &mut statement::FunctionDeclaration<'a>) {
+    pub fn visit_function_declaration_statement(&mut self, stmt: &mut ast::stmt::FunctionDeclaration<'a>) {
 
-        let FunctionDeclaration { id, pars, body, context_function_slot_idx, .. } = stmt;
+        let ast::stmt::FunctionDeclaration { id, pars, body, context_function_slot_idx, .. } = stmt;
 
         if !context_function_slot_idx.is_none() {
             panic!("Internal resolver error");
@@ -367,7 +363,7 @@ impl<'a> SemanticPass<'a> {
             );
         }
 
-        let Statement::Block ( Block { statements } ) = body.as_mut() else {
+        let ast::stmt::Statement::Block ( ast::stmt::Block { statements } ) = body.as_mut() else {
             panic!("Expected block statement");
         };
 
@@ -384,16 +380,16 @@ impl<'a> SemanticPass<'a> {
         self.context.pop_environment();
     }
 
-    pub fn visit_class_declaration_statement(&mut self, stmt: &mut statement::ClassDeclaration<'a>) {
+    pub fn visit_class_declaration_statement(&mut self, stmt: &mut ast::stmt::ClassDeclaration<'a>) {
 
-        let ClassDeclaration { id, method_decls, super_class, context_class_slot_idx } = stmt;
+        let ast::stmt::ClassDeclaration { id, method_decls, super_class, context_class_slot_idx } = stmt;
 
         let super_class_value: Option<Box<Value>>;
         let super_class_context_class_slot_idx: Option<usize>;
 
         if let Some ( expr ) = super_class {
 
-            let expression::Expression::Variable(expr) = expr else {
+            let ast::expr::Expression::Variable(expr) = expr else {
                 panic!("Expected variable expression");
             };
 
@@ -430,7 +426,7 @@ impl<'a> SemanticPass<'a> {
         }
 
         for method_decl in method_decls.iter_mut() {
-            let FunctionDeclaration { id, .. } = method_decl;
+            let ast::stmt::FunctionDeclaration { id, .. } = method_decl;
             if id.lexeme == "init" {
                 self.function_context_stack.push(FunctionContext::Initializer);
             }
@@ -444,7 +440,7 @@ impl<'a> SemanticPass<'a> {
         let mut class_method_map = HashMap::<Token, usize>::new();
 
         for method_decl in method_decls {
-            let FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
+            let ast::stmt::FunctionDeclaration { id, context_function_slot_idx, .. } = method_decl;
 
             class_method_map.insert (
                 id.clone(),
@@ -496,20 +492,20 @@ impl<'a> SemanticPass<'a> {
 
     }
 
-    pub fn visit_variable_declaration_statement(&mut self, stmt: &mut statement::VariableDeclaration<'a>) {
+    pub fn visit_variable_declaration_statement(&mut self, stmt: &mut ast::stmt::VariableDeclaration<'a>) {
 
-        let VariableDeclaration { id, init } = stmt;
+        let ast::stmt::VariableDeclaration { id, init } = stmt;
 
-        if let Some ( statement::Expression { expr } ) = init {
+        if let Some ( ast::stmt::Expression { expr } ) = init {
             self.visit_expression(expr);
         }
 
         self.context.insert_symbol(id.lexeme, Value::Nil);
     }
 
-    pub fn visit_block_statement(&mut self, stmt: &mut statement::Block<'a>) {
+    pub fn visit_block_statement(&mut self, stmt: &mut ast::stmt::Block<'a>) {
 
-        let Block { statements } = stmt;
+        let ast::stmt::Block { statements } = stmt;
         self.context.push_new_environment_auto();
         for statement in statements {
             self.visit_statement(statement);
@@ -517,7 +513,7 @@ impl<'a> SemanticPass<'a> {
         self.context.pop_environment();
     }
 
-    pub fn visit(&mut self, statements: &mut Vec<Statement<'a>>) {
+    pub fn visit(&mut self, statements: &mut Vec<ast::stmt::Statement<'a>>) {
         for statement in statements {
             self.visit_statement(statement);
         }
