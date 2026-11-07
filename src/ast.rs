@@ -1,28 +1,28 @@
 pub mod expr {
 
-    use crate::lexer::*;
+    use crate::lexer as lexer;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Literal<'a> {
-        pub token: Token<'a>
+        pub token: lexer::Token<'a>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Variable<'a> {
-        pub identifier: Token<'a>,
+        pub identifier: lexer::Token<'a>,
         pub lookup_hop_count: Option<usize>,
         pub env_slot_idx: Option<usize>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct UnaryOperation<'a> {
-        pub operator: Token<'a>,
+        pub operator: lexer::Token<'a>,
         pub right: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct BinaryOperation<'a> {
-        pub operator: Token<'a>,
+        pub operator: lexer::Token<'a>,
         pub left: Box<Expression<'a>>,
         pub right: Box<Expression<'a>>
     }
@@ -46,7 +46,7 @@ pub mod expr {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Assignment<'a> {
-        pub left: Token<'a>,
+        pub left: lexer::Token<'a>,
         pub lookup_hop_count: Option<usize>,
         pub env_slot_idx: Option<usize>,
         pub expression: Box<Expression<'a>>
@@ -61,19 +61,19 @@ pub mod expr {
     #[derive(Debug, Clone, PartialEq)]
     pub struct Set<'a> {
         pub instance: Box<Expression<'a>>,
-        pub property: Token<'a>,
+        pub property: lexer::Token<'a>,
         pub value: Box<Expression<'a>>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Get<'a> {
         pub instance: Box<Expression<'a>>,
-        pub property: Token<'a>
+        pub property: lexer::Token<'a>
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Super<'a> {
-        pub property: Token<'a>,
+        pub property: lexer::Token<'a>,
         pub lookup_hop_count: Option<usize>,
         pub env_slot_idx: Option<usize>
     }
@@ -98,7 +98,7 @@ pub mod expr {
 
 pub mod stmt {
 
-    use crate::lexer::*;
+    use crate::lexer as lexer;
     use crate::ast as ast;
 
     #[derive(Debug, PartialEq, Clone)]
@@ -139,8 +139,8 @@ pub mod stmt {
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct FunctionDeclaration<'a> {
-        pub id: Token<'a>,
-        pub pars: Vec<Token<'a>>,
+        pub id: lexer::Token<'a>,
+        pub pars: Vec<lexer::Token<'a>>,
         pub body: Box<Statement<'a>>,
         pub is_initializer: bool,
         pub is_method: bool,
@@ -149,7 +149,7 @@ pub mod stmt {
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct ClassDeclaration<'a> {
-        pub id: Token<'a>,
+        pub id: lexer::Token<'a>,
         pub method_decls: Vec<FunctionDeclaration<'a>>,
         pub super_class: Option<ast::expr::Expression<'a>>,
         pub context_class_slot_idx: Option<usize>
@@ -157,7 +157,7 @@ pub mod stmt {
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct VariableDeclaration<'a> {
-        pub id: Token<'a>,
+        pub id: lexer::Token<'a>,
         pub init: Option<Expression<'a>>
     }
 

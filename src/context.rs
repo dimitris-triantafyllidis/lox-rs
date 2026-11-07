@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::interpreter::*;
+use crate::interpreter as ipr;
 
 pub struct Environment<'a> {
-    pub symbols: Vec<(&'a str, Value)>,
+    pub symbols: Vec<(&'a str, ipr::Value)>,
     pub parent_key: Option<usize>,
     pub reachable: bool
 }
@@ -11,7 +11,7 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
-            symbols: Vec::<(&str, Value)>::new(),
+            symbols: Vec::<(&str, ipr::Value)>::new(),
             parent_key: parent_key,
             reachable: false
         }
@@ -20,27 +20,27 @@ impl<'a> Environment<'a> {
 
 #[derive(Clone)]
 pub struct Definitions<'a> {
-    pub classes: Vec<ClassDefinition<'a>>,
-    pub functions: Vec<FunctionDefinition<'a>>
+    pub classes: Vec<ipr::ClassDefinition<'a>>,
+    pub functions: Vec<ipr::FunctionDefinition<'a>>
 }
 
 impl<'a> Definitions<'a> {
 
     pub fn new() -> Self {
         Self {
-            classes: Vec::<ClassDefinition>::new(),
-            functions: Vec::<FunctionDefinition<'a>>::new()
+            classes: Vec::<ipr::ClassDefinition>::new(),
+            functions: Vec::<ipr::FunctionDefinition<'a>>::new()
         }
     }
 
-    pub fn insert_class(&mut self, class: ClassDefinition<'a>) -> usize {
+    pub fn insert_class(&mut self, class: ipr::ClassDefinition<'a>) -> usize {
         self.classes.push (
             class
         );
         return self.classes.len() - 1;
     }
 
-    pub fn insert_function(&mut self, function: FunctionDefinition<'a>) -> usize {
+    pub fn insert_function(&mut self, function: ipr::FunctionDefinition<'a>) -> usize {
         self.functions.push (
             function
         );
@@ -52,7 +52,7 @@ pub struct Context<'a> {
     pub environments: HashMap<usize, Environment<'a>>,
     pub environment_stack: Vec<usize>,
     pub next_env_id: usize,
-    pub instances: HashMap<usize, Instance<'a>>,
+    pub instances: HashMap<usize, ipr::Instance<'a>>,
     pub next_instance_id: usize
 }
 
@@ -63,12 +63,12 @@ impl<'a> Context<'a> {
             environments: HashMap::<usize, Environment>::new(),
             environment_stack: Vec::<usize>::new(),
             next_env_id: 0,
-            instances: HashMap::<usize, Instance<'a>>::new(),
+            instances: HashMap::<usize, ipr::Instance<'a>>::new(),
             next_instance_id: 0
         }
     }
 
-    pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
+    pub fn insert_instance(&mut self, instance: ipr::Instance<'a>) -> usize {
         self.instances.insert (
             self.next_instance_id,
             instance
@@ -156,7 +156,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> Value {
+    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> ipr::Value {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
@@ -180,7 +180,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &str, value: Value, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
+    pub fn set_symbol_value(&mut self, identifier: &str, value: ipr::Value, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
 
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get_mut(&env_id).unwrap();
@@ -205,7 +205,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &'a str, value: Value) {
+    pub fn insert_symbol(&mut self, identifier: &'a str, value: ipr::Value) {
 
         let id = *self
             .environment_stack
@@ -285,21 +285,21 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let Value::Function ( Function { context_function_slot_idx, closure_id } ) = value {
-                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
+                    if let ipr::Value::Function ( ipr::Function { context_function_slot_idx, closure_id } ) = value {
+                        let ipr::FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
                     }
-                    else if let Value::Instance ( instance_id ) = value {
+                    else if let ipr::Value::Instance ( instance_id ) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
                     }
-                    else if let Value::Class ( Class { closure_id, super_class, .. } ) = value {
+                    else if let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = value {
 
                         new_envs_to_visit.push(*closure_id);
 
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                            let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = b.as_ref() else {
                                 panic!("gc: Expected class value");
                             };
                             new_envs_to_visit.push(*closure_id);
@@ -329,14 +329,14 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let Value::Class ( Class { closure_id, super_class, .. } ) = instance.class.clone() {
+                if let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = instance.class.clone() {
 
                     env_ids_to_mark_stack.push(closure_id);
 
                     let mut s = super_class;
 
                     while let Some (b) = s {
-                        let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                        let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = b.as_ref() else {
                             panic!("gc: Expected class value");
                         };
                         env_ids_to_mark_stack.push(*closure_id);
@@ -350,24 +350,24 @@ impl<'a> Context<'a> {
 
                 for (_, property_value) in &instance.properties {
 
-                    if let Value::Class ( Class { closure_id, super_class, .. } ) = property_value {
+                    if let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = property_value {
                         env_ids_to_mark_stack.push(*closure_id);
 
                         let mut s = super_class;
 
                         while let Some (b) = s {
-                            let Value::Class ( Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                            let ipr::Value::Class ( ipr::Class { closure_id, super_class, .. } ) = b.as_ref() else {
                                 panic!("gc: Expected class value");
                             };
                             env_ids_to_mark_stack.push(*closure_id);
                             s = super_class;
                         }
                     }
-                    else if let Value::Function ( Function { context_function_slot_idx, closure_id } ) = property_value {
-                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
+                    else if let ipr::Value::Function ( ipr::Function { context_function_slot_idx, closure_id } ) = property_value {
+                        let ipr::FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
                     }
-                    else if let Value::Instance ( instance_id ) = property_value {
+                    else if let ipr::Value::Instance ( instance_id ) = property_value {
                         new_instances_to_visit.push(*instance_id);
                     }
 

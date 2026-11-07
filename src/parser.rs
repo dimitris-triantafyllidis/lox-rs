@@ -1,12 +1,12 @@
-use crate::lexer::*;
+use crate::lexer as lexer;
 use crate::ast as ast;
 
-pub fn syntax_error<'a>(tokens: &[Token<'a>], cursor: usize, message: &str) -> ! {
+pub fn syntax_error<'a>(tokens: &[lexer::Token<'a>], cursor: usize, message: &str) -> ! {
     eprintln!("Syntax error in line {}, '{}': {}", tokens[cursor].line_number, tokens[cursor].lexeme, message);
     std::process::exit(1);
 }
 
-pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
+pub fn parse<'a>(tokens: &[lexer::Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
 
     let mut cursor: usize = 0;
     let mut stmt: ast::stmt::Statement;
@@ -15,7 +15,7 @@ pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
 
     loop {
 
-        if tokens[cursor].kind == TokenKind::EOF {
+        if tokens[cursor].kind == lexer::TokenKind::EOF {
             break;
         }
 
@@ -27,15 +27,15 @@ pub fn parse<'a>(tokens: &[Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
     return statements;
 }
 
-pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
-    if tokens[cursor].kind == TokenKind::Var {
+    if tokens[cursor].kind == lexer::TokenKind::Var {
         return parse_variable_declaration(tokens, cursor + 1);
     }
-    if tokens[cursor].kind == TokenKind::Fun {
+    if tokens[cursor].kind == lexer::TokenKind::Fun {
         return parse_function_declaration(tokens, cursor + 1);
     }
-    if tokens[cursor].kind == TokenKind::Class {
+    if tokens[cursor].kind == lexer::TokenKind::Class {
         return parse_class_declaration(tokens, cursor + 1);
     }
     else {
@@ -43,41 +43,41 @@ pub fn parse_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt:
     }
 }
 
-pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_function_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind != TokenKind::Identifier {
+    if tokens[cursor].kind != lexer::TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expect variable name.");
     }
 
     let identifier = tokens[cursor].clone();
     cursor += 1;
 
-    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
         syntax_error(tokens, cursor, &"Expected '('");
     }
 
-    let mut parameters = Vec::<Token>::new();
+    let mut parameters = Vec::<lexer::Token>::new();
     cursor += 1;
 
     loop {
-        if tokens[cursor].kind == TokenKind::RightParenthesis {
+        if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
             cursor += 1;
             break;
         }
         else if parameters.len() < 255 {
-            if tokens[cursor].kind == TokenKind::Identifier {
+            if tokens[cursor].kind == lexer::TokenKind::Identifier {
                 parameters.push(tokens[cursor].clone());
                 cursor += 1;
             }
             else {
                 syntax_error(tokens, cursor, &"Expect variable name.");
             }
-            if tokens[cursor].kind == TokenKind::Comma {
+            if tokens[cursor].kind == lexer::TokenKind::Comma {
                 cursor += 1;
             }
-            else if tokens[cursor].kind == TokenKind::RightParenthesis {
+            else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                 cursor += 1;
                 break;
             }
@@ -90,7 +90,7 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (a
         }
     }
 
-    if tokens[cursor].kind != TokenKind::LeftBrace {
+    if tokens[cursor].kind != lexer::TokenKind::LeftBrace {
         syntax_error(tokens, cursor, &"Expect '{' before function body.");
     }
     cursor += 1;
@@ -110,11 +110,11 @@ pub fn parse_function_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (a
     )
 }
 
-pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_class_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind != TokenKind::Identifier {
+    if tokens[cursor].kind != lexer::TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expected identifier");
     }
 
@@ -123,9 +123,9 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast:
 
     let super_class: Option<ast::expr::Expression>;
 
-    if tokens[cursor].kind == TokenKind::Less {
+    if tokens[cursor].kind == lexer::TokenKind::Less {
         cursor += 1;
-        if tokens[cursor].kind != TokenKind::Identifier {
+        if tokens[cursor].kind != lexer::TokenKind::Identifier {
             syntax_error(tokens, cursor, &"Expect superclass name.");
         }
         if tokens[cursor] == identifier {
@@ -146,7 +146,7 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast:
         super_class = None;
     }
 
-    if tokens[cursor].kind != TokenKind::LeftBrace {
+    if tokens[cursor].kind != lexer::TokenKind::LeftBrace {
         syntax_error(tokens, cursor, &"Expected '{{'");
     }
 
@@ -154,7 +154,7 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast:
     cursor += 1;
 
     loop {
-        if tokens[cursor].kind == TokenKind::RightBrace {
+        if tokens[cursor].kind == lexer::TokenKind::RightBrace {
             return (
                 ast::stmt::Statement::ClassDeclaration (
                     ast::stmt::ClassDeclaration {
@@ -178,20 +178,20 @@ pub fn parse_class_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast:
     }
 }
 
-pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_variable_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
-    let id: Token;
+    let id: lexer::Token;
     let expr: ast::expr::Expression;
 
-    if tokens[cursor].kind != TokenKind::Identifier {
+    if tokens[cursor].kind != lexer::TokenKind::Identifier {
         syntax_error(tokens, cursor, &"Expect variable name.");
     }
     id = tokens[cursor].clone();
     cursor += 1;
-    if tokens[cursor].kind == TokenKind::Equal {
+    if tokens[cursor].kind == lexer::TokenKind::Equal {
         (expr, cursor) = parse_expression(tokens, cursor + 1);
-        if tokens[cursor].kind != TokenKind::Semicolon {
+        if tokens[cursor].kind != lexer::TokenKind::Semicolon {
             syntax_error(tokens, cursor, &"Expected ';'");
         }
         return (
@@ -200,7 +200,7 @@ pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (a
         );
     }
     else {
-        if tokens[cursor].kind != TokenKind::Semicolon {
+        if tokens[cursor].kind != lexer::TokenKind::Semicolon {
             syntax_error(tokens, cursor, &"Expected ';'");
         }
         return (
@@ -210,24 +210,24 @@ pub fn parse_variable_declaration<'a>(tokens: &[Token<'a>], cursor: usize) -> (a
     }
 }
 
-pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
-    if tokens[cursor].kind == TokenKind::Print {
+    if tokens[cursor].kind == lexer::TokenKind::Print {
         return parse_print_statement(tokens, cursor + 1);
     }
-    if tokens[cursor].kind == TokenKind::Return {
+    if tokens[cursor].kind == lexer::TokenKind::Return {
         return parse_return_statement(tokens, cursor + 1);
     }
-    else if tokens[cursor].kind == TokenKind::While {
+    else if tokens[cursor].kind == lexer::TokenKind::While {
         return parse_while_statement(tokens, cursor + 1);
     }
-    else if tokens[cursor].kind == TokenKind::For {
+    else if tokens[cursor].kind == lexer::TokenKind::For {
         return parse_for_statement(tokens, cursor + 1);
     }
-    else if tokens[cursor].kind == TokenKind::If {
+    else if tokens[cursor].kind == lexer::TokenKind::If {
         return parse_if_statement(tokens, cursor + 1);
     }
-    else if tokens[cursor].kind == TokenKind::LeftBrace {
+    else if tokens[cursor].kind == lexer::TokenKind::LeftBrace {
         return parse_block(tokens, cursor + 1);
     }
     else {
@@ -235,11 +235,11 @@ pub fn parse_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::S
     }
 }
 
-pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_while_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
         syntax_error(tokens, cursor, &"Expected '('");
     }
 
@@ -247,7 +247,7 @@ pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::s
 
     let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::RightParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::RightParenthesis {
         syntax_error(tokens, cursor, &"Expected ')'");
     }
 
@@ -266,7 +266,7 @@ pub fn parse_while_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::s
     );
 }
 
-pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
@@ -275,13 +275,13 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stm
     let increment_expression: Option<ast::stmt::Expression>;
     let body_statement: Box<ast::stmt::Statement>;
 
-    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
         syntax_error(tokens, cursor, &"Expected '('");
     }
 
     cursor += 1;
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
+    if tokens[cursor].kind == lexer::TokenKind::Semicolon {
         initializer_statement = None;
         cursor += 1;
     }
@@ -291,7 +291,7 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stm
         initializer_statement = Some(Box::new(is));
     }
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
+    if tokens[cursor].kind == lexer::TokenKind::Semicolon {
         condition_expression = None;
     }
     else {
@@ -302,7 +302,7 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stm
 
     cursor += 1;
 
-    if tokens[cursor].kind == TokenKind::RightParenthesis {
+    if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
         increment_expression = None;
     }
     else {
@@ -331,11 +331,11 @@ pub fn parse_for_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stm
 
 }
 
-pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_expression_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::Semicolon {
+    if tokens[cursor].kind != lexer::TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
@@ -344,19 +344,19 @@ pub fn parse_expression_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (a
     );
 }
 
-pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_block<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut statements = Vec::<ast::stmt::Statement>::new();
     let mut cursor = cursor;
 
     loop {
 
-        if tokens[cursor].kind == TokenKind::RightBrace {
+        if tokens[cursor].kind == lexer::TokenKind::RightBrace {
             cursor += 1;
             break;
         }
 
-        if tokens[cursor].kind == TokenKind::EOF {
+        if tokens[cursor].kind == lexer::TokenKind::EOF {
             syntax_error(tokens, cursor, &"Expected '}}'");
         }
 
@@ -375,11 +375,11 @@ pub fn parse_block<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::State
 
 }
 
-pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_print_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::Semicolon {
+    if tokens[cursor].kind != lexer::TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
@@ -388,9 +388,9 @@ pub fn parse_print_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::s
     );
 }
 
-pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_return_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
-    if tokens[cursor].kind == TokenKind::Semicolon {
+    if tokens[cursor].kind == lexer::TokenKind::Semicolon {
         return (
             ast::stmt::Statement::Return ( ast::stmt::Return { expr: None } ),
             cursor + 1
@@ -399,7 +399,7 @@ pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::
 
     let (expr, cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::Semicolon {
+    if tokens[cursor].kind != lexer::TokenKind::Semicolon {
         syntax_error(tokens, cursor, &"Expected ';'");
     }
     return (
@@ -408,11 +408,11 @@ pub fn parse_return_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::
     );
 }
 
-pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
+pub fn parse_if_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
 
     let mut cursor = cursor;
 
-    if tokens[cursor].kind != TokenKind::LeftParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
         syntax_error(tokens, cursor, &"Expected '('");
     }
 
@@ -420,7 +420,7 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt
 
     let (condition_expression, mut cursor) = parse_expression(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::RightParenthesis {
+    if tokens[cursor].kind != lexer::TokenKind::RightParenthesis {
         syntax_error(tokens, cursor, &"Expected ')'");
     }
 
@@ -428,7 +428,7 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt
 
     let (then_statement, mut cursor) = parse_statement(tokens, cursor);
 
-    if tokens[cursor].kind == TokenKind::Else {
+    if tokens[cursor].kind == lexer::TokenKind::Else {
 
         cursor += 1;
 
@@ -460,15 +460,15 @@ pub fn parse_if_statement<'a>(tokens: &[Token<'a>], cursor: usize) -> (ast::stmt
 
 }
 
-pub fn parse_expression<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_expression<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
     return parse_assignment(tokens, cursor);
 }
 
-pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_assignment<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
-    if tokens[cursor].kind != TokenKind::Equal {
+    if tokens[cursor].kind != lexer::TokenKind::Equal {
         return (expr, cursor);
     }
 
@@ -510,12 +510,12 @@ pub fn parse_assignment<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr:
     }
 }
 
-pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_logic_or<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
     loop {
-        if tokens[cursor].kind != TokenKind::Or {
+        if tokens[cursor].kind != lexer::TokenKind::Or {
             break;
         }
         let left = Box::<ast::expr::Expression>::new(expr);
@@ -530,12 +530,12 @@ pub fn parse_logic_or<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::E
 
 }
 
-pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_logic_and<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
     loop {
-        if tokens[cursor].kind != TokenKind::And {
+        if tokens[cursor].kind != lexer::TokenKind::And {
             break;
         }
         let left = Box::<ast::expr::Expression>::new(expr);
@@ -550,14 +550,14 @@ pub fn parse_logic_and<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::
 
 }
 
-pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_equality<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
     loop {
         if
-            tokens[cursor].kind != TokenKind::EqualEqual &&
-            tokens[cursor].kind != TokenKind::BangEqual
+            tokens[cursor].kind != lexer::TokenKind::EqualEqual &&
+            tokens[cursor].kind != lexer::TokenKind::BangEqual
         {
             break;
         }
@@ -574,17 +574,17 @@ pub fn parse_equality<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::E
 
 }
 
-pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_comparison<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
     loop {
 
         if
-            tokens[cursor].kind != TokenKind::Greater      &&
-            tokens[cursor].kind != TokenKind::GreaterEqual &&
-            tokens[cursor].kind != TokenKind::Less         &&
-            tokens[cursor].kind != TokenKind::LessEqual
+            tokens[cursor].kind != lexer::TokenKind::Greater      &&
+            tokens[cursor].kind != lexer::TokenKind::GreaterEqual &&
+            tokens[cursor].kind != lexer::TokenKind::Less         &&
+            tokens[cursor].kind != lexer::TokenKind::LessEqual
         {
             break;
         }
@@ -601,15 +601,15 @@ pub fn parse_comparison<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr:
 
 }
 
-pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_term<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_factor(tokens, cursor);
 
     loop {
 
         if
-            tokens[cursor].kind != TokenKind::Plus  &&
-            tokens[cursor].kind != TokenKind::Minus
+            tokens[cursor].kind != lexer::TokenKind::Plus  &&
+            tokens[cursor].kind != lexer::TokenKind::Minus
         {
             break;
         }
@@ -625,15 +625,15 @@ pub fn parse_term<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expre
     return (expr, cursor);
 }
 
-pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_factor<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
     loop {
 
         if
-            tokens[cursor].kind != TokenKind::Star  &&
-            tokens[cursor].kind != TokenKind::Slash
+            tokens[cursor].kind != lexer::TokenKind::Star  &&
+            tokens[cursor].kind != lexer::TokenKind::Slash
         {
             break;
         }
@@ -650,13 +650,13 @@ pub fn parse_factor<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Exp
 
 }
 
-pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_unary<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let mut cursor = cursor;
 
     if
-        tokens[cursor].kind == TokenKind::Bang  ||
-        tokens[cursor].kind == TokenKind::Minus
+        tokens[cursor].kind == lexer::TokenKind::Bang  ||
+        tokens[cursor].kind == lexer::TokenKind::Minus
     {
         let operator = tokens[cursor].clone();
 
@@ -674,19 +674,19 @@ pub fn parse_unary<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expr
 
 }
 
-pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_call<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
     loop {
 
-        if tokens[cursor].kind == TokenKind::LeftParenthesis {
+        if tokens[cursor].kind == lexer::TokenKind::LeftParenthesis {
 
             cursor += 1;
             let mut arguments = Vec::<ast::expr::Expression>::new();
 
             loop {
-                if tokens[cursor].kind == TokenKind::RightParenthesis {
+                if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                     cursor += 1;
                     expr = ast::expr::Expression::Call (
                         ast::expr::Call {
@@ -700,10 +700,10 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expre
                     let argument: ast::expr::Expression;
                     (argument, cursor) = parse_expression(tokens, cursor);
                     arguments.push(argument);
-                    if tokens[cursor].kind == TokenKind::Comma {
+                    if tokens[cursor].kind == lexer::TokenKind::Comma {
                         cursor += 1;
                     }
-                    else if tokens[cursor].kind == TokenKind::RightParenthesis {
+                    else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                         cursor += 1;
                         expr = ast::expr::Expression::Call (
                             ast::expr::Call {
@@ -722,9 +722,9 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expre
                 }
             }
         }
-        else if tokens[cursor].kind == TokenKind::Dot {
+        else if tokens[cursor].kind == lexer::TokenKind::Dot {
             cursor += 1;
-            if tokens[cursor].kind != TokenKind::Identifier {
+            if tokens[cursor].kind != lexer::TokenKind::Identifier {
                 syntax_error(tokens, cursor, &"Expect property name after '.'.");
             }
             let identifier = tokens[cursor].clone();
@@ -744,14 +744,14 @@ pub fn parse_call<'a>(tokens: &[Token<'a>], cursor: usize) -> ( ast::expr::Expre
     return (expr, cursor);
 }
 
-pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_primary<'a>(tokens: &[lexer::Token<'a>], mut cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
 
     if
-        tokens[cursor].kind == TokenKind::Nil    ||
-        tokens[cursor].kind == TokenKind::False  ||
-        tokens[cursor].kind == TokenKind::True   ||
-        tokens[cursor].kind == TokenKind::Number ||
-        tokens[cursor].kind == TokenKind::String
+        tokens[cursor].kind == lexer::TokenKind::Nil    ||
+        tokens[cursor].kind == lexer::TokenKind::False  ||
+        tokens[cursor].kind == lexer::TokenKind::True   ||
+        tokens[cursor].kind == lexer::TokenKind::Number ||
+        tokens[cursor].kind == lexer::TokenKind::String
     {
         return (
             ast::expr::Expression::Literal (
@@ -763,25 +763,25 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( ast::expr
         );
     }
 
-    if tokens[cursor].kind == TokenKind::This {
+    if tokens[cursor].kind == lexer::TokenKind::This {
         return (
             ast::expr::Expression::This,
             cursor + 1
         );
     }
 
-    if tokens[cursor].kind == TokenKind::Super {
+    if tokens[cursor].kind == lexer::TokenKind::Super {
 
         cursor += 1;
 
-        if tokens[cursor].kind == TokenKind::Dot {
+        if tokens[cursor].kind == lexer::TokenKind::Dot {
             cursor += 1;
         }
         else {
             syntax_error(tokens, cursor, &"Expect '.' after 'super'.");
         }
 
-        if tokens[cursor].kind == TokenKind::Identifier {
+        if tokens[cursor].kind == lexer::TokenKind::Identifier {
             return (
                 ast::expr::Expression::Super (
                     ast::expr::Super {
@@ -799,7 +799,7 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( ast::expr
 
     }
 
-    if tokens[cursor].kind == TokenKind::Identifier {
+    if tokens[cursor].kind == lexer::TokenKind::Identifier {
         return (
             ast::expr::Expression::Variable (
                 ast::expr::Variable {
@@ -812,13 +812,13 @@ pub fn parse_primary<'a>(tokens: &[Token<'a>], mut cursor: usize) -> ( ast::expr
         );
     }
 
-    if tokens[cursor].kind == TokenKind::LeftParenthesis {
+    if tokens[cursor].kind == lexer::TokenKind::LeftParenthesis {
         cursor += 1;
 
         let (expr, new_cursor) = parse_expression(tokens, cursor);
         cursor = new_cursor;
 
-        if tokens[cursor].kind != TokenKind::RightParenthesis {
+        if tokens[cursor].kind != lexer::TokenKind::RightParenthesis {
             syntax_error(tokens, cursor, &"Expected ')'");
         }
 
