@@ -25,7 +25,7 @@ fn run_file(file_path: &str) {
             lexer::print_token_stream(&tokens);
         },
         io::Result::Err(e) => {
-            eprintln!("io error: {}", e);
+            eprintln!("io error: {e}");
         }
     }
 

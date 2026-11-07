@@ -8,7 +8,7 @@ pub struct Environment<'a> {
     pub reachable: bool
 }
 
-impl<'a> Environment<'a> {
+impl Environment<'_> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
             symbols: Vec::<(&str, interpreter::Value)>::new(),
@@ -24,7 +24,7 @@ pub struct Definitions<'a> {
     pub functions: Vec<interpreter::FunctionDefinition<'a>>
 }
 
-impl<'a> Default for Definitions<'a> {
+impl Default for Definitions<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -62,7 +62,7 @@ pub struct Context<'a> {
     pub next_instance_id: usize
 }
 
-impl<'a> Default for Context<'a> {
+impl Default for Context<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -118,7 +118,7 @@ impl<'a> Context<'a> {
         let mut id = *self
             .environment_stack
             .last()
-            .unwrap_or_else(|| panic!("Symbol {:#?} not found: interpreter context is empty", identifier));
+            .unwrap_or_else(|| panic!("Symbol {identifier:#?} not found: interpreter context is empty"));
 
         match lookup_hop_count {
 
@@ -156,13 +156,13 @@ impl<'a> Context<'a> {
 
                     if hops_left == 0 {
                         let Some(..) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
-                            panic!("Undefined variable '{}'.", identifier);
+                            panic!("Undefined variable '{identifier}'.");
                         };
                         return id;
                     }
 
                     hops_left -= 1;
-                    id = env.parent_key.unwrap_or_else(|| panic!("Symbol {:#?} not found", identifier));
+                    id = env.parent_key.unwrap_or_else(|| panic!("Symbol {identifier:#?} not found"));
                 }
             }
         }
@@ -177,12 +177,8 @@ impl<'a> Context<'a> {
 
             None => {
                 let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier }) else {
-                    if identifier == "super" {
-                        panic!("Can't use 'super' in a class with no superclass.");
-                    }
-                    else {
-                        panic!("Symbol not found");
-                    }
+                    assert!(identifier != "super", "Can't use 'super' in a class with no superclass.");
+                    panic!("Symbol not found");
                 };
                 env.symbols[idx].1.clone()
             },
@@ -200,12 +196,8 @@ impl<'a> Context<'a> {
         match env_slot_idx {
             None => {
                 let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
-                    if identifier == "super" {
-                        panic!("Can't use 'super' in a class with no superclass.");
-                    }
-                    else {
-                        panic!("Symbol not found");
-                    }
+                    assert!(identifier != "super", "Can't use 'super' in a class with no superclass.");
+                    panic!("Symbol not found");
                 };
                 env.symbols[idx].1 = value;
                 *env_slot_idx = Some(idx);
@@ -229,12 +221,8 @@ impl<'a> Context<'a> {
             .expect("Environment id does not exist");
 
         if let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) {
-            if self.environment_stack.len() > 1 {
-                panic!("{identifier}: Already a variable with this name in this scope.");
-            }
-            else {
-                env.symbols[idx].1 = value;
-            }
+            assert!(self.environment_stack.len() <= 1, "{identifier}: Already a variable with this name in this scope.");
+            env.symbols[idx].1 = value;
         }
         else {
             env.symbols.push((identifier, value));

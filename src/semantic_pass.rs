@@ -21,7 +21,7 @@ pub struct SemanticPass<'a> {
     pub defs: context::Definitions<'a>
 }
 
-impl<'a> Default for SemanticPass<'a> {
+impl Default for SemanticPass<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -60,20 +60,18 @@ impl<'a> SemanticPass<'a> {
         let function_context_stack = Vec::<FunctionContext>::new();
         let class_context_stack = Vec::<ClassContext>::new();
 
-        if function_id != 0 {
-            panic!("Internal resolver error");
-        }
+        assert!(function_id == 0, "Internal resolver error");
 
         Self {
             context,
-            defs,
             function_context_stack,
             class_context_stack,
+            defs,
         }
     }
 
     pub fn compile_error(&self, message: &str) -> ! {
-        eprintln!("Compile error:, '{}'", message);
+        eprintln!("Compile error:, '{message}'");
         std::process::exit(1);
     }
 
@@ -82,9 +80,7 @@ impl<'a> SemanticPass<'a> {
     pub fn visit_variable(&mut self, expr: &mut ast::expr::Variable<'a>) {
 
         let ast::expr::Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
-        if !lookup_hop_count.is_none() {
-            panic!();
-        }
+        assert!(lookup_hop_count.is_none(), );
         self.context.find_symbol(id.lexeme, lookup_hop_count, env_slot_idx);
     }
 
@@ -93,9 +89,7 @@ impl<'a> SemanticPass<'a> {
         if self.class_context_stack.is_empty() {
             self.compile_error("Can't use 'this' outside of a class.'");
         }
-        else {
-            self.context.find_symbol("this", &mut None, &mut None);
-        }
+        self.context.find_symbol("this", &mut None, &mut None);
     }
 
     pub fn visit_super(&self, expr: &mut ast::expr::Super<'a>) {
@@ -104,9 +98,7 @@ impl<'a> SemanticPass<'a> {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
         let ast::expr::Super { lookup_hop_count, .. } = expr;
-        if !lookup_hop_count.is_none() {
-            panic!();
-        }
+        assert!(lookup_hop_count.is_none(), );
         self.context.find_symbol("super", &mut None, &mut None);
     }
 
@@ -150,15 +142,15 @@ impl<'a> SemanticPass<'a> {
         self.visit_expression(rhs);
 
         match op.kind {
-            lexer::TokenKind::Plus         => { },
-            lexer::TokenKind::Minus        => { },
-            lexer::TokenKind::Star         => { },
-            lexer::TokenKind::Slash        => { },
-            lexer::TokenKind::EqualEqual   => { },
-            lexer::TokenKind::BangEqual    => { },
-            lexer::TokenKind::Less         => { },
-            lexer::TokenKind::LessEqual    => { },
-            lexer::TokenKind::Greater      => { },
+            lexer::TokenKind::Plus |
+            lexer::TokenKind::Minus |
+            lexer::TokenKind::Star |
+            lexer::TokenKind::Slash |
+            lexer::TokenKind::EqualEqual |
+            lexer::TokenKind::BangEqual |
+            lexer::TokenKind::Less |
+            lexer::TokenKind::LessEqual |
+            lexer::TokenKind::Greater |
             lexer::TokenKind::GreaterEqual => { },
             _ => panic!()
         }
@@ -241,16 +233,12 @@ impl<'a> SemanticPass<'a> {
 
     pub fn visit_return_statement(&mut self, stmt: &mut ast::stmt::Return<'a>) {
 
-        if self.function_context_stack.is_empty() {
-            panic!("Can't return from top-level code.")
-        }
+        assert!(!self.function_context_stack.is_empty(), "Can't return from top-level code.");
 
         let ast::stmt::Return { expr } = stmt;
 
         if let Some ( ast::stmt::Expression { expr } ) = expr {
-            if self.function_context_stack.last().unwrap() == &FunctionContext::Initializer {
-                panic!("Error at 'return': Can't return a value from an initializer.");
-            }
+            assert!(self.function_context_stack.last().unwrap() != &FunctionContext::Initializer, "Error at 'return': Can't return a value from an initializer.");
             self.visit_expression(expr);
         }
 
@@ -304,11 +292,10 @@ impl<'a> SemanticPass<'a> {
 
         let ast::stmt::FunctionDeclaration { id, pars, body, context_function_slot_idx, .. } = stmt;
 
-        if !context_function_slot_idx.is_none() {
-            panic!("Internal resolver error");
-        }
-        else {
+        if context_function_slot_idx.is_none() {
             *context_function_slot_idx = Some(self.defs.functions.len());
+        } else {
+            panic!("Internal resolver error");
         }
 
         let function_context = self.function_context_stack.last().cloned().unwrap();
@@ -459,12 +446,8 @@ impl<'a> SemanticPass<'a> {
             self.context.pop_environment();
         }
 
-        if context_class_slot_idx.is_some() {
-            panic!("Internal resolver error");
-        }
-        else {
-            *context_class_slot_idx = Some(self.defs.classes.len());
-        }
+        assert!(!context_class_slot_idx.is_some(), "Internal resolver error");
+        *context_class_slot_idx = Some(self.defs.classes.len());
 
         self.defs.insert_class (
             interpreter::ClassDefinition {

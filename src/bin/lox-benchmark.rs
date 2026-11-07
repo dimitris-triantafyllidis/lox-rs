@@ -65,7 +65,7 @@ fn run_file(file_path: &str) {
             interpreter.execute(&syntax_tree, &defs);
         },
         io::Result::Err(e) => {
-            eprintln!("io error: {}", e);
+            eprintln!("io error: {e}");
         }
     }
 

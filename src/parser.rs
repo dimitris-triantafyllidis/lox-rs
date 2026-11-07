@@ -1,6 +1,6 @@
 use crate::{lexer, ast};
 
-pub fn syntax_error<'a>(tokens: &[lexer::Token<'a>], cursor: usize, message: &str) -> ! {
+pub fn syntax_error(tokens: &[lexer::Token<'_>], cursor: usize, message: &str) -> ! {
     eprintln!("Syntax error in line {}, '{}': {}", tokens[cursor].line_number, tokens[cursor].lexeme, message);
     std::process::exit(1);
 }
@@ -167,13 +167,11 @@ pub fn parse_class_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -
                 cursor + 1
             );
         }
-        else {
-            let method: ast::stmt::Statement;
-            (method, cursor) = parse_function_declaration(tokens, cursor);
+        let method: ast::stmt::Statement;
+        (method, cursor) = parse_function_declaration(tokens, cursor);
 
-            if let ast::stmt::Statement::FunctionDeclaration (m) = method {
-                methods.push(m);
-            }
+        if let ast::stmt::Statement::FunctionDeclaration (m) = method {
+            methods.push(m);
         }
     }
 }
@@ -563,7 +561,7 @@ pub fn parse_equality<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::
         cursor += 1;
         let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
         cursor = new_cursor;
     }
 
@@ -590,7 +588,7 @@ pub fn parse_comparison<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast
         cursor += 1;
         let (right_expr, new_cursor) = parse_term(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
         cursor = new_cursor;
     }
 
@@ -615,7 +613,7 @@ pub fn parse_term<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr
         cursor += 1;
         let (right_expr, new_cursor) = parse_factor(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
         cursor = new_cursor;
     }
 
@@ -639,7 +637,7 @@ pub fn parse_factor<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::ex
         cursor += 1;
         let (right_expr, new_cursor) = parse_unary(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { left, operator, right } );
+        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
         cursor = new_cursor;
     }
 
@@ -731,7 +729,7 @@ pub fn parse_call<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr
                     instance: Box::new(expr),
                     property: identifier
                 }
-            )
+            );
         }
         else {
             break;
@@ -790,9 +788,7 @@ pub fn parse_primary<'a>(tokens: &[lexer::Token<'a>], mut cursor: usize) -> ( as
                 cursor + 1
             );
         }
-        else {
-            syntax_error(tokens, cursor, "Expect superclass method name.");
-        }
+        syntax_error(tokens, cursor, "Expect superclass method name.");
 
     }
 

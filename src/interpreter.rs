@@ -117,7 +117,7 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn runtime_error(&self, message: &str) -> ! {
-        eprintln!("Runtime error:, '{}'", message);
+        eprintln!("Runtime error:, '{message}'");
         std::process::exit(1);
     }
 
@@ -319,7 +319,7 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn op_add(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_add(&self, vl: &Value, vr: &Value) -> Value {
 
         if let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) {
             Value::Number(vl + vr)
@@ -332,7 +332,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_sub(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_sub(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -340,7 +340,7 @@ impl<'a> Interpreter<'a> {
         Value::Number(vl - vr)
     }
 
-    pub fn op_mul(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_mul(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -348,7 +348,7 @@ impl<'a> Interpreter<'a> {
         Value::Number(vl * vr)
     }
 
-    pub fn op_div(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_div(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -356,15 +356,15 @@ impl<'a> Interpreter<'a> {
         Value::Number(vl / vr)
     }
 
-    pub fn op_equal(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_equal(&self, vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl == vr)
     }
 
-    pub fn op_not_equal(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_not_equal(&self, vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl != vr)
     }
 
-    pub fn op_less(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_less(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -372,7 +372,7 @@ impl<'a> Interpreter<'a> {
         Value::Boolean(vl < vr)
     }
 
-    pub fn op_less_equal(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_less_equal(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -380,7 +380,7 @@ impl<'a> Interpreter<'a> {
         Value::Boolean(vl <= vr)
     }
 
-    pub fn op_greater(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_greater(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -388,7 +388,7 @@ impl<'a> Interpreter<'a> {
         Value::Boolean(vl > vr)
     }
 
-    pub fn op_greater_equal(&self, vl: Value, vr: Value) -> Value {
+    pub fn op_greater_equal(&self, vl: &Value, vr: &Value) -> Value {
 
         let ( Value::Number (vl), Value::Number (vr) ) = ( &vl, &vr ) else {
             self.runtime_error("Operands must be numbers.");
@@ -404,16 +404,16 @@ impl<'a> Interpreter<'a> {
         let rhs_value = self.evaluate_expression(rhs, defs).value;
 
         match op.kind {
-            lexer::TokenKind::Plus         => return NodeResult::new ( self.op_add           ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::Minus        => return NodeResult::new ( self.op_sub           ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::Star         => return NodeResult::new ( self.op_mul           ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::Slash        => return NodeResult::new ( self.op_div           ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::Less         => return NodeResult::new ( self.op_less          ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::LessEqual    => return NodeResult::new ( self.op_less_equal    ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::Greater      => return NodeResult::new ( self.op_greater       ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::GreaterEqual => return NodeResult::new ( self.op_greater_equal ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::EqualEqual   => return NodeResult::new ( self.op_equal         ( lhs_value, rhs_value ), Control::Continue ),
-            lexer::TokenKind::BangEqual    => return NodeResult::new ( self.op_not_equal     ( lhs_value, rhs_value ), Control::Continue ),
+            lexer::TokenKind::Plus         => return NodeResult::new ( self.op_add           ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::Minus        => return NodeResult::new ( self.op_sub           ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::Star         => return NodeResult::new ( self.op_mul           ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::Slash        => return NodeResult::new ( self.op_div           ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::Less         => return NodeResult::new ( self.op_less          ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::LessEqual    => return NodeResult::new ( self.op_less_equal    ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::Greater      => return NodeResult::new ( self.op_greater       ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::GreaterEqual => return NodeResult::new ( self.op_greater_equal ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::EqualEqual   => return NodeResult::new ( self.op_equal         ( &lhs_value, &rhs_value ), Control::Continue ),
+            lexer::TokenKind::BangEqual    => return NodeResult::new ( self.op_not_equal     ( &lhs_value, &rhs_value ), Control::Continue ),
             _ => {}
         }
 
@@ -441,12 +441,11 @@ impl<'a> Interpreter<'a> {
 
         let lhs_result = self.evaluate_expression(lhs, defs);
 
-        if !is_truthy(&lhs_result.value) {
-            NodeResult::new ( lhs_result.value, Control::Continue )
-        }
-        else {
+        if is_truthy(&lhs_result.value) {
             let rhs_result = self.evaluate_expression(rhs, defs);
             NodeResult::new ( rhs_result.value, Control::Continue )
+        } else {
+            NodeResult::new ( lhs_result.value, Control::Continue )
         }
     }
 
@@ -493,10 +492,8 @@ impl<'a> Interpreter<'a> {
                         self.context.pop_environment();
                         return return_value;
                     }
-                    else {
-                        self.context.pop_environment();
-                        return statement_result.value;
-                    }
+                    self.context.pop_environment();
+                    return statement_result.value;
                 }
             }
 
@@ -669,7 +666,7 @@ impl<'a> Interpreter<'a> {
             Value::Function ( Function { context_function_slot_idx, .. } ) => {
                 let FunctionDefinition { is_native, is_method, name, .. } = &defs.functions[context_function_slot_idx];
                 if *is_method {
-                    println!("<fn method>")
+                    println!("<fn method>");
                 }
                 else if *is_native {
                     println!("<native fn>");
@@ -680,14 +677,14 @@ impl<'a> Interpreter<'a> {
             },
             Value::Class ( Class { context_class_slot_idx, .. } ) => {
                 let ClassDefinition { name, ..} = &defs.classes[context_class_slot_idx];
-                println!("{}", name);
+                println!("{name}");
             },
             Value::Instance ( instance_id ) => {
                 let instance = self.context.instances.get(&instance_id).unwrap();
                 let Instance { class, .. } = instance;
                 let Value::Class ( Class { context_class_slot_idx, .. } ) = class else { panic!() };
                 let ClassDefinition { name, .. } = &defs.classes[*context_class_slot_idx];
-                println!("{} instance", name)
+                println!("{name} instance");
             }
         }
 
@@ -786,9 +783,7 @@ impl<'a> Interpreter<'a> {
 
         let ast::stmt::FunctionDeclaration { id, context_function_slot_idx, .. } = stmt;
 
-        if context_function_slot_idx.is_none() {
-            panic!("Internal interpreter error: {}", id.lexeme);
-        }
+        assert!(!context_function_slot_idx.is_none(), "Internal interpreter error: {}", id.lexeme);
 
         self.context.insert_symbol (
             id.lexeme,

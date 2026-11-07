@@ -44,7 +44,7 @@ pub struct Token<'a> {
     pub line_number: usize
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl fmt::Display for Token<'_> {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
@@ -88,7 +88,7 @@ impl<'a> fmt::Display for Token<'a> {
             TokenKind::EOF              => write!(f, "EOF  null"),
             TokenKind::Number => {
                 let value = self.lexeme.parse::<f64>().unwrap();
-                let formatted = if value.fract() == 0.0 { format!("{:.1}", value) } else { value.to_string() };
+                let formatted = if value.fract() == 0.0 { format!("{value:.1}") } else { value.to_string() };
                 write!(f, "NUMBER {} {}", self.lexeme, formatted)
             }
         }
@@ -149,7 +149,7 @@ pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
         }
         else
         {
-            panic!("Lexical error in line {}: Unrecognizable token", line_number);
+            panic!("Lexical error in line {line_number}: Unrecognizable token");
         }
 
     }
@@ -168,26 +168,26 @@ pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
 pub fn print_token_stream(tokens: &[Token]) {
 
     for token in tokens {
-        println!("{}", token);
+        println!("{token}");
     }
 }
 
-fn match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_one_or_two_character_token(characters: &str, cursor: usize, line_number: usize) -> Option<(Token<'_>, usize)> {
 
     // One-character tokens
 
     match characters.as_bytes()[cursor] {
-        b'(' => { return Some ( ( Token { kind: TokenKind::LeftParenthesis  , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b')' => { return Some ( ( Token { kind: TokenKind::RightParenthesis , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'{' => { return Some ( ( Token { kind: TokenKind::LeftBrace        , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'}' => { return Some ( ( Token { kind: TokenKind::RightBrace       , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b',' => { return Some ( ( Token { kind: TokenKind::Comma            , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'.' => { return Some ( ( Token { kind: TokenKind::Dot              , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'-' => { return Some ( ( Token { kind: TokenKind::Minus            , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'+' => { return Some ( ( Token { kind: TokenKind::Plus             , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b';' => { return Some ( ( Token { kind: TokenKind::Semicolon        , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'/' => { return Some ( ( Token { kind: TokenKind::Slash            , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'*' => { return Some ( ( Token { kind: TokenKind::Star             , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
+        b'(' => { return Some ( ( Token { kind: TokenKind::LeftParenthesis  , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b')' => { return Some ( ( Token { kind: TokenKind::RightParenthesis , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'{' => { return Some ( ( Token { kind: TokenKind::LeftBrace        , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'}' => { return Some ( ( Token { kind: TokenKind::RightBrace       , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b',' => { return Some ( ( Token { kind: TokenKind::Comma            , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'.' => { return Some ( ( Token { kind: TokenKind::Dot              , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'-' => { return Some ( ( Token { kind: TokenKind::Minus            , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'+' => { return Some ( ( Token { kind: TokenKind::Plus             , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b';' => { return Some ( ( Token { kind: TokenKind::Semicolon        , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'/' => { return Some ( ( Token { kind: TokenKind::Slash            , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'*' => { return Some ( ( Token { kind: TokenKind::Star             , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
         _   => ()
     }
 
@@ -195,26 +195,26 @@ fn match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line
 
     if cursor < characters.len() - 1 {
         match (characters.as_bytes()[cursor], characters.as_bytes()[cursor + 1]) {
-            (b'!', b'=') => { return Some ( ( Token { kind: TokenKind::BangEqual    , lexeme: &characters[cursor..cursor+2], line_number }, line_number ) ) },
-            (b'=', b'=') => { return Some ( ( Token { kind: TokenKind::EqualEqual   , lexeme: &characters[cursor..cursor+2], line_number }, line_number ) ) },
-            (b'>', b'=') => { return Some ( ( Token { kind: TokenKind::GreaterEqual , lexeme: &characters[cursor..cursor+2], line_number }, line_number ) ) },
-            (b'<', b'=') => { return Some ( ( Token { kind: TokenKind::LessEqual    , lexeme: &characters[cursor..cursor+2], line_number }, line_number ) ) },
+            (b'!', b'=') => { return Some ( ( Token { kind: TokenKind::BangEqual    , lexeme: &characters[cursor..=cursor+1], line_number }, line_number ) ) },
+            (b'=', b'=') => { return Some ( ( Token { kind: TokenKind::EqualEqual   , lexeme: &characters[cursor..=cursor+1], line_number }, line_number ) ) },
+            (b'>', b'=') => { return Some ( ( Token { kind: TokenKind::GreaterEqual , lexeme: &characters[cursor..=cursor+1], line_number }, line_number ) ) },
+            (b'<', b'=') => { return Some ( ( Token { kind: TokenKind::LessEqual    , lexeme: &characters[cursor..=cursor+1], line_number }, line_number ) ) },
             _          => ()
         }
     }
 
     match characters.as_bytes()[cursor] {
-        b'!' => { return Some ( ( Token { kind: TokenKind::Bang    , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'=' => { return Some ( ( Token { kind: TokenKind::Equal   , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'>' => { return Some ( ( Token { kind: TokenKind::Greater , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
-        b'<' => { return Some ( ( Token { kind: TokenKind::Less    , lexeme: &characters[cursor..cursor+1], line_number }, line_number ) ) },
+        b'!' => { return Some ( ( Token { kind: TokenKind::Bang    , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'=' => { return Some ( ( Token { kind: TokenKind::Equal   , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'>' => { return Some ( ( Token { kind: TokenKind::Greater , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
+        b'<' => { return Some ( ( Token { kind: TokenKind::Less    , lexeme: &characters[cursor..=cursor], line_number }, line_number ) ) },
         _   => ()
     }
 
     None
 }
 
-fn match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_keyword_or_identifier(characters: &str, cursor_start: usize, line_number: usize) -> Option<(Token<'_>, usize)> {
 
     let mut cursor_end = cursor_start;
 
@@ -260,7 +260,7 @@ fn match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, lin
     None
 }
 
-fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)>  {
+fn match_string_literal(characters: &str, cursor_start: usize, line_number: usize) -> Option<(Token<'_>, usize)>  {
 
     let mut cursor_end = cursor_start;
 
@@ -276,7 +276,7 @@ fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
                     line_number += 1;
                 }
                 if cursor_end == characters.len() - 1 {
-                    eprintln!("[line {}] Error: Unterminated string.", line_number);
+                    eprintln!("[line {line_number}] Error: Unterminated string.");
                     process::exit(1);
                 }
                 cursor_end += 1;
@@ -301,7 +301,7 @@ fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
     None
 }
 
-fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
+fn match_number_literal(characters: &str, cursor_start: usize, line_number: usize) -> Option<(Token<'_>, usize)> {
 
     let mut cursor_end = cursor_start;
 
@@ -314,13 +314,11 @@ fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
         while cursor_end < characters.len() {
 
             if characters.as_bytes()[cursor_end] == b'.' {
-                if !seen_dot {
-                    seen_dot = true;
-                    cursor_end += 1;
-                }
-                else {
+                if seen_dot {
                     return None;
                 }
+                seen_dot = true;
+                cursor_end += 1;
             }
             else if characters.as_bytes()[cursor_end].is_ascii_digit() {
                 cursor_end += 1;
@@ -334,34 +332,32 @@ fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
         }
     }
 
-    if !characters[cursor_start..cursor_end].is_empty() {
-        if characters.as_bytes()[cursor_end - 1] != b'.' {
-            Some (
-                (
-                    Token {
-                        kind: TokenKind::Number,
-                        lexeme: &characters[cursor_start..cursor_end],
-                        line_number
-                    },
+    if characters[cursor_start..cursor_end].is_empty() {
+        None
+    }
+    else if characters.as_bytes()[cursor_end - 1] != b'.' {
+        Some (
+            (
+                Token {
+                    kind: TokenKind::Number,
+                    lexeme: &characters[cursor_start..cursor_end],
                     line_number
-                )
+                },
+                line_number
             )
-        }
-        else {
-            Some (
-                (
-                    Token {
-                        kind: TokenKind::Number,
-                        lexeme: &characters[cursor_start..cursor_end - 1],
-                        line_number
-                    },
-                    line_number
-                )
-            )
-        }
+        )
     }
     else {
-        None
+        Some (
+            (
+                Token {
+                    kind: TokenKind::Number,
+                    lexeme: &characters[cursor_start..cursor_end - 1],
+                    line_number
+                },
+                line_number
+            )
+        )
     }
 }
 

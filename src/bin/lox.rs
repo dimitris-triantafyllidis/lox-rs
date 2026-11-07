@@ -30,7 +30,7 @@ fn run_file(file_path: &String) {
             interpreter.execute(&syntax_tree, &defs);
         },
         io::Result::Err(e) => {
-            eprintln!("io error: {}", e);
+            eprintln!("io error: {e}");
         }
     }
 
