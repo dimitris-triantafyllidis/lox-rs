@@ -157,7 +157,7 @@ pub fn scan<'a>(characters: &'a str) -> Vec<Token<'a>> {
     tokens.push (
         Token {
             kind: TokenKind::EOF,
-            lexeme: &"end",
+            lexeme: "end",
             line_number
         }
     );
@@ -170,7 +170,6 @@ pub fn print_token_stream(tokens: &[Token]) {
     for token in tokens {
         println!("{}", token);
     }
-
 }
 
 fn match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
@@ -212,8 +211,7 @@ fn match_one_or_two_character_token<'a>(characters: &'a str, cursor: usize, line
         _   => ()
     }
 
-    return None;
-
+    None
 }
 
 fn match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
@@ -259,8 +257,7 @@ fn match_keyword_or_identifier<'a>(characters: &'a str, cursor_start: usize, lin
 
     }
 
-    return None;
-
+    None
 }
 
 fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)>  {
@@ -301,8 +298,7 @@ fn match_string_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
         }
     }
 
-    return None;
-
+    None
 }
 
 fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_number: usize) -> Option<(Token<'a>, usize)> {
@@ -340,34 +336,32 @@ fn match_number_literal<'a>(characters: &'a str, cursor_start: usize, line_numbe
 
     if !characters[cursor_start..cursor_end].is_empty() {
         if characters.as_bytes()[cursor_end - 1] != b'.' {
-            return
-                Some (
-                    (
-                        Token {
-                            kind: TokenKind::Number,
-                            lexeme: &characters[cursor_start..cursor_end],
-                            line_number
-                        },
+            Some (
+                (
+                    Token {
+                        kind: TokenKind::Number,
+                        lexeme: &characters[cursor_start..cursor_end],
                         line_number
-                    )
-                );
+                    },
+                    line_number
+                )
+            )
         }
         else {
-            return
-                Some (
-                    (
-                        Token {
-                            kind: TokenKind::Number,
-                            lexeme: &characters[cursor_start..cursor_end - 1],
-                            line_number
-                        },
+            Some (
+                (
+                    Token {
+                        kind: TokenKind::Number,
+                        lexeme: &characters[cursor_start..cursor_end - 1],
                         line_number
-                    )
-                );
+                    },
+                    line_number
+                )
+            )
         }
     }
     else {
-        return None;
+        None
     }
 }
 

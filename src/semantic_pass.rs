@@ -21,6 +21,12 @@ pub struct SemanticPass<'a> {
     pub defs: context::Definitions<'a>
 }
 
+impl<'a> Default for SemanticPass<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> SemanticPass<'a> {
 
     pub fn new() -> Self {
@@ -241,14 +247,11 @@ impl<'a> SemanticPass<'a> {
 
         let ast::stmt::Return { expr } = stmt;
 
-        match expr {
-            Some ( ast::stmt::Expression { expr } ) => {
-                if self.function_context_stack.last().unwrap() == &FunctionContext::Initializer {
-                    panic!("Error at 'return': Can't return a value from an initializer.");
-                }
-                self.visit_expression(expr);
-            },
-            None => { }
+        if let Some ( ast::stmt::Expression { expr } ) = expr {
+            if self.function_context_stack.last().unwrap() == &FunctionContext::Initializer {
+                panic!("Error at 'return': Can't return a value from an initializer.");
+            }
+            self.visit_expression(expr);
         }
 
     }
@@ -341,7 +344,7 @@ impl<'a> SemanticPass<'a> {
         );
 
         self.context.insert_symbol (
-            &id.lexeme,
+            id.lexeme,
             interpreter::Value::Function (
                 interpreter::Function {
                     context_function_slot_idx: context_function_slot_idx.unwrap(),
@@ -352,9 +355,9 @@ impl<'a> SemanticPass<'a> {
 
         self.context.push_new_environment_auto();
 
-        for i in 0..pars.len() {
+        for par in pars {
             self.context.insert_symbol (
-                pars[i].lexeme,
+                par.lexeme,
                 interpreter::Value::Nil
             );
         }
@@ -412,11 +415,11 @@ impl<'a> SemanticPass<'a> {
         self.class_context_stack.push(ClassContext::Class);
 
         self.context.insert_symbol (
-            &id.lexeme,
+            id.lexeme,
             interpreter::Value::Nil
         );
 
-        if let Some(..) = super_class {
+        if super_class.is_some() {
             self.context.push_new_environment_auto();
             self.context.insert_symbol("super", interpreter::Value::Nil);
         }
@@ -452,11 +455,11 @@ impl<'a> SemanticPass<'a> {
 
         let class_closure_id = self.context.get_current_environment_id();
 
-        if let Some(..) = super_class {
+        if super_class.is_some() {
             self.context.pop_environment();
         }
 
-        if let Some(..) = context_class_slot_idx {
+        if context_class_slot_idx.is_some() {
             panic!("Internal resolver error");
         }
         else {
@@ -472,7 +475,7 @@ impl<'a> SemanticPass<'a> {
         );
 
         self.context.set_symbol_value (
-            &id.lexeme,
+            id.lexeme,
             interpreter::Value::Class (
                 interpreter::Class {
                     context_class_slot_idx: context_class_slot_idx.unwrap(),
@@ -513,7 +516,6 @@ impl<'a> SemanticPass<'a> {
         for statement in statements {
             self.visit_statement(statement);
         }
-        return;
     }
 
 }

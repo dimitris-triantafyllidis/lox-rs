@@ -14,7 +14,7 @@ fn main() -> ExitCode {
         run_file(&args[1]);
     }
 
-    return ExitCode::from(0);
+    ExitCode::from(0)
 }
 
 fn run_file(file_path: &String) {

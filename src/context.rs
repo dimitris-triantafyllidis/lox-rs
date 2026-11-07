@@ -12,7 +12,7 @@ impl<'a> Environment<'a> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
             symbols: Vec::<(&str, interpreter::Value)>::new(),
-            parent_key: parent_key,
+            parent_key,
             reachable: false
         }
     }
@@ -22,6 +22,12 @@ impl<'a> Environment<'a> {
 pub struct Definitions<'a> {
     pub classes: Vec<interpreter::ClassDefinition<'a>>,
     pub functions: Vec<interpreter::FunctionDefinition<'a>>
+}
+
+impl<'a> Default for Definitions<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> Definitions<'a> {
@@ -37,14 +43,14 @@ impl<'a> Definitions<'a> {
         self.classes.push (
             class
         );
-        return self.classes.len() - 1;
+        self.classes.len() - 1
     }
 
     pub fn insert_function(&mut self, function: interpreter::FunctionDefinition<'a>) -> usize {
         self.functions.push (
             function
         );
-        return self.functions.len() - 1;
+        self.functions.len() - 1
     }
 }
 
@@ -54,6 +60,12 @@ pub struct Context<'a> {
     pub next_env_id: usize,
     pub instances: HashMap<usize, interpreter::Instance<'a>>,
     pub next_instance_id: usize
+}
+
+impl<'a> Default for Context<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> Context<'a> {
@@ -74,7 +86,7 @@ impl<'a> Context<'a> {
             instance
         );
         self.next_instance_id += 1;
-        return self.next_instance_id - 1;
+        self.next_instance_id - 1
     }
 
     pub fn push_new_environment(&mut self, parent_id: Option<usize>) {
@@ -106,7 +118,7 @@ impl<'a> Context<'a> {
         let mut id = *self
             .environment_stack
             .last()
-            .expect(&format!("Symbol {:#?} not found: interpreter context is empty", identifier));
+            .unwrap_or_else(|| panic!("Symbol {:#?} not found: interpreter context is empty", identifier));
 
         match lookup_hop_count {
 
@@ -118,7 +130,7 @@ impl<'a> Context<'a> {
                         .get(&id)
                         .expect("Environment id does not exist");
 
-                    if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; })  {
+                    if let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier})  {
                         *lookup_hop_count = Some(hop_count);
                         *env_slot_idx = Some(idx);
                         return id;
@@ -143,14 +155,14 @@ impl<'a> Context<'a> {
                         .expect("Environment id does not exist");
 
                     if hops_left == 0 {
-                        let Some(..) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
+                        let Some(..) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
                             panic!("Undefined variable '{}'.", identifier);
                         };
                         return id;
                     }
 
                     hops_left -= 1;
-                    id = env.parent_key.expect(&format!("Symbol {:#?} not found", identifier));
+                    id = env.parent_key.unwrap_or_else(|| panic!("Symbol {:#?} not found", identifier));
                 }
             }
         }
@@ -164,7 +176,7 @@ impl<'a> Context<'a> {
         match env_slot_idx {
 
             None => {
-                let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
+                let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier }) else {
                     if identifier == "super" {
                         panic!("Can't use 'super' in a class with no superclass.");
                     }
@@ -172,10 +184,10 @@ impl<'a> Context<'a> {
                         panic!("Symbol not found");
                     }
                 };
-                return env.symbols[idx].1.clone();
+                env.symbols[idx].1.clone()
             },
             Some(idx) => {
-                return env.symbols[*idx].1.clone();
+                env.symbols[*idx].1.clone()
             }
         }
     }
@@ -187,7 +199,7 @@ impl<'a> Context<'a> {
 
         match env_slot_idx {
             None => {
-                let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) else {
+                let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
                     if identifier == "super" {
                         panic!("Can't use 'super' in a class with no superclass.");
                     }
@@ -197,7 +209,6 @@ impl<'a> Context<'a> {
                 };
                 env.symbols[idx].1 = value;
                 *env_slot_idx = Some(idx);
-                return;
             },
             Some(idx) => {
                 env.symbols[*idx].1 = value;
@@ -217,7 +228,7 @@ impl<'a> Context<'a> {
             .get_mut(&id)
             .expect("Environment id does not exist");
 
-        if let Some(idx) = env.symbols.iter().position(|(id, _)| { return *id == identifier; }) {
+        if let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) {
             if self.environment_stack.len() > 1 {
                 panic!("{identifier}: Already a variable with this name in this scope.");
             }
@@ -233,17 +244,17 @@ impl<'a> Context<'a> {
 
     pub fn get_current_environment_id(&self) -> usize {
 
-        return *self
+        *self
             .environment_stack
             .last()
-            .expect("Interpreter context is empty");
+            .expect("Interpreter context is empty")
     }
 
     pub fn gc_clear_flags(&mut self) {
-        for (_, env) in &mut self.environments {
+        for env in self.environments.values_mut() {
             env.reachable = false;
         }
-        for (_, instance) in &mut self.instances {
+        for instance in self.instances.values_mut() {
             instance.reachable = false;
         }
     }
@@ -348,7 +359,7 @@ impl<'a> Context<'a> {
                     panic!("gc: Expected class value");
                 }
 
-                for (_, property_value) in &instance.properties {
+                for property_value in instance.properties.values() {
 
                     if let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = property_value {
                         env_ids_to_mark_stack.push(*closure_id);
