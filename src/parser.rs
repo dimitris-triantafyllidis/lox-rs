@@ -1,5 +1,4 @@
-use crate::lexer as lexer;
-use crate::ast as ast;
+use crate::{lexer, ast};
 
 pub fn syntax_error<'a>(tokens: &[lexer::Token<'a>], cursor: usize, message: &str) -> ! {
     eprintln!("Syntax error in line {}, '{}': {}", tokens[cursor].line_number, tokens[cursor].lexeme, message);

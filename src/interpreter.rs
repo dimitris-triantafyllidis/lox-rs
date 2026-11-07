@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::lexer as lexer;
-use crate::context as ctx;
-use crate::ast as ast;
+use crate::{lexer, context, ast};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
@@ -90,7 +88,7 @@ pub fn is_truthy(v: &Value) -> bool {
     }
 }
 pub struct Interpreter<'a> {
-    pub context: ctx::Context<'a>,
+    pub context: context::Context<'a>,
     pub statement_exec_count: usize,
     pub working_set_size_after_last_gc: usize
 
@@ -98,9 +96,9 @@ pub struct Interpreter<'a> {
 
 impl<'a> Interpreter<'a> {
 
-    pub fn new(_ctx: ctx::Context<'a>) -> Self {
+    pub fn new(_ctx: context::Context<'a>) -> Self {
 
-        let mut context = ctx::Context::new();
+        let mut context = context::Context::new();
 
         context.push_new_environment_auto();
 
@@ -126,7 +124,7 @@ impl<'a> Interpreter<'a> {
         std::process::exit(1);
     }
 
-    pub fn evaluate_literal(&mut self, expr: &ast::expr::Literal<'a>, _defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_literal(&mut self, expr: &ast::expr::Literal<'a>, _defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Literal { token } = expr;
 
@@ -160,7 +158,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_variable(&mut self, expr: &ast::expr::Variable<'a>, _defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_variable(&mut self, expr: &ast::expr::Variable<'a>, _defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
@@ -171,7 +169,7 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn evaluate_this(&mut self, _defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_this(&mut self, _defs: &'a context::Definitions) -> NodeResult {
 
         NodeResult::new (
             self.context.get_symbol_value("this", &mut None, &mut None),
@@ -192,7 +190,7 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn evaluate_super(&mut self, expr: &ast::expr::Super<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_super(&mut self, expr: &ast::expr::Super<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Super { property, lookup_hop_count, env_slot_idx } = expr;
 
@@ -219,7 +217,7 @@ impl<'a> Interpreter<'a> {
         panic!("Undefined property '{}'.", property.lexeme);
     }
 
-    pub fn evaluate_set(&mut self, expr: &ast::expr::Set<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_set(&mut self, expr: &ast::expr::Set<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Set { instance, property, value } = expr;
 
@@ -235,7 +233,7 @@ impl<'a> Interpreter<'a> {
         );
     }
 
-    pub fn evaluate_get_internal(&mut self, instance_value: &Value, property: &lexer::Token<'a>, defs: &'a ctx::Definitions) -> Option<Value> {
+    pub fn evaluate_get_internal(&mut self, instance_value: &Value, property: &lexer::Token<'a>, defs: &'a context::Definitions) -> Option<Value> {
 
         let Value::Instance ( instance_id ) = instance_value else {
             panic!("Only instances have properties.");
@@ -262,7 +260,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_get(&mut self, expr: &ast::expr::Get<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_get(&mut self, expr: &ast::expr::Get<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref(), defs).value;
@@ -276,7 +274,7 @@ impl<'a> Interpreter<'a> {
         );
     }
 
-    pub fn evaluate_unary(&mut self, expr: &ast::expr::UnaryOperation<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_unary(&mut self, expr: &ast::expr::UnaryOperation<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::UnaryOperation { operator: op, right: rhs } = expr;
         let rhs_result = self.evaluate_expression(rhs, defs);
@@ -301,7 +299,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_parentheses(&mut self, expr: &ast::expr::Parentheses<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_parentheses(&mut self, expr: &ast::expr::Parentheses<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Parentheses { expression: e } = expr;
         let expression_result = self.evaluate_expression(e, defs);
@@ -311,7 +309,7 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn evaluate_assignment(&mut self, expr: &ast::expr::Assignment<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_assignment(&mut self, expr: &ast::expr::Assignment<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Assignment { left: lhs, expression: rhs, lookup_hop_count, env_slot_idx } = expr;
         let rhs_result = self.evaluate_expression(rhs, defs);
@@ -401,7 +399,7 @@ impl<'a> Interpreter<'a> {
         return Value::Boolean(vl >= vr);
     }
 
-    pub fn evaluate_binary(&mut self, expr: &ast::expr::BinaryOperation<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_binary(&mut self, expr: &ast::expr::BinaryOperation<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::BinaryOperation { operator: op, left: lhs, right: rhs } = expr;
 
@@ -425,7 +423,7 @@ impl<'a> Interpreter<'a> {
         panic!();
     }
 
-    pub fn evaluate_logical_or(&mut self, expr: &ast::expr::LogicalOr<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_logical_or(&mut self, expr: &ast::expr::LogicalOr<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::LogicalOr { left: lhs, right: rhs } = expr;
 
@@ -440,7 +438,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_logical_and(&mut self, expr: &ast::expr::LogicalAnd<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_logical_and(&mut self, expr: &ast::expr::LogicalAnd<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::LogicalAnd { left: lhs, right: rhs } = expr;
 
@@ -455,7 +453,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_function_call(&mut self, callee: &Function, arguments: &[Value], defs: &'a ctx::Definitions) -> Value {
+    pub fn evaluate_function_call(&mut self, callee: &Function, arguments: &[Value], defs: &'a context::Definitions) -> Value {
 
         let Function { context_function_slot_idx, closure_id } = callee;
         let FunctionDefinition { pars, body, is_native, native_function, is_initializer, .. } = &defs.functions[*context_function_slot_idx];
@@ -520,7 +518,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_call(&mut self, expr: &ast::expr::Call<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_call(&mut self, expr: &ast::expr::Call<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::expr::Call { callee, arguments } = &expr;
 
@@ -589,7 +587,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_expression(&mut self, expr: &ast::expr::Expression<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn evaluate_expression(&mut self, expr: &ast::expr::Expression<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         match expr {
             ast::expr::Expression::Literal         (expr) => return self.evaluate_literal(expr, defs),
@@ -608,7 +606,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_statement(&mut self, statement: &ast::stmt::Statement<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_statement(&mut self, statement: &ast::stmt::Statement<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         self.statement_exec_count += 1;
 
@@ -645,14 +643,14 @@ impl<'a> Interpreter<'a> {
 
     }
 
-    pub fn execute_expression_statement(&mut self, stmt: &ast::stmt::Expression<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_expression_statement(&mut self, stmt: &ast::stmt::Expression<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::Expression { expr } = stmt;
         let expr_result = self.evaluate_expression(&expr, defs);
         return NodeResult::new ( Value::Nil, expr_result.control );
     }
 
-    pub fn execute_print_statement(&mut self, stmt: &ast::stmt::Print<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_print_statement(&mut self, stmt: &ast::stmt::Print<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::Print { expr } = stmt;
 
@@ -699,7 +697,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, expr_result.control );
     }
 
-    pub fn execute_return_statement(&mut self, stmt: &ast::stmt::Return<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_return_statement(&mut self, stmt: &ast::stmt::Return<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::Return { expr } = stmt;
 
@@ -714,7 +712,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_while_statement(&mut self, stmt: &ast::stmt::While<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_while_statement(&mut self, stmt: &ast::stmt::While<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::While { condition: ast::stmt::Expression { expr }, body } = stmt;
 
@@ -734,7 +732,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_for_statement(&mut self, stmt: &ast::stmt::For<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_for_statement(&mut self, stmt: &ast::stmt::For<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::For {
             init: initializer_statement,
@@ -772,7 +770,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_if_statement(&mut self, stmt: &ast::stmt::If<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_if_statement(&mut self, stmt: &ast::stmt::If<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::If { condition: ast::stmt::Expression { expr }, then_statement, else_statement } = stmt;
         let condition_expression_value = self.evaluate_expression(expr, defs).value;
@@ -787,7 +785,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_function_declaration_statement(&mut self, stmt: &ast::stmt::FunctionDeclaration<'a>, _defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_function_declaration_statement(&mut self, stmt: &ast::stmt::FunctionDeclaration<'a>, _defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::FunctionDeclaration { id, context_function_slot_idx, .. } = stmt;
 
@@ -808,7 +806,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_class_declaration_statement(&mut self, stmt: &ast::stmt::ClassDeclaration<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_class_declaration_statement(&mut self, stmt: &ast::stmt::ClassDeclaration<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::ClassDeclaration { id, super_class: super_class_expr, context_class_slot_idx, .. } = stmt;
 
@@ -852,7 +850,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_variable_declaration_statement(&mut self, stmt: &ast::stmt::VariableDeclaration<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_variable_declaration_statement(&mut self, stmt: &ast::stmt::VariableDeclaration<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::VariableDeclaration { id, init } = stmt;
 
@@ -866,7 +864,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute_block_statement(&mut self, stmt: &ast::stmt::Block<'a>, defs: &'a ctx::Definitions) -> NodeResult {
+    pub fn execute_block_statement(&mut self, stmt: &ast::stmt::Block<'a>, defs: &'a context::Definitions) -> NodeResult {
 
         let ast::stmt::Block { statements } = stmt;
 
@@ -883,7 +881,7 @@ impl<'a> Interpreter<'a> {
         return NodeResult::new ( Value::Nil, Control::Continue );
     }
 
-    pub fn execute(&mut self, statements: &[ast::stmt::Statement<'a>], defs: &'a ctx::Definitions) {
+    pub fn execute(&mut self, statements: &[ast::stmt::Statement<'a>], defs: &'a context::Definitions) {
 
         for ref statement in statements {
             self.execute_statement(&statement, defs);

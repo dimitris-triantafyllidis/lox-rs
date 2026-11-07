@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lexer as lexer;
-use crate::context as ctx;
-use crate::interpreter as ipr;
-
-use crate::ast as ast;
+use crate::{lexer, context, interpreter, ast};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionContext {
@@ -19,23 +15,23 @@ pub enum ClassContext {
 }
 
 pub struct SemanticPass<'a> {
-    pub context: ctx::Context<'a>,
+    pub context: context::Context<'a>,
     pub function_context_stack: Vec<FunctionContext>,
     pub class_context_stack: Vec<ClassContext>,
-    pub defs: ctx::Definitions<'a>
+    pub defs: context::Definitions<'a>
 }
 
 impl<'a> SemanticPass<'a> {
 
     pub fn new() -> Self {
 
-        let mut defs = ctx::Definitions::new();
-        let mut context = ctx::Context::new();
+        let mut defs = context::Definitions::new();
+        let mut context = context::Context::new();
         context.push_new_environment_auto();
 
         let function_id =
             defs.insert_function (
-                ipr::FunctionDefinition {
+                interpreter::FunctionDefinition {
                     pars: Vec::new(),
                     body: ast::stmt::Statement::Block (
                         ast::stmt::Block {
@@ -43,7 +39,7 @@ impl<'a> SemanticPass<'a> {
                         }
                     ),
                     is_native: true,
-                    native_function: ipr::NativeFunction::Clock,
+                    native_function: interpreter::NativeFunction::Clock,
                     is_initializer: false,
                     is_method: false,
                     name: "clock".to_string()
@@ -52,7 +48,7 @@ impl<'a> SemanticPass<'a> {
 
         context.insert_symbol (
             "class",
-            ipr::Value::Nil
+            interpreter::Value::Nil
         );
 
         let function_context_stack = Vec::<FunctionContext>::new();
@@ -317,7 +313,7 @@ impl<'a> SemanticPass<'a> {
 
         if function_context == FunctionContext::Method || function_context == FunctionContext::Initializer {
             self.context.push_new_environment(Some(closure_id));
-            self.context.insert_symbol("this", ipr::Value::Nil);
+            self.context.insert_symbol("this", interpreter::Value::Nil);
             closure_id = self.context.next_env_id - 1;
         }
 
@@ -333,11 +329,11 @@ impl<'a> SemanticPass<'a> {
         let function_id = self.defs.functions.len();
 
         self.defs.insert_function (
-            ipr::FunctionDefinition {
+            interpreter::FunctionDefinition {
                 pars: par_lexemes,
                 body: *body.clone(),
                 is_native: false,
-                native_function: ipr::NativeFunction::None,
+                native_function: interpreter::NativeFunction::None,
                 is_initializer,
                 is_method,
                 name: id.lexeme.to_string()
@@ -346,8 +342,8 @@ impl<'a> SemanticPass<'a> {
 
         self.context.insert_symbol (
             &id.lexeme,
-            ipr::Value::Function (
-                ipr::Function {
+            interpreter::Value::Function (
+                interpreter::Function {
                     context_function_slot_idx: context_function_slot_idx.unwrap(),
                     closure_id
                 }
@@ -359,7 +355,7 @@ impl<'a> SemanticPass<'a> {
         for i in 0..pars.len() {
             self.context.insert_symbol (
                 pars[i].lexeme,
-                ipr::Value::Nil
+                interpreter::Value::Nil
             );
         }
 
@@ -384,7 +380,7 @@ impl<'a> SemanticPass<'a> {
 
         let ast::stmt::ClassDeclaration { id, method_decls, super_class, context_class_slot_idx } = stmt;
 
-        let super_class_value: Option<Box<ipr::Value>>;
+        let super_class_value: Option<Box<interpreter::Value>>;
         let super_class_context_class_slot_idx: Option<usize>;
 
         if let Some ( expr ) = super_class {
@@ -403,7 +399,7 @@ impl<'a> SemanticPass<'a> {
                     )
                 )
             );
-            let ipr::Value::Class ( ipr::Class { context_class_slot_idx, .. } ) = super_class_value.as_ref().unwrap().as_ref().clone() else {
+            let interpreter::Value::Class ( interpreter::Class { context_class_slot_idx, .. } ) = super_class_value.as_ref().unwrap().as_ref().clone() else {
                 panic!("Superclass must be a class.");
             };
             super_class_context_class_slot_idx = Some(context_class_slot_idx);
@@ -417,12 +413,12 @@ impl<'a> SemanticPass<'a> {
 
         self.context.insert_symbol (
             &id.lexeme,
-            ipr::Value::Nil
+            interpreter::Value::Nil
         );
 
         if let Some(..) = super_class {
             self.context.push_new_environment_auto();
-            self.context.insert_symbol("super", ipr::Value::Nil);
+            self.context.insert_symbol("super", interpreter::Value::Nil);
         }
 
         for method_decl in method_decls.iter_mut() {
@@ -468,7 +464,7 @@ impl<'a> SemanticPass<'a> {
         }
 
         self.defs.insert_class (
-            ipr::ClassDefinition {
+            interpreter::ClassDefinition {
                 methods: class_method_lexeme_map,
                 super_class: super_class_context_class_slot_idx,
                 name: id.lexeme.to_string()
@@ -477,8 +473,8 @@ impl<'a> SemanticPass<'a> {
 
         self.context.set_symbol_value (
             &id.lexeme,
-            ipr::Value::Class (
-                ipr::Class {
+            interpreter::Value::Class (
+                interpreter::Class {
                     context_class_slot_idx: context_class_slot_idx.unwrap(),
                     closure_id: class_closure_id,
                     super_class: super_class_value
@@ -500,7 +496,7 @@ impl<'a> SemanticPass<'a> {
             self.visit_expression(expr);
         }
 
-        self.context.insert_symbol(id.lexeme, ipr::Value::Nil);
+        self.context.insert_symbol(id.lexeme, interpreter::Value::Nil);
     }
 
     pub fn visit_block_statement(&mut self, stmt: &mut ast::stmt::Block<'a>) {

@@ -1,6 +1,6 @@
 use std::{env, fs, io, process::ExitCode};
 
-use lox_rs::lexer as lexer;
+use lox_rs::lexer;
 
 fn main() -> ExitCode {
 

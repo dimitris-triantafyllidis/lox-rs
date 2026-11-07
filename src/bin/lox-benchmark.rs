@@ -1,10 +1,6 @@
 use std::{fs, io, process::ExitCode};
 
-use lox_rs::lexer as lexer;
-use lox_rs::parser as parser;
-use lox_rs::interpreter as interpreter;
-use lox_rs::semantic_pass as semantic_pass;
-
+use lox_rs::{lexer, parser, interpreter, semantic_pass};
 
 fn main() -> ExitCode {
 
