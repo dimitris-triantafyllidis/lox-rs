@@ -1,9 +1,8 @@
 use std::{fs, io, process::ExitCode};
 
-use lox_rs::{lexer, parser, interpreter, semantic_pass};
+use lox_rs::{interpreter, lexer, parser, semantic_pass};
 
 fn main() -> ExitCode {
-
     println!();
     println!("===== Benchmark: 'binary_trees.lox' =====");
     run_file("tests/benchmark/binary_trees.lox");
@@ -46,14 +45,13 @@ fn main() -> ExitCode {
     println!();
 
     println!("===== Benchmark: 'zoo.lox' =====");
-    run_file( "tests/benchmark/zoo.lox" );
+    run_file("tests/benchmark/zoo.lox");
     println!();
 
     ExitCode::from(0)
 }
 
 fn run_file(file_path: &str) {
-
     match fs::read_to_string(file_path) {
         io::Result::Ok(s) => {
             let tokens = lexer::scan(&s);
@@ -63,10 +61,9 @@ fn run_file(file_path: &str) {
             let defs = semantic_pass.defs.clone();
             let mut interpreter = interpreter::Interpreter::new(semantic_pass.context);
             interpreter.execute(&syntax_tree, &defs);
-        },
+        }
         io::Result::Err(e) => {
             eprintln!("io error: {e}");
         }
     }
-
 }

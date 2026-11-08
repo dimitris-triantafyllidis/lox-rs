@@ -5,7 +5,7 @@ use crate::interpreter;
 pub struct Environment<'a> {
     pub symbols: Vec<(&'a str, interpreter::Value)>,
     pub parent_key: Option<usize>,
-    pub reachable: bool
+    pub reachable: bool,
 }
 
 impl Environment<'_> {
@@ -13,7 +13,7 @@ impl Environment<'_> {
         Self {
             symbols: Vec::<(&str, interpreter::Value)>::new(),
             parent_key,
-            reachable: false
+            reachable: false,
         }
     }
 }
@@ -21,7 +21,7 @@ impl Environment<'_> {
 #[derive(Clone)]
 pub struct Definitions<'a> {
     pub classes: Vec<interpreter::ClassDefinition<'a>>,
-    pub functions: Vec<interpreter::FunctionDefinition<'a>>
+    pub functions: Vec<interpreter::FunctionDefinition<'a>>,
 }
 
 impl Default for Definitions<'_> {
@@ -31,25 +31,20 @@ impl Default for Definitions<'_> {
 }
 
 impl<'a> Definitions<'a> {
-
     pub fn new() -> Self {
         Self {
             classes: Vec::<interpreter::ClassDefinition>::new(),
-            functions: Vec::<interpreter::FunctionDefinition<'a>>::new()
+            functions: Vec::<interpreter::FunctionDefinition<'a>>::new(),
         }
     }
 
     pub fn insert_class(&mut self, class: interpreter::ClassDefinition<'a>) -> usize {
-        self.classes.push (
-            class
-        );
+        self.classes.push(class);
         self.classes.len() - 1
     }
 
     pub fn insert_function(&mut self, function: interpreter::FunctionDefinition<'a>) -> usize {
-        self.functions.push (
-            function
-        );
+        self.functions.push(function);
         self.functions.len() - 1
     }
 }
@@ -59,7 +54,7 @@ pub struct Context<'a> {
     pub environment_stack: Vec<usize>,
     pub next_env_id: usize,
     pub instances: HashMap<usize, interpreter::Instance<'a>>,
-    pub next_instance_id: usize
+    pub next_instance_id: usize,
 }
 
 impl Default for Context<'_> {
@@ -69,59 +64,53 @@ impl Default for Context<'_> {
 }
 
 impl<'a> Context<'a> {
-
     pub fn new() -> Self {
         Self {
             environments: HashMap::<usize, Environment>::new(),
             environment_stack: Vec::<usize>::new(),
             next_env_id: 0,
             instances: HashMap::<usize, interpreter::Instance<'a>>::new(),
-            next_instance_id: 0
+            next_instance_id: 0,
         }
     }
 
     pub fn insert_instance(&mut self, instance: interpreter::Instance<'a>) -> usize {
-        self.instances.insert (
-            self.next_instance_id,
-            instance
-        );
+        self.instances.insert(self.next_instance_id, instance);
         self.next_instance_id += 1;
         self.next_instance_id - 1
     }
 
     pub fn push_new_environment(&mut self, parent_id: Option<usize>) {
-        self.environments.insert (
-            self.next_env_id,
-            Environment::new(parent_id)
-        );
+        self.environments
+            .insert(self.next_env_id, Environment::new(parent_id));
         self.environment_stack.push(self.next_env_id);
         self.next_env_id += 1;
-
     }
 
     pub fn push_new_environment_auto(&mut self) {
-        self.environments.insert (
+        self.environments.insert(
             self.next_env_id,
-            Environment::new(self.environment_stack.last().copied())
+            Environment::new(self.environment_stack.last().copied()),
         );
         self.environment_stack.push(self.next_env_id);
         self.next_env_id += 1;
     }
 
     pub fn pop_environment(&mut self) {
-
         self.environment_stack.pop();
     }
 
-    pub fn find_symbol(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> usize {
-
-        let mut id = *self
-            .environment_stack
-            .last()
-            .unwrap_or_else(|| panic!("Symbol {identifier:#?} not found: interpreter context is empty"));
+    pub fn find_symbol(
+        &self,
+        identifier: &str,
+        lookup_hop_count: &mut Option<usize>,
+        env_slot_idx: &mut Option<usize>,
+    ) -> usize {
+        let mut id = *self.environment_stack.last().unwrap_or_else(|| {
+            panic!("Symbol {identifier:#?} not found: interpreter context is empty")
+        });
 
         match lookup_hop_count {
-
             None => {
                 let mut hop_count: usize = 0;
                 loop {
@@ -130,7 +119,7 @@ impl<'a> Context<'a> {
                         .get(&id)
                         .expect("Environment id does not exist");
 
-                    if let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier})  {
+                    if let Some(idx) = env.symbols.iter().position(|(id, _)| *id == identifier) {
                         *lookup_hop_count = Some(hop_count);
                         *env_slot_idx = Some(idx);
                         return id;
@@ -139,8 +128,7 @@ impl<'a> Context<'a> {
                     if let Some(parent_id) = env.parent_key {
                         id = parent_id;
                         hop_count += 1;
-                    }
-                    else {
+                    } else {
                         *lookup_hop_count = Some(hop_count);
                         return id;
                     }
@@ -155,53 +143,68 @@ impl<'a> Context<'a> {
                         .expect("Environment id does not exist");
 
                     if hops_left == 0 {
-                        let Some(..) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
+                        let Some(..) = env.symbols.iter().position(|(id, _)| *id == identifier)
+                        else {
                             panic!("Undefined variable '{identifier}'.");
                         };
                         return id;
                     }
 
                     hops_left -= 1;
-                    id = env.parent_key.unwrap_or_else(|| panic!("Symbol {identifier:#?} not found"));
+                    id = env
+                        .parent_key
+                        .unwrap_or_else(|| panic!("Symbol {identifier:#?} not found"));
                 }
             }
         }
     }
 
-    pub fn get_symbol_value(&self, identifier: &str, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) -> interpreter::Value {
-
+    pub fn get_symbol_value(
+        &self,
+        identifier: &str,
+        lookup_hop_count: &mut Option<usize>,
+        env_slot_idx: &mut Option<usize>,
+    ) -> interpreter::Value {
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
 
         match env_slot_idx {
-
             None => {
-                let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier }) else {
-                    assert!(identifier != "super", "Can't use 'super' in a class with no superclass.");
+                let Some(idx) = env.symbols.iter().position(|(id, _)| *id == identifier) else {
+                    assert!(
+                        identifier != "super",
+                        "Can't use 'super' in a class with no superclass."
+                    );
                     panic!("Symbol not found");
                 };
                 env.symbols[idx].1.clone()
-            },
-            Some(idx) => {
-                env.symbols[*idx].1.clone()
             }
+            Some(idx) => env.symbols[*idx].1.clone(),
         }
     }
 
-    pub fn set_symbol_value(&mut self, identifier: &str, value: interpreter::Value, lookup_hop_count: &mut Option<usize>, env_slot_idx: &mut Option<usize>) {
-
+    pub fn set_symbol_value(
+        &mut self,
+        identifier: &str,
+        value: interpreter::Value,
+        lookup_hop_count: &mut Option<usize>,
+        env_slot_idx: &mut Option<usize>,
+    ) {
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get_mut(&env_id).unwrap();
 
         match env_slot_idx {
             None => {
-                let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) else {
-                    assert!(identifier != "super", "Can't use 'super' in a class with no superclass.");
+                let Some(idx) = env.symbols.iter().position(|(id, _)| *id == identifier) else {
+                    assert!(
+                        identifier != "super",
+                        "Can't use 'super' in a class with no superclass."
+                    );
                     panic!("Symbol not found");
                 };
                 env.symbols[idx].1 = value;
                 *env_slot_idx = Some(idx);
-            },
+            }
             Some(idx) => {
                 env.symbols[*idx].1 = value;
             }
@@ -209,7 +212,6 @@ impl<'a> Context<'a> {
     }
 
     pub fn insert_symbol(&mut self, identifier: &'a str, value: interpreter::Value) {
-
         let id = *self
             .environment_stack
             .last()
@@ -220,18 +222,18 @@ impl<'a> Context<'a> {
             .get_mut(&id)
             .expect("Environment id does not exist");
 
-        if let Some(idx) = env.symbols.iter().position(|(id, _)| { *id == identifier}) {
-            assert!(self.environment_stack.len() <= 1, "{identifier}: Already a variable with this name in this scope.");
+        if let Some(idx) = env.symbols.iter().position(|(id, _)| *id == identifier) {
+            assert!(
+                self.environment_stack.len() <= 1,
+                "{identifier}: Already a variable with this name in this scope."
+            );
             env.symbols[idx].1 = value;
-        }
-        else {
+        } else {
             env.symbols.push((identifier, value));
         }
-
     }
 
     pub fn get_current_environment_id(&self) -> usize {
-
         *self
             .environment_stack
             .last()
@@ -248,29 +250,18 @@ impl<'a> Context<'a> {
     }
 
     pub fn gc_sweep(&mut self) {
-        self.environments.retain (
-            |_, env|  {
-                env.reachable
-            }
-        );
-        self.instances.retain (
-            |_, instance|  {
-                instance.reachable
-            }
-        );
+        self.environments.retain(|_, env| env.reachable);
+        self.instances.retain(|_, instance| instance.reachable);
     }
 
     pub fn gc_follow_and_mark(&mut self, env_id: usize, defs: &Definitions) {
-
         let mut env_ids_to_mark_stack = Vec::<usize>::new();
         let mut instance_ids_to_mark_stack = Vec::<usize>::new();
 
         env_ids_to_mark_stack.push(env_id);
 
         while !env_ids_to_mark_stack.is_empty() || !instance_ids_to_mark_stack.is_empty() {
-
             while let Some(env_id) = env_ids_to_mark_stack.pop() {
-
                 let Some(env) = self.environments.get_mut(&env_id) else {
                     continue;
                 };
@@ -284,21 +275,33 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let interpreter::Value::Function ( interpreter::Function { context_function_slot_idx, closure_id } ) = value {
-                        let interpreter::FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
+                    if let interpreter::Value::Function(interpreter::Function {
+                        context_function_slot_idx,
+                        closure_id,
+                    }) = value
+                    {
+                        let interpreter::FunctionDefinition { .. } =
+                            defs.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
-                    }
-                    else if let interpreter::Value::Instance ( instance_id ) = value {
+                    } else if let interpreter::Value::Instance(instance_id) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
-                    }
-                    else if let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = value {
-
+                    } else if let interpreter::Value::Class(interpreter::Class {
+                        closure_id,
+                        super_class,
+                        ..
+                    }) = value
+                    {
                         new_envs_to_visit.push(*closure_id);
 
                         let mut s = super_class;
 
-                        while let Some (b) = s {
-                            let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                        while let Some(b) = s {
+                            let interpreter::Value::Class(interpreter::Class {
+                                closure_id,
+                                super_class,
+                                ..
+                            }) = b.as_ref()
+                            else {
                                 panic!("gc: Expected class value");
                             };
                             new_envs_to_visit.push(*closure_id);
@@ -315,8 +318,7 @@ impl<'a> Context<'a> {
             }
 
             while let Some(instance_id) = instance_ids_to_mark_stack.pop() {
-
-                let Some ( instance ) = self.instances.get_mut(&instance_id) else {
+                let Some(instance) = self.instances.get_mut(&instance_id) else {
                     continue;
                 };
 
@@ -328,54 +330,70 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = instance.class.clone() {
-
+                if let interpreter::Value::Class(interpreter::Class {
+                    closure_id,
+                    super_class,
+                    ..
+                }) = instance.class.clone()
+                {
                     env_ids_to_mark_stack.push(closure_id);
 
                     let mut s = super_class;
 
-                    while let Some (b) = s {
-                        let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                    while let Some(b) = s {
+                        let interpreter::Value::Class(interpreter::Class {
+                            closure_id,
+                            super_class,
+                            ..
+                        }) = b.as_ref()
+                        else {
                             panic!("gc: Expected class value");
                         };
                         env_ids_to_mark_stack.push(*closure_id);
                         s = super_class.clone();
-
                     }
-                }
-                else {
+                } else {
                     panic!("gc: Expected class value");
                 }
 
                 for property_value in instance.properties.values() {
-
-                    if let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = property_value {
+                    if let interpreter::Value::Class(interpreter::Class {
+                        closure_id,
+                        super_class,
+                        ..
+                    }) = property_value
+                    {
                         env_ids_to_mark_stack.push(*closure_id);
 
                         let mut s = super_class;
 
-                        while let Some (b) = s {
-                            let interpreter::Value::Class ( interpreter::Class { closure_id, super_class, .. } ) = b.as_ref() else {
+                        while let Some(b) = s {
+                            let interpreter::Value::Class(interpreter::Class {
+                                closure_id,
+                                super_class,
+                                ..
+                            }) = b.as_ref()
+                            else {
                                 panic!("gc: Expected class value");
                             };
                             env_ids_to_mark_stack.push(*closure_id);
                             s = super_class;
                         }
-                    }
-                    else if let interpreter::Value::Function ( interpreter::Function { context_function_slot_idx, closure_id } ) = property_value {
-                        let interpreter::FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
+                    } else if let interpreter::Value::Function(interpreter::Function {
+                        context_function_slot_idx,
+                        closure_id,
+                    }) = property_value
+                    {
+                        let interpreter::FunctionDefinition { .. } =
+                            defs.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
-                    }
-                    else if let interpreter::Value::Instance ( instance_id ) = property_value {
+                    } else if let interpreter::Value::Instance(instance_id) = property_value {
                         new_instances_to_visit.push(*instance_id);
                     }
-
                 }
 
                 instance_ids_to_mark_stack.extend(new_instances_to_visit);
-
             }
-
         }
     }
 

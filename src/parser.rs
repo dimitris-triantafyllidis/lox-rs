@@ -1,49 +1,50 @@
-use crate::{lexer, ast};
+use crate::{ast, lexer};
 
 pub fn syntax_error(tokens: &[lexer::Token<'_>], cursor: usize, message: &str) -> ! {
-    eprintln!("Syntax error in line {}, '{}': {}", tokens[cursor].line_number, tokens[cursor].lexeme, message);
+    eprintln!(
+        "Syntax error in line {}, '{}': {}",
+        tokens[cursor].line_number, tokens[cursor].lexeme, message
+    );
     std::process::exit(1);
 }
 
 pub fn parse<'a>(tokens: &[lexer::Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
-
     let mut cursor: usize = 0;
     let mut stmt: ast::stmt::Statement;
 
     let mut statements = Vec::<ast::stmt::Statement>::new();
 
     loop {
-
         if tokens[cursor].kind == lexer::TokenKind::EOF {
             break;
         }
 
         (stmt, cursor) = parse_declaration(tokens, cursor);
         statements.push(stmt);
-
     }
 
     statements
 }
 
-pub fn parse_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_declaration<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     if tokens[cursor].kind == lexer::TokenKind::Var {
         parse_variable_declaration(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::Fun {
+    } else if tokens[cursor].kind == lexer::TokenKind::Fun {
         parse_function_declaration(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::Class {
+    } else if tokens[cursor].kind == lexer::TokenKind::Class {
         parse_class_declaration(tokens, cursor + 1)
-    }
-    else {
+    } else {
         parse_statement(tokens, cursor)
     }
 }
 
-pub fn parse_function_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_function_declaration<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
 
     if tokens[cursor].kind != lexer::TokenKind::Identifier {
@@ -64,27 +65,22 @@ pub fn parse_function_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize
         if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
             cursor += 1;
             break;
-        }
-        else if parameters.len() < 255 {
+        } else if parameters.len() < 255 {
             if tokens[cursor].kind == lexer::TokenKind::Identifier {
                 parameters.push(tokens[cursor].clone());
                 cursor += 1;
-            }
-            else {
+            } else {
                 syntax_error(tokens, cursor, "Expect variable name.");
             }
             if tokens[cursor].kind == lexer::TokenKind::Comma {
                 cursor += 1;
-            }
-            else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
+            } else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                 cursor += 1;
                 break;
-            }
-            else {
+            } else {
                 syntax_error(tokens, cursor, "Expect ')' after parameters.");
             }
-        }
-        else {
+        } else {
             syntax_error(tokens, cursor, "Can't have more than 255 parameters.");
         }
     }
@@ -96,22 +92,22 @@ pub fn parse_function_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize
     let (body, cursor) = parse_block(tokens, cursor);
 
     (
-        ast::stmt::Statement::FunctionDeclaration (
-            ast::stmt::FunctionDeclaration {
-                id: identifier,
-                pars: parameters,
-                body: Box::new(body),
-                is_initializer: false,
-                is_method: false,
-                context_function_slot_idx: None
-            }
-        ),
-        cursor
+        ast::stmt::Statement::FunctionDeclaration(ast::stmt::FunctionDeclaration {
+            id: identifier,
+            pars: parameters,
+            body: Box::new(body),
+            is_initializer: false,
+            is_method: false,
+            context_function_slot_idx: None,
+        }),
+        cursor,
     )
 }
 
-pub fn parse_class_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_class_declaration<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
 
     if tokens[cursor].kind != lexer::TokenKind::Identifier {
@@ -131,18 +127,13 @@ pub fn parse_class_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -
         if tokens[cursor] == identifier {
             syntax_error(tokens, cursor, "A class can't inherit from itself.");
         }
-        super_class = Some (
-            ast::expr::Expression::Variable (
-                ast::expr::Variable {
-                    identifier: tokens[cursor].clone(),
-                    lookup_hop_count: None,
-                    env_slot_idx: None
-                }
-            )
-        );
+        super_class = Some(ast::expr::Expression::Variable(ast::expr::Variable {
+            identifier: tokens[cursor].clone(),
+            lookup_hop_count: None,
+            env_slot_idx: None,
+        }));
         cursor += 1;
-    }
-    else {
+    } else {
         super_class = None;
     }
 
@@ -156,28 +147,28 @@ pub fn parse_class_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -
     loop {
         if tokens[cursor].kind == lexer::TokenKind::RightBrace {
             return (
-                ast::stmt::Statement::ClassDeclaration (
-                    ast::stmt::ClassDeclaration {
-                        id: identifier,
-                        method_decls: methods,
-                        super_class,
-                        context_class_slot_idx: None
-                    }
-                ),
-                cursor + 1
+                ast::stmt::Statement::ClassDeclaration(ast::stmt::ClassDeclaration {
+                    id: identifier,
+                    method_decls: methods,
+                    super_class,
+                    context_class_slot_idx: None,
+                }),
+                cursor + 1,
             );
         }
         let method: ast::stmt::Statement;
         (method, cursor) = parse_function_declaration(tokens, cursor);
 
-        if let ast::stmt::Statement::FunctionDeclaration (m) = method {
+        if let ast::stmt::Statement::FunctionDeclaration(m) = method {
             methods.push(m);
         }
     }
 }
 
-pub fn parse_variable_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_variable_declaration<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
     let expr: ast::expr::Expression;
 
@@ -192,48 +183,51 @@ pub fn parse_variable_declaration<'a>(tokens: &[lexer::Token<'a>], cursor: usize
             syntax_error(tokens, cursor, "Expected ';'");
         }
         (
-            ast::stmt::Statement::VariableDeclaration ( ast::stmt::VariableDeclaration { id, init: Some(ast::stmt::Expression { expr }) } ),
-            cursor + 1
+            ast::stmt::Statement::VariableDeclaration(ast::stmt::VariableDeclaration {
+                id,
+                init: Some(ast::stmt::Expression { expr }),
+            }),
+            cursor + 1,
         )
-    }
-    else {
+    } else {
         if tokens[cursor].kind != lexer::TokenKind::Semicolon {
             syntax_error(tokens, cursor, "Expected ';'");
         }
         (
-            ast::stmt::Statement::VariableDeclaration ( ast::stmt::VariableDeclaration { id, init: None } ),
-            cursor + 1
+            ast::stmt::Statement::VariableDeclaration(ast::stmt::VariableDeclaration {
+                id,
+                init: None,
+            }),
+            cursor + 1,
         )
     }
 }
 
-pub fn parse_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     if tokens[cursor].kind == lexer::TokenKind::Print {
         parse_print_statement(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::Return {
+    } else if tokens[cursor].kind == lexer::TokenKind::Return {
         parse_return_statement(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::While {
+    } else if tokens[cursor].kind == lexer::TokenKind::While {
         parse_while_statement(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::For {
+    } else if tokens[cursor].kind == lexer::TokenKind::For {
         parse_for_statement(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::If {
+    } else if tokens[cursor].kind == lexer::TokenKind::If {
         parse_if_statement(tokens, cursor + 1)
-    }
-    else if tokens[cursor].kind == lexer::TokenKind::LeftBrace {
+    } else if tokens[cursor].kind == lexer::TokenKind::LeftBrace {
         parse_block(tokens, cursor + 1)
-    }
-    else {
+    } else {
         parse_expression_statement(tokens, cursor)
     }
 }
 
-pub fn parse_while_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_while_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
 
     if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
@@ -253,18 +247,20 @@ pub fn parse_while_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> 
     let (body_statement, cursor) = parse_statement(tokens, cursor);
 
     (
-        ast::stmt::Statement::While (
-            ast::stmt::While {
-                condition: ast::stmt::Expression { expr: condition_expression },
-                body: Box::new(body_statement)
+        ast::stmt::Statement::While(ast::stmt::While {
+            condition: ast::stmt::Expression {
+                expr: condition_expression,
             },
-        ),
-        cursor
+            body: Box::new(body_statement),
+        }),
+        cursor,
     )
 }
 
-pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_for_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
 
     if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
@@ -278,8 +274,7 @@ pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (a
     if tokens[cursor].kind == lexer::TokenKind::Semicolon {
         initializer_statement = None;
         cursor += 1;
-    }
-    else {
+    } else {
         let is: ast::stmt::Statement;
         (is, cursor) = parse_declaration(tokens, cursor);
         initializer_statement = Some(Box::new(is));
@@ -288,11 +283,10 @@ pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (a
     let condition_expression: Option<ast::stmt::Expression> =
         if tokens[cursor].kind == lexer::TokenKind::Semicolon {
             None
-        }
-        else {
+        } else {
             let ce: ast::expr::Expression;
             (ce, cursor) = parse_expression(tokens, cursor);
-            Some ( ast::stmt::Expression { expr: ce } )
+            Some(ast::stmt::Expression { expr: ce })
         };
 
     cursor += 1;
@@ -300,11 +294,10 @@ pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (a
     let increment_expression: Option<ast::stmt::Expression> =
         if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
             None
-        }
-        else {
+        } else {
             let ie: ast::expr::Expression;
             (ie, cursor) = parse_expression(tokens, cursor);
-            Some ( ast::stmt::Expression { expr: ie } )
+            Some(ast::stmt::Expression { expr: ie })
         };
 
     cursor += 1;
@@ -314,39 +307,39 @@ pub fn parse_for_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (a
     let body_statement: Box<ast::stmt::Statement> = Box::new(bs);
 
     (
-        ast::stmt::Statement::For (
-            ast::stmt::For {
-                init: initializer_statement,
-                cond: condition_expression,
-                incr: increment_expression,
-                body: body_statement
-            }
-        ),
-        cursor
+        ast::stmt::Statement::For(ast::stmt::For {
+            init: initializer_statement,
+            cond: condition_expression,
+            incr: increment_expression,
+            body: body_statement,
+        }),
+        cursor,
     )
-
 }
 
-pub fn parse_expression_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_expression_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let (expr, cursor) = parse_expression(tokens, cursor);
 
     if tokens[cursor].kind != lexer::TokenKind::Semicolon {
         syntax_error(tokens, cursor, "Expected ';'");
     }
     (
-        ast::stmt::Statement::Expression ( ast::stmt::Expression { expr } ),
-        cursor + 1
+        ast::stmt::Statement::Expression(ast::stmt::Expression { expr }),
+        cursor + 1,
     )
 }
 
-pub fn parse_block<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_block<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut statements = Vec::<ast::stmt::Statement>::new();
     let mut cursor = cursor;
 
     loop {
-
         if tokens[cursor].kind == lexer::TokenKind::RightBrace {
             cursor += 1;
             break;
@@ -361,34 +354,37 @@ pub fn parse_block<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt
         (statement, cursor) = parse_declaration(tokens, cursor);
 
         statements.push(statement);
-
     }
 
     (
-        ast::stmt::Statement::Block ( ast::stmt::Block { statements } ),
-        cursor
+        ast::stmt::Statement::Block(ast::stmt::Block { statements }),
+        cursor,
     )
 }
 
-pub fn parse_print_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_print_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let (expr, cursor) = parse_expression(tokens, cursor);
 
     if tokens[cursor].kind != lexer::TokenKind::Semicolon {
         syntax_error(tokens, cursor, "Expected ';'");
     }
     (
-        ast::stmt::Statement::Print ( ast::stmt::Print { expr } ),
-        cursor + 1
+        ast::stmt::Statement::Print(ast::stmt::Print { expr }),
+        cursor + 1,
     )
 }
 
-pub fn parse_return_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_return_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     if tokens[cursor].kind == lexer::TokenKind::Semicolon {
         return (
-            ast::stmt::Statement::Return ( ast::stmt::Return { expr: None } ),
-            cursor + 1
+            ast::stmt::Statement::Return(ast::stmt::Return { expr: None }),
+            cursor + 1,
         );
     }
 
@@ -398,13 +394,17 @@ pub fn parse_return_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) ->
         syntax_error(tokens, cursor, "Expected ';'");
     }
     (
-        ast::stmt::Statement::Return ( ast::stmt::Return { expr: Some ( ast::stmt::Expression { expr } ) } ),
-        cursor + 1
+        ast::stmt::Statement::Return(ast::stmt::Return {
+            expr: Some(ast::stmt::Expression { expr }),
+        }),
+        cursor + 1,
     )
 }
 
-pub fn parse_if_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (ast::stmt::Statement<'a>, usize) {
-
+pub fn parse_if_statement<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::stmt::Statement<'a>, usize) {
     let mut cursor = cursor;
 
     if tokens[cursor].kind != lexer::TokenKind::LeftParenthesis {
@@ -424,43 +424,45 @@ pub fn parse_if_statement<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> (as
     let (then_statement, mut cursor) = parse_statement(tokens, cursor);
 
     if tokens[cursor].kind == lexer::TokenKind::Else {
-
         cursor += 1;
 
         let (else_statement, cursor) = parse_statement(tokens, cursor);
 
         (
-            ast::stmt::Statement::If (
-                ast::stmt::If {
-                    condition: ast::stmt::Expression { expr: condition_expression },
-                    then_statement: Box::new(then_statement),
-                    else_statement: Some(Box::new(else_statement))
-                }
-            ),
-            cursor
+            ast::stmt::Statement::If(ast::stmt::If {
+                condition: ast::stmt::Expression {
+                    expr: condition_expression,
+                },
+                then_statement: Box::new(then_statement),
+                else_statement: Some(Box::new(else_statement)),
+            }),
+            cursor,
         )
-    }
-    else {
+    } else {
         (
-            ast::stmt::Statement::If (
-                ast::stmt::If {
-                    condition: ast::stmt::Expression { expr: condition_expression },
-                    then_statement: Box::new(then_statement),
-                    else_statement: None
-                }
-            ),
-            cursor
+            ast::stmt::Statement::If(ast::stmt::If {
+                condition: ast::stmt::Expression {
+                    expr: condition_expression,
+                },
+                then_statement: Box::new(then_statement),
+                else_statement: None,
+            }),
+            cursor,
         )
     }
-
 }
 
-pub fn parse_expression<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
+pub fn parse_expression<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     parse_assignment(tokens, cursor)
 }
 
-pub fn parse_assignment<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_assignment<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (expr, mut cursor) = parse_logic_or(tokens, cursor);
 
     if tokens[cursor].kind != lexer::TokenKind::Equal {
@@ -474,39 +476,37 @@ pub fn parse_assignment<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast
     (value_expr, cursor) = parse_assignment(tokens, cursor);
 
     match expr {
-        ast::expr::Expression::Variable ( ast::expr::Variable { identifier: t, lookup_hop_count, env_slot_idx } )=> {
-            (
-                ast::expr::Expression::Assignment (
-                    ast::expr::Assignment {
-                        left: t,
-                        lookup_hop_count,
-                        env_slot_idx,
-                        expression: Box::<ast::expr::Expression>::new(value_expr)
-                    }
-                ),
-                cursor
-            )
-        },
-        ast::expr::Expression::Get ( ast::expr::Get { instance, property } ) => {
-            (
-                ast::expr::Expression::Set (
-                    ast::expr::Set {
-                        instance,
-                        property,
-                        value: Box::new(value_expr)
-                    }
-                ),
-                cursor
-            )
-        }
+        ast::expr::Expression::Variable(ast::expr::Variable {
+            identifier: t,
+            lookup_hop_count,
+            env_slot_idx,
+        }) => (
+            ast::expr::Expression::Assignment(ast::expr::Assignment {
+                left: t,
+                lookup_hop_count,
+                env_slot_idx,
+                expression: Box::<ast::expr::Expression>::new(value_expr),
+            }),
+            cursor,
+        ),
+        ast::expr::Expression::Get(ast::expr::Get { instance, property }) => (
+            ast::expr::Expression::Set(ast::expr::Set {
+                instance,
+                property,
+                value: Box::new(value_expr),
+            }),
+            cursor,
+        ),
         _ => {
             syntax_error(tokens, cursor_equals, "Invalid assignment target.");
         }
     }
 }
 
-pub fn parse_logic_or<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_logic_or<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_logic_and(tokens, cursor);
 
     loop {
@@ -517,16 +517,17 @@ pub fn parse_logic_or<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::
         cursor += 1;
         let (right_expr, new_cursor) = parse_logic_and(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::LogicalOr ( ast::expr::LogicalOr { left, right } );
+        expr = ast::expr::Expression::LogicalOr(ast::expr::LogicalOr { left, right });
         cursor = new_cursor;
     }
 
     (expr, cursor)
-
 }
 
-pub fn parse_logic_and<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_logic_and<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_equality(tokens, cursor);
 
     loop {
@@ -537,22 +538,22 @@ pub fn parse_logic_and<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast:
         cursor += 1;
         let (right_expr, new_cursor) = parse_equality(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::LogicalAnd ( ast::expr::LogicalAnd { left, right } );
+        expr = ast::expr::Expression::LogicalAnd(ast::expr::LogicalAnd { left, right });
         cursor = new_cursor;
     }
 
     (expr, cursor)
-
 }
 
-pub fn parse_equality<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_equality<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_comparison(tokens, cursor);
 
     loop {
-        if
-            tokens[cursor].kind != lexer::TokenKind::EqualEqual &&
-            tokens[cursor].kind != lexer::TokenKind::BangEqual
+        if tokens[cursor].kind != lexer::TokenKind::EqualEqual
+            && tokens[cursor].kind != lexer::TokenKind::BangEqual
         {
             break;
         }
@@ -561,25 +562,28 @@ pub fn parse_equality<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::
         cursor += 1;
         let (right_expr, new_cursor) = parse_comparison(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
+        expr = ast::expr::Expression::BinaryOperation(ast::expr::BinaryOperation {
+            operator,
+            left,
+            right,
+        });
         cursor = new_cursor;
     }
 
     (expr, cursor)
-
 }
 
-pub fn parse_comparison<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_comparison<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_term(tokens, cursor);
 
     loop {
-
-        if
-            tokens[cursor].kind != lexer::TokenKind::Greater      &&
-            tokens[cursor].kind != lexer::TokenKind::GreaterEqual &&
-            tokens[cursor].kind != lexer::TokenKind::Less         &&
-            tokens[cursor].kind != lexer::TokenKind::LessEqual
+        if tokens[cursor].kind != lexer::TokenKind::Greater
+            && tokens[cursor].kind != lexer::TokenKind::GreaterEqual
+            && tokens[cursor].kind != lexer::TokenKind::Less
+            && tokens[cursor].kind != lexer::TokenKind::LessEqual
         {
             break;
         }
@@ -588,23 +592,26 @@ pub fn parse_comparison<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast
         cursor += 1;
         let (right_expr, new_cursor) = parse_term(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
+        expr = ast::expr::Expression::BinaryOperation(ast::expr::BinaryOperation {
+            operator,
+            left,
+            right,
+        });
         cursor = new_cursor;
     }
 
     (expr, cursor)
-
 }
 
-pub fn parse_term<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_term<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_factor(tokens, cursor);
 
     loop {
-
-        if
-            tokens[cursor].kind != lexer::TokenKind::Plus  &&
-            tokens[cursor].kind != lexer::TokenKind::Minus
+        if tokens[cursor].kind != lexer::TokenKind::Plus
+            && tokens[cursor].kind != lexer::TokenKind::Minus
         {
             break;
         }
@@ -613,22 +620,26 @@ pub fn parse_term<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr
         cursor += 1;
         let (right_expr, new_cursor) = parse_factor(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
+        expr = ast::expr::Expression::BinaryOperation(ast::expr::BinaryOperation {
+            operator,
+            left,
+            right,
+        });
         cursor = new_cursor;
     }
 
     (expr, cursor)
 }
 
-pub fn parse_factor<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_factor<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_unary(tokens, cursor);
 
     loop {
-
-        if
-            tokens[cursor].kind != lexer::TokenKind::Star  &&
-            tokens[cursor].kind != lexer::TokenKind::Slash
+        if tokens[cursor].kind != lexer::TokenKind::Star
+            && tokens[cursor].kind != lexer::TokenKind::Slash
         {
             break;
         }
@@ -637,21 +648,25 @@ pub fn parse_factor<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::ex
         cursor += 1;
         let (right_expr, new_cursor) = parse_unary(tokens, cursor);
         let right = Box::<ast::expr::Expression>::new(right_expr);
-        expr = ast::expr::Expression::BinaryOperation ( ast::expr::BinaryOperation { operator, left, right } );
+        expr = ast::expr::Expression::BinaryOperation(ast::expr::BinaryOperation {
+            operator,
+            left,
+            right,
+        });
         cursor = new_cursor;
     }
 
     (expr, cursor)
-
 }
 
-pub fn parse_unary<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_unary<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let mut cursor = cursor;
 
-    if
-        tokens[cursor].kind == lexer::TokenKind::Bang  ||
-        tokens[cursor].kind == lexer::TokenKind::Minus
+    if tokens[cursor].kind == lexer::TokenKind::Bang
+        || tokens[cursor].kind == lexer::TokenKind::Minus
     {
         let operator = tokens[cursor].clone();
 
@@ -662,76 +677,66 @@ pub fn parse_unary<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::exp
 
         cursor = new_cursor;
 
-        return (ast::expr::Expression::UnaryOperation ( ast::expr::UnaryOperation { operator, right } ), cursor);
+        return (
+            ast::expr::Expression::UnaryOperation(ast::expr::UnaryOperation { operator, right }),
+            cursor,
+        );
     }
 
     parse_call(tokens, cursor)
-
 }
 
-pub fn parse_call<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
+pub fn parse_call<'a>(
+    tokens: &[lexer::Token<'a>],
+    cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
     let (mut expr, mut cursor) = parse_primary(tokens, cursor);
 
     loop {
-
         if tokens[cursor].kind == lexer::TokenKind::LeftParenthesis {
-
             cursor += 1;
             let mut arguments = Vec::<ast::expr::Expression>::new();
 
             loop {
                 if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                     cursor += 1;
-                    expr = ast::expr::Expression::Call (
-                        ast::expr::Call {
-                            callee: Box::new(expr),
-                            arguments
-                        }
-                    );
+                    expr = ast::expr::Expression::Call(ast::expr::Call {
+                        callee: Box::new(expr),
+                        arguments,
+                    });
                     break;
-                }
-                else if arguments.len() < 255 {
+                } else if arguments.len() < 255 {
                     let argument: ast::expr::Expression;
                     (argument, cursor) = parse_expression(tokens, cursor);
                     arguments.push(argument);
                     if tokens[cursor].kind == lexer::TokenKind::Comma {
                         cursor += 1;
-                    }
-                    else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
+                    } else if tokens[cursor].kind == lexer::TokenKind::RightParenthesis {
                         cursor += 1;
-                        expr = ast::expr::Expression::Call (
-                            ast::expr::Call {
-                                callee: Box::new(expr),
-                                arguments
-                            }
-                        );
+                        expr = ast::expr::Expression::Call(ast::expr::Call {
+                            callee: Box::new(expr),
+                            arguments,
+                        });
                         break;
-                    }
-                    else {
+                    } else {
                         syntax_error(tokens, cursor, "Expected ')' or ','");
                     }
-                }
-                else {
+                } else {
                     syntax_error(tokens, cursor, "Can't have more than 255 arguments.");
                 }
             }
-        }
-        else if tokens[cursor].kind == lexer::TokenKind::Dot {
+        } else if tokens[cursor].kind == lexer::TokenKind::Dot {
             cursor += 1;
             if tokens[cursor].kind != lexer::TokenKind::Identifier {
                 syntax_error(tokens, cursor, "Expect property name after '.'.");
             }
             let identifier = tokens[cursor].clone();
             cursor += 1;
-            expr = ast::expr::Expression::Get (
-                ast::expr::Get {
-                    instance: Box::new(expr),
-                    property: identifier
-                }
-            );
-        }
-        else {
+            expr = ast::expr::Expression::Get(ast::expr::Get {
+                instance: Box::new(expr),
+                property: identifier,
+            });
+        } else {
             break;
         }
     }
@@ -739,69 +744,58 @@ pub fn parse_call<'a>(tokens: &[lexer::Token<'a>], cursor: usize) -> ( ast::expr
     (expr, cursor)
 }
 
-pub fn parse_primary<'a>(tokens: &[lexer::Token<'a>], mut cursor: usize) -> ( ast::expr::Expression<'a>, usize ) {
-
-    if
-        tokens[cursor].kind == lexer::TokenKind::Nil    ||
-        tokens[cursor].kind == lexer::TokenKind::False  ||
-        tokens[cursor].kind == lexer::TokenKind::True   ||
-        tokens[cursor].kind == lexer::TokenKind::Number ||
-        tokens[cursor].kind == lexer::TokenKind::String
+pub fn parse_primary<'a>(
+    tokens: &[lexer::Token<'a>],
+    mut cursor: usize,
+) -> (ast::expr::Expression<'a>, usize) {
+    if tokens[cursor].kind == lexer::TokenKind::Nil
+        || tokens[cursor].kind == lexer::TokenKind::False
+        || tokens[cursor].kind == lexer::TokenKind::True
+        || tokens[cursor].kind == lexer::TokenKind::Number
+        || tokens[cursor].kind == lexer::TokenKind::String
     {
         return (
-            ast::expr::Expression::Literal (
-                ast::expr::Literal {
-                    token: tokens[cursor].clone()
-                }
-            ),
-            cursor + 1
+            ast::expr::Expression::Literal(ast::expr::Literal {
+                token: tokens[cursor].clone(),
+            }),
+            cursor + 1,
         );
     }
 
     if tokens[cursor].kind == lexer::TokenKind::This {
-        return (
-            ast::expr::Expression::This,
-            cursor + 1
-        );
+        return (ast::expr::Expression::This, cursor + 1);
     }
 
     if tokens[cursor].kind == lexer::TokenKind::Super {
-
         cursor += 1;
 
         if tokens[cursor].kind == lexer::TokenKind::Dot {
             cursor += 1;
-        }
-        else {
+        } else {
             syntax_error(tokens, cursor, "Expect '.' after 'super'.");
         }
 
         if tokens[cursor].kind == lexer::TokenKind::Identifier {
             return (
-                ast::expr::Expression::Super (
-                    ast::expr::Super {
-                        property: tokens[cursor].clone(),
-                        lookup_hop_count: None,
-                        env_slot_idx: None
-                    }
-                ),
-                cursor + 1
+                ast::expr::Expression::Super(ast::expr::Super {
+                    property: tokens[cursor].clone(),
+                    lookup_hop_count: None,
+                    env_slot_idx: None,
+                }),
+                cursor + 1,
             );
         }
         syntax_error(tokens, cursor, "Expect superclass method name.");
-
     }
 
     if tokens[cursor].kind == lexer::TokenKind::Identifier {
         return (
-            ast::expr::Expression::Variable (
-                ast::expr::Variable {
-                    identifier: tokens[cursor].clone(),
-                    lookup_hop_count: None,
-                    env_slot_idx: None
-                }
-            ),
-            cursor + 1
+            ast::expr::Expression::Variable(ast::expr::Variable {
+                identifier: tokens[cursor].clone(),
+                lookup_hop_count: None,
+                env_slot_idx: None,
+            }),
+            cursor + 1,
         );
     }
 
@@ -817,7 +811,12 @@ pub fn parse_primary<'a>(tokens: &[lexer::Token<'a>], mut cursor: usize) -> ( as
 
         cursor += 1;
 
-        return ( ast::expr::Expression::Parentheses ( ast::expr::Parentheses { expression: Box::<ast::expr::Expression>::new(expr) } ), cursor);
+        return (
+            ast::expr::Expression::Parentheses(ast::expr::Parentheses {
+                expression: Box::<ast::expr::Expression>::new(expr),
+            }),
+            cursor,
+        );
     }
 
     syntax_error(tokens, cursor, "Expect expression.");

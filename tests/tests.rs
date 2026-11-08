@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::Path,
-    process::Command,
-};
+use std::{fs, path::Path, process::Command};
 
 struct CompileError {
     token: String,
@@ -21,14 +17,9 @@ fn parse_expectations(source: &str) -> Expectations {
     let mut compile_error = None;
 
     for line in source.lines() {
-        if let Some((_, expected)) =
-            line.split_once("// expect runtime error:")
-        {
+        if let Some((_, expected)) = line.split_once("// expect runtime error:") {
             runtime_error = Some(expected.trim().to_string());
-        }
-        else if let Some((_, annotation)) =
-            line.split_once("// ")
-        {
+        } else if let Some((_, annotation)) = line.split_once("// ") {
             let annotation = annotation
                 .strip_prefix("[line ")
                 .and_then(|s| s.split_once("] "))
@@ -36,25 +27,17 @@ fn parse_expectations(source: &str) -> Expectations {
 
             if let Some(error) = annotation.strip_prefix("Error at ") {
                 if let Some((token, message)) = error.split_once(": ") {
-                    compile_error = Some (
-                        CompileError {
-                            token: token.trim().trim_matches('\'').to_string(),
-                            message: message.trim().to_string(),
-                        }
-                    );
-                }
-            }
-            else if let Some(message) = annotation.strip_prefix("Error: ") {
-                compile_error = Some (
-                    CompileError {
-                        token: String::new(),
+                    compile_error = Some(CompileError {
+                        token: token.trim().trim_matches('\'').to_string(),
                         message: message.trim().to_string(),
-                    }
-                );
-            }
-            else if let Some((_, expected)) =
-                line.split_once("// expect:")
-            {
+                    });
+                }
+            } else if let Some(message) = annotation.strip_prefix("Error: ") {
+                compile_error = Some(CompileError {
+                    token: String::new(),
+                    message: message.trim().to_string(),
+                });
+            } else if let Some((_, expected)) = line.split_once("// expect:") {
                 output.push(expected.trim_start().to_string());
             }
         }
@@ -68,8 +51,7 @@ fn parse_expectations(source: &str) -> Expectations {
 }
 
 fn run_lox_scanning_test(path: &Path) {
-    let source = fs::read_to_string(path)
-        .expect("Failed to read Lox test");
+    let source = fs::read_to_string(path).expect("Failed to read Lox test");
 
     let expectations = parse_expectations(&source);
 
@@ -78,14 +60,12 @@ fn run_lox_scanning_test(path: &Path) {
         .output()
         .expect("Failed to execute interpreter");
 
-    let stdout = String::from_utf8(output.stdout)
-        .expect("stdout was not valid UTF-8");
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
 
-    let stderr = String::from_utf8(output.stderr)
-        .expect("stderr was not valid UTF-8");
+    let stderr = String::from_utf8(output.stderr).expect("stderr was not valid UTF-8");
 
     if let Some(expected_error) = expectations.runtime_error {
-        assert! (
+        assert!(
             !output.status.success(),
             "Expected runtime error '{}' in {}, but interpreter exited successfully.\nstdout:\n{}",
             expected_error,
@@ -93,35 +73,30 @@ fn run_lox_scanning_test(path: &Path) {
             stdout
         );
 
-        assert! (
+        assert!(
             stderr.contains(&expected_error),
             "Expected error message '{}' in {}, but got stderr:\n{}",
             expected_error,
             path.display(),
             stderr
         );
-    }
-    else if let Some(CompileError { token, message }) =
-        expectations.compile_error
-    {
-        assert! (
+    } else if let Some(CompileError { token, message }) = expectations.compile_error {
+        assert!(
             !output.status.success(),
             "Expected compile error in {}, but interpreter exited successfully.\nstdout:\n{}",
             path.display(),
             stdout
         );
-        assert! (
-            (token.is_empty() || stderr.contains(&token))
-                && stderr.contains(&message),
+        assert!(
+            (token.is_empty() || stderr.contains(&token)) && stderr.contains(&message),
             "Expected compile error at token '{}' with message '{}' in {}, but got stderr:\n{}",
             token,
             message,
             path.display(),
             stderr
         );
-    }
-    else {
-        assert! (
+    } else {
+        assert!(
             output.status.success(),
             "Interpreter failed on {}.\nstdout:\n{}\nstderr:\n{}",
             path.display(),
@@ -131,23 +106,16 @@ fn run_lox_scanning_test(path: &Path) {
 
         let expected = if expectations.output.is_empty() {
             String::new()
-        }
-        else {
+        } else {
             format!("{}\n", expectations.output.join("\n"))
         };
 
-        assert_eq! (
-            stdout,
-            expected,
-            "Output mismatch in {}",
-            path.display()
-        );
+        assert_eq!(stdout, expected, "Output mismatch in {}", path.display());
     }
 }
 
 fn run_lox_test(path: &Path) {
-    let source = fs::read_to_string(path)
-        .expect("Failed to read Lox test");
+    let source = fs::read_to_string(path).expect("Failed to read Lox test");
 
     let expectations = parse_expectations(&source);
 
@@ -156,14 +124,12 @@ fn run_lox_test(path: &Path) {
         .output()
         .expect("Failed to execute interpreter");
 
-    let stdout = String::from_utf8(output.stdout)
-        .expect("stdout was not valid UTF-8");
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
 
-    let stderr = String::from_utf8(output.stderr)
-        .expect("stderr was not valid UTF-8");
+    let stderr = String::from_utf8(output.stderr).expect("stderr was not valid UTF-8");
 
     if let Some(expected_error) = expectations.runtime_error {
-        assert! (
+        assert!(
             !output.status.success(),
             "Expected runtime error '{}' in {}, but interpreter exited successfully.\nstdout:\n{}",
             expected_error,
@@ -171,35 +137,30 @@ fn run_lox_test(path: &Path) {
             stdout
         );
 
-        assert! (
+        assert!(
             stderr.contains(&expected_error),
             "Expected error message '{}' in {}, but got stderr:\n{}",
             expected_error,
             path.display(),
             stderr
         );
-    }
-    else if let Some(CompileError { token, message }) =
-        expectations.compile_error
-    {
-        assert! (
+    } else if let Some(CompileError { token, message }) = expectations.compile_error {
+        assert!(
             !output.status.success(),
             "Expected compile error in {}, but interpreter exited successfully.\nstdout:\n{}",
             path.display(),
             stdout
         );
-        assert! (
-            (token.is_empty() || stderr.contains(&token))
-                && stderr.contains(&message),
+        assert!(
+            (token.is_empty() || stderr.contains(&token)) && stderr.contains(&message),
             "Expected compile error at token '{}' with message '{}' in {}, but got stderr:\n{}",
             token,
             message,
             path.display(),
             stderr
         );
-    }
-    else {
-        assert! (
+    } else {
+        assert!(
             output.status.success(),
             "Interpreter failed on {}.\nstdout:\n{}\nstderr:\n{}",
             path.display(),
@@ -209,17 +170,11 @@ fn run_lox_test(path: &Path) {
 
         let expected = if expectations.output.is_empty() {
             String::new()
-        }
-        else {
+        } else {
             format!("{}\n", expectations.output.join("\n"))
         };
 
-        assert_eq! (
-            stdout,
-            expected,
-            "Output mismatch in {}",
-            path.display()
-        );
+        assert_eq!(stdout, expected, "Output mismatch in {}", path.display());
     }
 }
 
@@ -402,7 +357,9 @@ fn test_closure_open_closure_in_function() {
 
 #[test]
 fn test_closure_reference_closure_multiple_times() {
-    run_lox_test(Path::new("tests/closure/reference_closure_multiple_times.lox"));
+    run_lox_test(Path::new(
+        "tests/closure/reference_closure_multiple_times.lox",
+    ));
 }
 
 #[test]
@@ -544,13 +501,13 @@ fn test_while_var_in_body() {
 // expressions
 
 #[test]
-#[ignore]
+#[ignore = ""]
 fn test_expressions_evaluate() {
     run_lox_test(Path::new("tests/expressions/evaluate.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = ""]
 fn test_expressions_parse() {
     run_lox_test(Path::new("tests/expressions/parse.lox"));
 }
@@ -877,43 +834,45 @@ fn test_inheritance_parenthesized_superclass() {
 
 #[test]
 fn test_inheritance_set_fields_from_base_class() {
-    run_lox_test(Path::new("tests/inheritance/set_fields_from_base_class.lox"));
+    run_lox_test(Path::new(
+        "tests/inheritance/set_fields_from_base_class.lox",
+    ));
 }
 
 // limit
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_loop_too_large() {
     run_lox_test(Path::new("tests/limit/loop_too_large.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_no_reuse_constants() {
     run_lox_test(Path::new("tests/limit/no_reuse_constants.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_stack_overflow() {
     run_lox_test(Path::new("tests/limit/stack_overflow.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_too_many_constants() {
     run_lox_test(Path::new("tests/limit/too_many_constants.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_too_many_locals() {
     run_lox_test(Path::new("tests/limit/too_many_locals.lox"));
 }
 
 #[test]
-#[ignore]
+#[ignore = "Only relevant for the VM"]
 fn test_limit_too_many_upvalues() {
     run_lox_test(Path::new("tests/limit/too_many_upvalues.lox"));
 }
@@ -1014,7 +973,9 @@ fn test_variable_redefine_global() {
 
 #[test]
 fn test_variable_scope_reuse_in_different_blocks() {
-    run_lox_test(Path::new("tests/variable/scope_reuse_in_different_blocks.lox"));
+    run_lox_test(Path::new(
+        "tests/variable/scope_reuse_in_different_blocks.lox",
+    ));
 }
 
 #[test]
@@ -1217,7 +1178,9 @@ fn test_super_super_at_top_level() {
 
 #[test]
 fn test_super_super_in_closure_in_inherited_method() {
-    run_lox_test(Path::new("tests/super/super_in_closure_in_inherited_method.lox"));
+    run_lox_test(Path::new(
+        "tests/super/super_in_closure_in_inherited_method.lox",
+    ));
 }
 
 #[test]
@@ -1560,4 +1523,3 @@ fn test_precedence() {
 fn test_unexpected_character() {
     run_lox_test(Path::new("tests/unexpected_character.lox"));
 }
-
