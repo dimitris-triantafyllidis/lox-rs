@@ -240,7 +240,7 @@ impl<'a> Context<'a> {
             .expect("Interpreter context is empty")
     }
 
-    pub fn gc_clear_flags(&mut self) {
+    fn gc_clear_flags(&mut self) {
         for env in self.environments.values_mut() {
             env.reachable = false;
         }
@@ -249,12 +249,12 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn gc_sweep(&mut self) {
+    fn gc_sweep(&mut self) {
         self.environments.retain(|_, env| env.reachable);
         self.instances.retain(|_, instance| instance.reachable);
     }
 
-    pub fn gc_follow_and_mark(&mut self, env_id: usize, defs: &Definitions) {
+    fn gc_follow_and_mark(&mut self, env_id: usize, defs: &Definitions) {
         let mut env_ids_to_mark_stack = Vec::<usize>::new();
         let mut instance_ids_to_mark_stack = Vec::<usize>::new();
 

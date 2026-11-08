@@ -3,21 +3,21 @@ use std::collections::HashMap;
 use crate::{ast, context, interpreter, lexer};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FunctionContext {
+enum FunctionContext {
     Function,
     Method,
     Initializer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ClassContext {
+enum ClassContext {
     Class,
 }
 
 pub struct SemanticPass<'a> {
     pub context: context::Context<'a>,
-    pub function_context_stack: Vec<FunctionContext>,
-    pub class_context_stack: Vec<ClassContext>,
+    function_context_stack: Vec<FunctionContext>,
+    class_context_stack: Vec<ClassContext>,
     pub defs: context::Definitions<'a>,
 }
 
@@ -60,14 +60,14 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn compile_error(&self, message: &str) -> ! {
+    fn compile_error(&self, message: &str) -> ! {
         eprintln!("Compile error:, '{message}'");
         std::process::exit(1);
     }
 
-    pub fn visit_literal(&mut self, _: &mut ast::expr::Literal<'a>) {}
+    fn visit_literal(&mut self, _: &mut ast::expr::Literal<'a>) {}
 
-    pub fn visit_variable(&mut self, expr: &mut ast::expr::Variable<'a>) {
+    fn visit_variable(&mut self, expr: &mut ast::expr::Variable<'a>) {
         let ast::expr::Variable {
             identifier: id,
             lookup_hop_count,
@@ -78,14 +78,14 @@ impl<'a> SemanticPass<'a> {
             .find_symbol(id.lexeme, lookup_hop_count, env_slot_idx);
     }
 
-    pub fn visit_this(&self) {
+    fn visit_this(&self) {
         if self.class_context_stack.is_empty() {
             self.compile_error("Can't use 'this' outside of a class.'");
         }
         self.context.find_symbol("this", &mut None, &mut None);
     }
 
-    pub fn visit_super(&self, expr: &mut ast::expr::Super<'a>) {
+    fn visit_super(&self, expr: &mut ast::expr::Super<'a>) {
         if self.class_context_stack.is_empty() {
             self.compile_error("Can't use 'super' outside of a class.'");
         }
@@ -96,7 +96,7 @@ impl<'a> SemanticPass<'a> {
         self.context.find_symbol("super", &mut None, &mut None);
     }
 
-    pub fn visit_unary(&mut self, expr: &mut ast::expr::UnaryOperation<'a>) {
+    fn visit_unary(&mut self, expr: &mut ast::expr::UnaryOperation<'a>) {
         let ast::expr::UnaryOperation {
             operator: _,
             right: rhs,
@@ -104,17 +104,17 @@ impl<'a> SemanticPass<'a> {
         self.visit_expression(rhs);
     }
 
-    pub fn visit_parentheses(&mut self, expr: &mut ast::expr::Parentheses<'a>) {
+    fn visit_parentheses(&mut self, expr: &mut ast::expr::Parentheses<'a>) {
         let ast::expr::Parentheses { expression: e } = expr;
         self.visit_expression(e);
     }
 
-    pub fn visit_get(&mut self, expr: &mut ast::expr::Get<'a>) {
+    fn visit_get(&mut self, expr: &mut ast::expr::Get<'a>) {
         let ast::expr::Get { instance, .. } = expr;
         self.visit_expression(instance);
     }
 
-    pub fn visit_set(&mut self, expr: &mut ast::expr::Set<'a>) {
+    fn visit_set(&mut self, expr: &mut ast::expr::Set<'a>) {
         let ast::expr::Set {
             instance, value, ..
         } = expr;
@@ -122,7 +122,7 @@ impl<'a> SemanticPass<'a> {
         self.visit_expression(value);
     }
 
-    pub fn visit_assignment(&mut self, expr: &mut ast::expr::Assignment<'a>) {
+    fn visit_assignment(&mut self, expr: &mut ast::expr::Assignment<'a>) {
         let ast::expr::Assignment {
             left: lhs,
             expression: rhs,
@@ -134,7 +134,7 @@ impl<'a> SemanticPass<'a> {
             .find_symbol(lhs.lexeme, lookup_hop_count, env_slot_idx);
     }
 
-    pub fn visit_binary(&mut self, expr: &mut ast::expr::BinaryOperation<'a>) {
+    fn visit_binary(&mut self, expr: &mut ast::expr::BinaryOperation<'a>) {
         let ast::expr::BinaryOperation {
             operator: op,
             left: lhs,
@@ -159,7 +159,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_logical_or(&mut self, expr: &mut ast::expr::LogicalOr<'a>) {
+    fn visit_logical_or(&mut self, expr: &mut ast::expr::LogicalOr<'a>) {
         let ast::expr::LogicalOr {
             left: lhs,
             right: rhs,
@@ -168,7 +168,7 @@ impl<'a> SemanticPass<'a> {
         self.visit_expression(rhs);
     }
 
-    pub fn visit_logical_and(&mut self, expr: &mut ast::expr::LogicalAnd<'a>) {
+    fn visit_logical_and(&mut self, expr: &mut ast::expr::LogicalAnd<'a>) {
         let ast::expr::LogicalAnd {
             left: lhs,
             right: rhs,
@@ -177,7 +177,7 @@ impl<'a> SemanticPass<'a> {
         self.visit_expression(rhs);
     }
 
-    pub fn visit_call(&mut self, expr: &mut ast::expr::Call<'a>) {
+    fn visit_call(&mut self, expr: &mut ast::expr::Call<'a>) {
         let ast::expr::Call { callee, arguments } = expr;
         self.visit_expression(callee);
         for argument in arguments {
@@ -185,7 +185,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_expression(&mut self, expr: &mut ast::expr::Expression<'a>) {
+    fn visit_expression(&mut self, expr: &mut ast::expr::Expression<'a>) {
         match expr {
             ast::expr::Expression::Literal(expr) => self.visit_literal(expr),
             ast::expr::Expression::UnaryOperation(expr) => self.visit_unary(expr),
@@ -203,7 +203,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_statement(&mut self, statement: &mut ast::stmt::Statement<'a>) {
+    fn visit_statement(&mut self, statement: &mut ast::stmt::Statement<'a>) {
         match statement {
             ast::stmt::Statement::Expression(stmt) => self.visit_expression_statement(stmt),
             ast::stmt::Statement::Print(stmt) => self.visit_print_statement(stmt),
@@ -226,17 +226,17 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_expression_statement(&mut self, stmt: &mut ast::stmt::Expression<'a>) {
+    fn visit_expression_statement(&mut self, stmt: &mut ast::stmt::Expression<'a>) {
         let ast::stmt::Expression { expr } = stmt;
         self.visit_expression(expr);
     }
 
-    pub fn visit_print_statement(&mut self, stmt: &mut ast::stmt::Print<'a>) {
+    fn visit_print_statement(&mut self, stmt: &mut ast::stmt::Print<'a>) {
         let ast::stmt::Print { expr } = stmt;
         self.visit_expression(expr);
     }
 
-    pub fn visit_return_statement(&mut self, stmt: &mut ast::stmt::Return<'a>) {
+    fn visit_return_statement(&mut self, stmt: &mut ast::stmt::Return<'a>) {
         assert!(
             !self.function_context_stack.is_empty(),
             "Can't return from top-level code."
@@ -253,7 +253,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_while_statement(&mut self, stmt: &mut ast::stmt::While<'a>) {
+    fn visit_while_statement(&mut self, stmt: &mut ast::stmt::While<'a>) {
         let ast::stmt::While {
             condition: ast::stmt::Expression { expr },
             body,
@@ -262,7 +262,7 @@ impl<'a> SemanticPass<'a> {
         self.visit_statement(body);
     }
 
-    pub fn visit_for_statement(&mut self, stmt: &mut ast::stmt::For<'a>) {
+    fn visit_for_statement(&mut self, stmt: &mut ast::stmt::For<'a>) {
         let ast::stmt::For {
             init: initializer_statement,
             cond: condition_expression,
@@ -289,7 +289,7 @@ impl<'a> SemanticPass<'a> {
         self.context.pop_environment();
     }
 
-    pub fn visit_if_statement(&mut self, stmt: &mut ast::stmt::If<'a>) {
+    fn visit_if_statement(&mut self, stmt: &mut ast::stmt::If<'a>) {
         let ast::stmt::If {
             condition: ast::stmt::Expression { expr },
             then_statement,
@@ -302,7 +302,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    pub fn visit_function_declaration_statement(
+    fn visit_function_declaration_statement(
         &mut self,
         stmt: &mut ast::stmt::FunctionDeclaration<'a>,
     ) {
@@ -386,10 +386,7 @@ impl<'a> SemanticPass<'a> {
         self.context.pop_environment();
     }
 
-    pub fn visit_class_declaration_statement(
-        &mut self,
-        stmt: &mut ast::stmt::ClassDeclaration<'a>,
-    ) {
+    fn visit_class_declaration_statement(&mut self, stmt: &mut ast::stmt::ClassDeclaration<'a>) {
         let ast::stmt::ClassDeclaration {
             id,
             method_decls,
@@ -493,7 +490,7 @@ impl<'a> SemanticPass<'a> {
         self.class_context_stack.pop();
     }
 
-    pub fn visit_variable_declaration_statement(
+    fn visit_variable_declaration_statement(
         &mut self,
         stmt: &mut ast::stmt::VariableDeclaration<'a>,
     ) {
@@ -507,7 +504,7 @@ impl<'a> SemanticPass<'a> {
             .insert_symbol(id.lexeme, interpreter::Value::Nil);
     }
 
-    pub fn visit_block_statement(&mut self, stmt: &mut ast::stmt::Block<'a>) {
+    fn visit_block_statement(&mut self, stmt: &mut ast::stmt::Block<'a>) {
         let ast::stmt::Block { statements } = stmt;
         self.context.push_new_environment_auto();
         for statement in statements {

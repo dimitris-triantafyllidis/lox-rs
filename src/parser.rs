@@ -1,6 +1,6 @@
 use crate::{ast, lexer};
 
-pub fn syntax_error(tokens: &[lexer::Token<'_>], cursor: usize, message: &str) -> ! {
+fn syntax_error(tokens: &[lexer::Token<'_>], cursor: usize, message: &str) -> ! {
     eprintln!(
         "Syntax error in line {}, '{}': {}",
         tokens[cursor].line_number, tokens[cursor].lexeme, message
@@ -26,7 +26,7 @@ pub fn parse<'a>(tokens: &[lexer::Token<'a>]) -> Vec<ast::stmt::Statement<'a>> {
     statements
 }
 
-pub fn parse_declaration<'a>(
+fn parse_declaration<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -41,7 +41,7 @@ pub fn parse_declaration<'a>(
     }
 }
 
-pub fn parse_function_declaration<'a>(
+fn parse_function_declaration<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -104,7 +104,7 @@ pub fn parse_function_declaration<'a>(
     )
 }
 
-pub fn parse_class_declaration<'a>(
+fn parse_class_declaration<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -165,7 +165,7 @@ pub fn parse_class_declaration<'a>(
     }
 }
 
-pub fn parse_variable_declaration<'a>(
+fn parse_variable_declaration<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -203,7 +203,7 @@ pub fn parse_variable_declaration<'a>(
     }
 }
 
-pub fn parse_statement<'a>(
+fn parse_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -224,7 +224,7 @@ pub fn parse_statement<'a>(
     }
 }
 
-pub fn parse_while_statement<'a>(
+fn parse_while_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -257,7 +257,7 @@ pub fn parse_while_statement<'a>(
     )
 }
 
-pub fn parse_for_statement<'a>(
+fn parse_for_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -317,7 +317,7 @@ pub fn parse_for_statement<'a>(
     )
 }
 
-pub fn parse_expression_statement<'a>(
+fn parse_expression_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -332,7 +332,7 @@ pub fn parse_expression_statement<'a>(
     )
 }
 
-pub fn parse_block<'a>(
+fn parse_block<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -362,7 +362,7 @@ pub fn parse_block<'a>(
     )
 }
 
-pub fn parse_print_statement<'a>(
+fn parse_print_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -377,7 +377,7 @@ pub fn parse_print_statement<'a>(
     )
 }
 
-pub fn parse_return_statement<'a>(
+fn parse_return_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -401,7 +401,7 @@ pub fn parse_return_statement<'a>(
     )
 }
 
-pub fn parse_if_statement<'a>(
+fn parse_if_statement<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::stmt::Statement<'a>, usize) {
@@ -452,14 +452,14 @@ pub fn parse_if_statement<'a>(
     }
 }
 
-pub fn parse_expression<'a>(
+fn parse_expression<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
     parse_assignment(tokens, cursor)
 }
 
-pub fn parse_assignment<'a>(
+fn parse_assignment<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -503,7 +503,7 @@ pub fn parse_assignment<'a>(
     }
 }
 
-pub fn parse_logic_or<'a>(
+fn parse_logic_or<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -524,7 +524,7 @@ pub fn parse_logic_or<'a>(
     (expr, cursor)
 }
 
-pub fn parse_logic_and<'a>(
+fn parse_logic_and<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -545,7 +545,7 @@ pub fn parse_logic_and<'a>(
     (expr, cursor)
 }
 
-pub fn parse_equality<'a>(
+fn parse_equality<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -573,7 +573,7 @@ pub fn parse_equality<'a>(
     (expr, cursor)
 }
 
-pub fn parse_comparison<'a>(
+fn parse_comparison<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -603,7 +603,7 @@ pub fn parse_comparison<'a>(
     (expr, cursor)
 }
 
-pub fn parse_term<'a>(
+fn parse_term<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -631,7 +631,7 @@ pub fn parse_term<'a>(
     (expr, cursor)
 }
 
-pub fn parse_factor<'a>(
+fn parse_factor<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -659,7 +659,7 @@ pub fn parse_factor<'a>(
     (expr, cursor)
 }
 
-pub fn parse_unary<'a>(
+fn parse_unary<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -686,7 +686,7 @@ pub fn parse_unary<'a>(
     parse_call(tokens, cursor)
 }
 
-pub fn parse_call<'a>(
+fn parse_call<'a>(
     tokens: &[lexer::Token<'a>],
     cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {
@@ -744,7 +744,7 @@ pub fn parse_call<'a>(
     (expr, cursor)
 }
 
-pub fn parse_primary<'a>(
+fn parse_primary<'a>(
     tokens: &[lexer::Token<'a>],
     mut cursor: usize,
 ) -> (ast::expr::Expression<'a>, usize) {

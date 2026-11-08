@@ -108,12 +108,12 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn runtime_error(&self, message: &str) -> ! {
+    fn runtime_error(&self, message: &str) -> ! {
         eprintln!("Runtime error:, '{message}'");
         std::process::exit(1);
     }
 
-    pub fn evaluate_literal(
+    fn evaluate_literal(
         &mut self,
         expr: &ast::expr::Literal<'a>,
         _defs: &'a context::Definitions,
@@ -136,7 +136,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_variable(
+    fn evaluate_variable(
         &mut self,
         expr: &ast::expr::Variable<'a>,
         _defs: &'a context::Definitions,
@@ -158,14 +158,14 @@ impl<'a> Interpreter<'a> {
         )
     }
 
-    pub fn evaluate_this(&mut self, _defs: &'a context::Definitions) -> NodeResult {
+    fn evaluate_this(&mut self, _defs: &'a context::Definitions) -> NodeResult {
         NodeResult::new(
             self.context.get_symbol_value("this", &mut None, &mut None),
             Control::Continue,
         )
     }
 
-    pub fn make_bound_method(
+    fn make_bound_method(
         &mut self,
         context_function_slot_idx: usize,
         closure_id: usize,
@@ -180,7 +180,7 @@ impl<'a> Interpreter<'a> {
         })
     }
 
-    pub fn evaluate_super(
+    fn evaluate_super(
         &mut self,
         expr: &ast::expr::Super<'a>,
         defs: &'a context::Definitions,
@@ -226,7 +226,7 @@ impl<'a> Interpreter<'a> {
         panic!("Undefined property '{}'.", property.lexeme);
     }
 
-    pub fn evaluate_set(
+    fn evaluate_set(
         &mut self,
         expr: &ast::expr::Set<'a>,
         defs: &'a context::Definitions,
@@ -250,7 +250,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(value, Control::Continue)
     }
 
-    pub fn evaluate_get_internal(
+    fn evaluate_get_internal(
         &mut self,
         instance_value: &Value,
         property: &lexer::Token<'a>,
@@ -289,7 +289,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_get(
+    fn evaluate_get(
         &mut self,
         expr: &ast::expr::Get<'a>,
         defs: &'a context::Definitions,
@@ -303,7 +303,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(value, Control::Continue)
     }
 
-    pub fn evaluate_unary(
+    fn evaluate_unary(
         &mut self,
         expr: &ast::expr::UnaryOperation<'a>,
         defs: &'a context::Definitions,
@@ -329,7 +329,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_parentheses(
+    fn evaluate_parentheses(
         &mut self,
         expr: &ast::expr::Parentheses<'a>,
         defs: &'a context::Definitions,
@@ -339,7 +339,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(expression_result.value, Control::Continue)
     }
 
-    pub fn evaluate_assignment(
+    fn evaluate_assignment(
         &mut self,
         expr: &ast::expr::Assignment<'a>,
         defs: &'a context::Definitions,
@@ -362,7 +362,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(rhs_result.value, Control::Continue)
     }
 
-    pub fn op_add(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_add(&self, vl: &Value, vr: &Value) -> Value {
         if let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) {
             Value::Number(vl + vr)
         } else if let (Value::String(vl), Value::String(vr)) = (&vl, &vr) {
@@ -372,64 +372,64 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn op_sub(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_sub(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Number(vl - vr)
     }
 
-    pub fn op_mul(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_mul(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Number(vl * vr)
     }
 
-    pub fn op_div(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_div(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Number(vl / vr)
     }
 
-    pub fn op_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_equal(&self, vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl == vr)
     }
 
-    pub fn op_not_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_not_equal(&self, vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl != vr)
     }
 
-    pub fn op_less(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_less(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl < vr)
     }
 
-    pub fn op_less_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_less_equal(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl <= vr)
     }
 
-    pub fn op_greater(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_greater(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl > vr)
     }
 
-    pub fn op_greater_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_greater_equal(&self, vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
             self.runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl >= vr)
     }
 
-    pub fn evaluate_binary(
+    fn evaluate_binary(
         &mut self,
         expr: &ast::expr::BinaryOperation<'a>,
         defs: &'a context::Definitions,
@@ -489,7 +489,7 @@ impl<'a> Interpreter<'a> {
         panic!();
     }
 
-    pub fn evaluate_logical_or(
+    fn evaluate_logical_or(
         &mut self,
         expr: &ast::expr::LogicalOr<'a>,
         defs: &'a context::Definitions,
@@ -509,7 +509,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_logical_and(
+    fn evaluate_logical_and(
         &mut self,
         expr: &ast::expr::LogicalAnd<'a>,
         defs: &'a context::Definitions,
@@ -529,7 +529,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_function_call(
+    fn evaluate_function_call(
         &mut self,
         callee: &Function,
         arguments: &[Value],
@@ -608,7 +608,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_call(
+    fn evaluate_call(
         &mut self,
         expr: &ast::expr::Call<'a>,
         defs: &'a context::Definitions,
@@ -663,7 +663,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_expression(
+    fn evaluate_expression(
         &mut self,
         expr: &ast::expr::Expression<'a>,
         defs: &'a context::Definitions,
@@ -685,7 +685,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_statement(
+    fn execute_statement(
         &mut self,
         statement: &ast::stmt::Statement<'a>,
         defs: &'a context::Definitions,
@@ -728,7 +728,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_expression_statement(
+    fn execute_expression_statement(
         &mut self,
         stmt: &ast::stmt::Expression<'a>,
         defs: &'a context::Definitions,
@@ -738,7 +738,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, expr_result.control)
     }
 
-    pub fn execute_print_statement(
+    fn execute_print_statement(
         &mut self,
         stmt: &ast::stmt::Print<'a>,
         defs: &'a context::Definitions,
@@ -803,7 +803,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, expr_result.control)
     }
 
-    pub fn execute_return_statement(
+    fn execute_return_statement(
         &mut self,
         stmt: &ast::stmt::Return<'a>,
         defs: &'a context::Definitions,
@@ -819,7 +819,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_while_statement(
+    fn execute_while_statement(
         &mut self,
         stmt: &ast::stmt::While<'a>,
         defs: &'a context::Definitions,
@@ -844,7 +844,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, Control::Continue)
     }
 
-    pub fn execute_for_statement(
+    fn execute_for_statement(
         &mut self,
         stmt: &ast::stmt::For<'a>,
         defs: &'a context::Definitions,
@@ -885,7 +885,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, Control::Continue)
     }
 
-    pub fn execute_if_statement(
+    fn execute_if_statement(
         &mut self,
         stmt: &ast::stmt::If<'a>,
         defs: &'a context::Definitions,
@@ -905,7 +905,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn execute_function_declaration_statement(
+    fn execute_function_declaration_statement(
         &mut self,
         stmt: &ast::stmt::FunctionDeclaration<'a>,
         _defs: &'a context::Definitions,
@@ -933,7 +933,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, Control::Continue)
     }
 
-    pub fn execute_class_declaration_statement(
+    fn execute_class_declaration_statement(
         &mut self,
         stmt: &ast::stmt::ClassDeclaration<'a>,
         defs: &'a context::Definitions,
@@ -984,7 +984,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, Control::Continue)
     }
 
-    pub fn execute_variable_declaration_statement(
+    fn execute_variable_declaration_statement(
         &mut self,
         stmt: &ast::stmt::VariableDeclaration<'a>,
         defs: &'a context::Definitions,
@@ -1001,7 +1001,7 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(Value::Nil, Control::Continue)
     }
 
-    pub fn execute_block_statement(
+    fn execute_block_statement(
         &mut self,
         stmt: &ast::stmt::Block<'a>,
         defs: &'a context::Definitions,
