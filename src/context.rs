@@ -1,9 +1,82 @@
 use std::collections::HashMap;
 
-use crate::interpreter;
+use crate::ast;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    Nil,
+    Boolean(bool),
+    Number(f64),
+    String(String),
+    Function(Function),
+    Class(Class),
+    Instance(usize),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub context_function_slot_idx: usize,
+    pub closure_id: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Class {
+    pub context_class_slot_idx: usize,
+    pub closure_id: usize,
+    pub super_class: Option<Box<Value>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Instance<'a> {
+    pub class: Value,
+    pub properties: HashMap<&'a str, Value>,
+    pub reachable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NativeFunction {
+    None,
+    Clock,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionDefinition<'a> {
+    pub pars: Vec<&'a str>,
+    pub body: ast::stmt::Statement<'a>,
+    pub is_native: bool,
+    pub is_initializer: bool,
+    pub is_method: bool,
+    pub native_function: NativeFunction,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDefinition<'a> {
+    pub methods: HashMap<&'a str, usize>,
+    pub super_class: Option<usize>,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Control {
+    Continue,
+    FunctionReturn,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NodeResult {
+    pub value: Value,
+    pub control: Control,
+}
+
+impl NodeResult {
+    pub fn new(value: Value, control: Control) -> Self {
+        Self { value, control }
+    }
+}
 
 pub struct Environment<'a> {
-    pub symbols: Vec<(&'a str, interpreter::Value)>,
+    pub symbols: Vec<(&'a str, Value)>,
     pub parent_key: Option<usize>,
     pub reachable: bool,
 }
@@ -11,7 +84,7 @@ pub struct Environment<'a> {
 impl Environment<'_> {
     pub fn new(parent_key: Option<usize>) -> Self {
         Self {
-            symbols: Vec::<(&str, interpreter::Value)>::new(),
+            symbols: Vec::<(&str, Value)>::new(),
             parent_key,
             reachable: false,
         }
@@ -20,8 +93,8 @@ impl Environment<'_> {
 
 #[derive(Clone)]
 pub struct Definitions<'a> {
-    pub classes: Vec<interpreter::ClassDefinition<'a>>,
-    pub functions: Vec<interpreter::FunctionDefinition<'a>>,
+    pub classes: Vec<ClassDefinition<'a>>,
+    pub functions: Vec<FunctionDefinition<'a>>,
 }
 
 impl Default for Definitions<'_> {
@@ -33,17 +106,17 @@ impl Default for Definitions<'_> {
 impl<'a> Definitions<'a> {
     pub fn new() -> Self {
         Self {
-            classes: Vec::<interpreter::ClassDefinition>::new(),
-            functions: Vec::<interpreter::FunctionDefinition<'a>>::new(),
+            classes: Vec::<ClassDefinition>::new(),
+            functions: Vec::<FunctionDefinition<'a>>::new(),
         }
     }
 
-    pub fn insert_class(&mut self, class: interpreter::ClassDefinition<'a>) -> usize {
+    pub fn insert_class(&mut self, class: ClassDefinition<'a>) -> usize {
         self.classes.push(class);
         self.classes.len() - 1
     }
 
-    pub fn insert_function(&mut self, function: interpreter::FunctionDefinition<'a>) -> usize {
+    pub fn insert_function(&mut self, function: FunctionDefinition<'a>) -> usize {
         self.functions.push(function);
         self.functions.len() - 1
     }
@@ -53,7 +126,7 @@ pub struct Context<'a> {
     pub environments: HashMap<usize, Environment<'a>>,
     pub environment_stack: Vec<usize>,
     pub next_env_id: usize,
-    pub instances: HashMap<usize, interpreter::Instance<'a>>,
+    pub instances: HashMap<usize, Instance<'a>>,
     pub next_instance_id: usize,
 }
 
@@ -69,12 +142,12 @@ impl<'a> Context<'a> {
             environments: HashMap::<usize, Environment>::new(),
             environment_stack: Vec::<usize>::new(),
             next_env_id: 0,
-            instances: HashMap::<usize, interpreter::Instance<'a>>::new(),
+            instances: HashMap::<usize, Instance<'a>>::new(),
             next_instance_id: 0,
         }
     }
 
-    pub fn insert_instance(&mut self, instance: interpreter::Instance<'a>) -> usize {
+    pub fn insert_instance(&mut self, instance: Instance<'a>) -> usize {
         self.instances.insert(self.next_instance_id, instance);
         self.next_instance_id += 1;
         self.next_instance_id - 1
@@ -164,7 +237,7 @@ impl<'a> Context<'a> {
         identifier: &str,
         lookup_hop_count: &mut Option<usize>,
         env_slot_idx: &mut Option<usize>,
-    ) -> interpreter::Value {
+    ) -> Value {
         let env_id = self.find_symbol(identifier, lookup_hop_count, env_slot_idx);
         let env = self.environments.get(&env_id).unwrap();
 
@@ -186,7 +259,7 @@ impl<'a> Context<'a> {
     pub fn set_symbol_value(
         &mut self,
         identifier: &str,
-        value: interpreter::Value,
+        value: Value,
         lookup_hop_count: &mut Option<usize>,
         env_slot_idx: &mut Option<usize>,
     ) {
@@ -211,7 +284,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn insert_symbol(&mut self, identifier: &'a str, value: interpreter::Value) {
+    pub fn insert_symbol(&mut self, identifier: &'a str, value: Value) {
         let id = *self
             .environment_stack
             .last()
@@ -275,17 +348,16 @@ impl<'a> Context<'a> {
                 let mut new_envs_to_visit = Vec::<usize>::new();
 
                 for (_, value) in &env.symbols {
-                    if let interpreter::Value::Function(interpreter::Function {
+                    if let Value::Function(Function {
                         context_function_slot_idx,
                         closure_id,
                     }) = value
                     {
-                        let interpreter::FunctionDefinition { .. } =
-                            defs.functions[*context_function_slot_idx];
+                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         new_envs_to_visit.push(*closure_id);
-                    } else if let interpreter::Value::Instance(instance_id) = value {
+                    } else if let Value::Instance(instance_id) = value {
                         instance_ids_to_mark_stack.push(*instance_id);
-                    } else if let interpreter::Value::Class(interpreter::Class {
+                    } else if let Value::Class(Class {
                         closure_id,
                         super_class,
                         ..
@@ -296,7 +368,7 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some(b) = s {
-                            let interpreter::Value::Class(interpreter::Class {
+                            let Value::Class(Class {
                                 closure_id,
                                 super_class,
                                 ..
@@ -330,7 +402,7 @@ impl<'a> Context<'a> {
 
                 let mut new_instances_to_visit = Vec::<usize>::new();
 
-                if let interpreter::Value::Class(interpreter::Class {
+                if let Value::Class(Class {
                     closure_id,
                     super_class,
                     ..
@@ -341,7 +413,7 @@ impl<'a> Context<'a> {
                     let mut s = super_class;
 
                     while let Some(b) = s {
-                        let interpreter::Value::Class(interpreter::Class {
+                        let Value::Class(Class {
                             closure_id,
                             super_class,
                             ..
@@ -357,7 +429,7 @@ impl<'a> Context<'a> {
                 }
 
                 for property_value in instance.properties.values() {
-                    if let interpreter::Value::Class(interpreter::Class {
+                    if let Value::Class(Class {
                         closure_id,
                         super_class,
                         ..
@@ -368,7 +440,7 @@ impl<'a> Context<'a> {
                         let mut s = super_class;
 
                         while let Some(b) = s {
-                            let interpreter::Value::Class(interpreter::Class {
+                            let Value::Class(Class {
                                 closure_id,
                                 super_class,
                                 ..
@@ -379,15 +451,14 @@ impl<'a> Context<'a> {
                             env_ids_to_mark_stack.push(*closure_id);
                             s = super_class;
                         }
-                    } else if let interpreter::Value::Function(interpreter::Function {
+                    } else if let Value::Function(Function {
                         context_function_slot_idx,
                         closure_id,
                     }) = property_value
                     {
-                        let interpreter::FunctionDefinition { .. } =
-                            defs.functions[*context_function_slot_idx];
+                        let FunctionDefinition { .. } = defs.functions[*context_function_slot_idx];
                         env_ids_to_mark_stack.push(*closure_id);
-                    } else if let interpreter::Value::Instance(instance_id) = property_value {
+                    } else if let Value::Instance(instance_id) = property_value {
                         new_instances_to_visit.push(*instance_id);
                     }
                 }

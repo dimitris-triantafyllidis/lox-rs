@@ -4,81 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{ast, context, lexer};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Instance<'a> {
-    pub class: Value,
-    pub properties: HashMap<&'a str, Value>,
-    pub reachable: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum NativeFunction {
-    None,
-    Clock,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionDefinition<'a> {
-    pub pars: Vec<&'a str>,
-    pub body: ast::stmt::Statement<'a>,
-    pub is_native: bool,
-    pub is_initializer: bool,
-    pub is_method: bool,
-    pub native_function: NativeFunction,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ClassDefinition<'a> {
-    pub methods: HashMap<&'a str, usize>,
-    pub super_class: Option<usize>,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Function {
-    pub context_function_slot_idx: usize,
-    pub closure_id: usize,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Class {
-    pub context_class_slot_idx: usize,
-    pub closure_id: usize,
-    pub super_class: Option<Box<Value>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Nil,
-    Boolean(bool),
-    Number(f64),
-    String(String),
-    Function(Function),
-    Class(Class),
-    Instance(usize),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Control {
-    Continue,
-    FunctionReturn,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct NodeResult {
-    pub value: Value,
-    pub control: Control,
-}
-
-impl NodeResult {
-    pub fn new(value: Value, control: Control) -> Self {
-        Self { value, control }
-    }
-}
-
-pub fn is_truthy(v: &Value) -> bool {
-    !matches!(v, Value::Nil | Value::Boolean(false))
+pub fn is_truthy(v: &context::Value) -> bool {
+    !matches!(v, context::Value::Nil | context::Value::Boolean(false))
 }
 
 pub struct Interpreter<'a> {
@@ -101,7 +28,7 @@ impl<'a> Interpreter<'a> {
 
         context.insert_symbol(
             "clock",
-            Value::Function(Function {
+            context::Value::Function(context::Function {
                 context_function_slot_idx: 0,
                 closure_id: 0,
             }),
@@ -119,26 +46,32 @@ impl<'a> Interpreter<'a> {
         std::process::exit(1);
     }
 
-    fn evaluate_literal(expr: &ast::expr::Literal<'a>) -> NodeResult {
+    fn evaluate_literal(expr: &ast::expr::Literal<'a>) -> context::NodeResult {
         let ast::expr::Literal { token } = expr;
 
         match token.kind {
-            lexer::TokenKind::Nil => NodeResult::new(Value::Nil, Control::Continue),
-            lexer::TokenKind::False => NodeResult::new(Value::Boolean(false), Control::Continue),
-            lexer::TokenKind::True => NodeResult::new(Value::Boolean(true), Control::Continue),
-            lexer::TokenKind::Number => NodeResult::new(
-                Value::Number(token.lexeme.parse().unwrap()),
-                Control::Continue,
+            lexer::TokenKind::Nil => {
+                context::NodeResult::new(context::Value::Nil, context::Control::Continue)
+            }
+            lexer::TokenKind::False => {
+                context::NodeResult::new(context::Value::Boolean(false), context::Control::Continue)
+            }
+            lexer::TokenKind::True => {
+                context::NodeResult::new(context::Value::Boolean(true), context::Control::Continue)
+            }
+            lexer::TokenKind::Number => context::NodeResult::new(
+                context::Value::Number(token.lexeme.parse().unwrap()),
+                context::Control::Continue,
             ),
-            lexer::TokenKind::String => NodeResult::new(
-                Value::String(token.lexeme[1..token.lexeme.len() - 1].to_string()),
-                Control::Continue,
+            lexer::TokenKind::String => context::NodeResult::new(
+                context::Value::String(token.lexeme[1..token.lexeme.len() - 1].to_string()),
+                context::Control::Continue,
             ),
             _ => panic!(),
         }
     }
 
-    fn evaluate_variable(&mut self, expr: &ast::expr::Variable<'a>) -> NodeResult {
+    fn evaluate_variable(&mut self, expr: &ast::expr::Variable<'a>) -> context::NodeResult {
         let ast::expr::Variable {
             identifier: id,
             lookup_hop_count,
@@ -146,20 +79,20 @@ impl<'a> Interpreter<'a> {
         } = expr;
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
         let mut env_slot_idx_mut_copy = *env_slot_idx;
-        NodeResult::new(
+        context::NodeResult::new(
             self.context.get_symbol_value(
                 id.lexeme,
                 &mut lookup_hop_count_mut_copy,
                 &mut env_slot_idx_mut_copy,
             ),
-            Control::Continue,
+            context::Control::Continue,
         )
     }
 
-    fn evaluate_this(&mut self) -> NodeResult {
-        NodeResult::new(
+    fn evaluate_this(&mut self) -> context::NodeResult {
+        context::NodeResult::new(
             self.context.get_symbol_value("this", &mut None, &mut None),
-            Control::Continue,
+            context::Control::Continue,
         )
     }
 
@@ -167,12 +100,12 @@ impl<'a> Interpreter<'a> {
         &mut self,
         context_function_slot_idx: usize,
         closure_id: usize,
-        instance: &Value,
-    ) -> Value {
+        instance: &context::Value,
+    ) -> context::Value {
         self.context.push_new_environment(Some(closure_id));
         self.context.insert_symbol("this", instance.clone());
         self.context.pop_environment();
-        Value::Function(Function {
+        context::Value::Function(context::Function {
             context_function_slot_idx,
             closure_id: self.context.next_env_id - 1,
         })
@@ -182,7 +115,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Super<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Super {
             property,
             lookup_hop_count,
@@ -199,7 +132,7 @@ impl<'a> Interpreter<'a> {
             &mut env_slot_idx_mut_copy,
         ));
         while let Some(maybe_value) = method_lookup_class {
-            let Value::Class(Class {
+            let context::Value::Class(context::Class {
                 context_class_slot_idx,
                 closure_id,
                 super_class,
@@ -207,18 +140,18 @@ impl<'a> Interpreter<'a> {
             else {
                 panic!("Expected class value");
             };
-            let ClassDefinition { ref methods, .. } = defs.classes[context_class_slot_idx];
+            let context::ClassDefinition { ref methods, .. } = defs.classes[context_class_slot_idx];
             let Some(context_function_slot_idx) = methods.get(&property.lexeme) else {
                 method_lookup_class = super_class.map(|boxed| *boxed);
                 continue;
             };
-            return NodeResult {
+            return context::NodeResult {
                 value: self.make_bound_method(
                     *context_function_slot_idx,
                     closure_id,
                     &instance_value,
                 ),
-                control: Control::Continue,
+                control: context::Control::Continue,
             };
         }
         panic!("Undefined property '{}'.", property.lexeme);
@@ -228,7 +161,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Set<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Set {
             instance,
             property,
@@ -238,23 +171,23 @@ impl<'a> Interpreter<'a> {
         let instance = self.evaluate_expression(instance.as_ref(), defs).value;
         let value = self.evaluate_expression(value, defs).value;
 
-        let Value::Instance(instance_id) = instance else {
+        let context::Value::Instance(instance_id) = instance else {
             panic!("Only instances have fields.");
         };
         let instance_value = self.context.instances.get_mut(&instance_id).unwrap();
         instance_value
             .properties
             .insert(property.lexeme, value.clone());
-        NodeResult::new(value, Control::Continue)
+        context::NodeResult::new(value, context::Control::Continue)
     }
 
     fn evaluate_get_internal(
         &mut self,
-        instance_value: &Value,
+        instance_value: &context::Value,
         property: &lexer::Token<'a>,
         defs: &'a context::Definitions,
-    ) -> Option<Value> {
-        let Value::Instance(instance_id) = instance_value else {
+    ) -> Option<context::Value> {
+        let context::Value::Instance(instance_id) = instance_value else {
             panic!("Only instances have properties.");
         };
         let instance = self.context.instances.get(instance_id).unwrap();
@@ -264,7 +197,7 @@ impl<'a> Interpreter<'a> {
         } else {
             let mut method_lookup_class = Some(instance.class.clone());
             while let Some(maybe_value) = method_lookup_class {
-                let Value::Class(Class {
+                let context::Value::Class(context::Class {
                     context_class_slot_idx,
                     closure_id,
                     super_class,
@@ -272,7 +205,8 @@ impl<'a> Interpreter<'a> {
                 else {
                     panic!("Expected class value");
                 };
-                let ClassDefinition { methods, .. } = &defs.classes[context_class_slot_idx];
+                let context::ClassDefinition { methods, .. } =
+                    &defs.classes[context_class_slot_idx];
                 let Some(context_function_slot_idx) = methods.get(&property.lexeme) else {
                     method_lookup_class = super_class.map(|boxed| *boxed);
                     continue;
@@ -291,21 +225,21 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Get<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Get { instance, property } = expr;
         let instance_value = self.evaluate_expression(instance.as_ref(), defs).value;
 
         let Some(value) = self.evaluate_get_internal(&instance_value, property, defs) else {
             Interpreter::runtime_error(&std::format!("Undefined property '{}'.", property.lexeme));
         };
-        NodeResult::new(value, Control::Continue)
+        context::NodeResult::new(value, context::Control::Continue)
     }
 
     fn evaluate_unary(
         &mut self,
         expr: &ast::expr::UnaryOperation<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::UnaryOperation {
             operator: op,
             right: rhs,
@@ -313,14 +247,14 @@ impl<'a> Interpreter<'a> {
         let rhs_result = self.evaluate_expression(rhs, defs);
 
         if op.kind == lexer::TokenKind::Minus {
-            let Value::Number(v) = rhs_result.value else {
+            let context::Value::Number(v) = rhs_result.value else {
                 Interpreter::runtime_error("Operand must be a number.");
             };
-            NodeResult::new(Value::Number(-v), Control::Continue)
+            context::NodeResult::new(context::Value::Number(-v), context::Control::Continue)
         } else if op.kind == lexer::TokenKind::Bang {
-            NodeResult::new(
-                Value::Boolean(!is_truthy(&rhs_result.value)),
-                Control::Continue,
+            context::NodeResult::new(
+                context::Value::Boolean(!is_truthy(&rhs_result.value)),
+                context::Control::Continue,
             )
         } else {
             panic!();
@@ -331,17 +265,17 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Parentheses<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Parentheses { expression: e } = expr;
         let expression_result = self.evaluate_expression(e, defs);
-        NodeResult::new(expression_result.value, Control::Continue)
+        context::NodeResult::new(expression_result.value, context::Control::Continue)
     }
 
     fn evaluate_assignment(
         &mut self,
         expr: &ast::expr::Assignment<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Assignment {
             left: lhs,
             expression: rhs,
@@ -357,81 +291,81 @@ impl<'a> Interpreter<'a> {
             &mut lookup_hop_count_mut_copy,
             &mut env_slot_idx_mut_copy,
         );
-        NodeResult::new(rhs_result.value, Control::Continue)
+        context::NodeResult::new(rhs_result.value, context::Control::Continue)
     }
 
-    fn op_add(vl: &Value, vr: &Value) -> Value {
-        if let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) {
-            Value::Number(vl + vr)
-        } else if let (Value::String(vl), Value::String(vr)) = (&vl, &vr) {
-            Value::String(vl.clone() + vr)
+    fn op_add(vl: &context::Value, vr: &context::Value) -> context::Value {
+        if let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) {
+            context::Value::Number(vl + vr)
+        } else if let (context::Value::String(vl), context::Value::String(vr)) = (&vl, &vr) {
+            context::Value::String(vl.clone() + vr)
         } else {
             Interpreter::runtime_error("Operands must be two numbers or two strings.");
         }
     }
 
-    fn op_sub(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_sub(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Number(vl - vr)
+        context::Value::Number(vl - vr)
     }
 
-    fn op_mul(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_mul(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Number(vl * vr)
+        context::Value::Number(vl * vr)
     }
 
-    fn op_div(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_div(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Number(vl / vr)
+        context::Value::Number(vl / vr)
     }
 
-    fn op_equal(vl: &Value, vr: &Value) -> Value {
-        Value::Boolean(vl == vr)
+    fn op_equal(vl: &context::Value, vr: &context::Value) -> context::Value {
+        context::Value::Boolean(vl == vr)
     }
 
-    fn op_not_equal(vl: &Value, vr: &Value) -> Value {
-        Value::Boolean(vl != vr)
+    fn op_not_equal(vl: &context::Value, vr: &context::Value) -> context::Value {
+        context::Value::Boolean(vl != vr)
     }
 
-    fn op_less(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_less(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Boolean(vl < vr)
+        context::Value::Boolean(vl < vr)
     }
 
-    fn op_less_equal(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_less_equal(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Boolean(vl <= vr)
+        context::Value::Boolean(vl <= vr)
     }
 
-    fn op_greater(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_greater(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Boolean(vl > vr)
+        context::Value::Boolean(vl > vr)
     }
 
-    fn op_greater_equal(vl: &Value, vr: &Value) -> Value {
-        let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
+    fn op_greater_equal(vl: &context::Value, vr: &context::Value) -> context::Value {
+        let (context::Value::Number(vl), context::Value::Number(vr)) = (&vl, &vr) else {
             Interpreter::runtime_error("Operands must be numbers.");
         };
-        Value::Boolean(vl >= vr)
+        context::Value::Boolean(vl >= vr)
     }
 
     fn evaluate_binary(
         &mut self,
         expr: &ast::expr::BinaryOperation<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::BinaryOperation {
             operator: op,
             left: lhs,
@@ -443,63 +377,63 @@ impl<'a> Interpreter<'a> {
 
         match op.kind {
             lexer::TokenKind::Plus => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_add(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::Minus => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_sub(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::Star => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_mul(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::Slash => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_div(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::Less => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_less(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::LessEqual => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_less_equal(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::Greater => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_greater(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::GreaterEqual => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_greater_equal(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::EqualEqual => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_equal(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             lexer::TokenKind::BangEqual => {
-                return NodeResult::new(
+                return context::NodeResult::new(
                     Interpreter::op_not_equal(&lhs_value, &rhs_value),
-                    Control::Continue,
+                    context::Control::Continue,
                 );
             }
             _ => {}
@@ -512,7 +446,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::LogicalOr<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::LogicalOr {
             left: lhs,
             right: rhs,
@@ -521,10 +455,10 @@ impl<'a> Interpreter<'a> {
         let lhs_result = self.evaluate_expression(lhs, defs);
 
         if is_truthy(&lhs_result.value) {
-            NodeResult::new(lhs_result.value, Control::Continue)
+            context::NodeResult::new(lhs_result.value, context::Control::Continue)
         } else {
             let rhs_result = self.evaluate_expression(rhs, defs);
-            NodeResult::new(rhs_result.value, Control::Continue)
+            context::NodeResult::new(rhs_result.value, context::Control::Continue)
         }
     }
 
@@ -532,7 +466,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::LogicalAnd<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::LogicalAnd {
             left: lhs,
             right: rhs,
@@ -542,23 +476,23 @@ impl<'a> Interpreter<'a> {
 
         if is_truthy(&lhs_result.value) {
             let rhs_result = self.evaluate_expression(rhs, defs);
-            NodeResult::new(rhs_result.value, Control::Continue)
+            context::NodeResult::new(rhs_result.value, context::Control::Continue)
         } else {
-            NodeResult::new(lhs_result.value, Control::Continue)
+            context::NodeResult::new(lhs_result.value, context::Control::Continue)
         }
     }
 
     fn evaluate_function_call(
         &mut self,
-        callee: &Function,
-        arguments: &[Value],
+        callee: &context::Function,
+        arguments: &[context::Value],
         defs: &'a context::Definitions,
-    ) -> Value {
-        let Function {
+    ) -> context::Value {
+        let context::Function {
             context_function_slot_idx,
             closure_id,
         } = callee;
-        let FunctionDefinition {
+        let context::FunctionDefinition {
             pars,
             body,
             is_native,
@@ -572,15 +506,15 @@ impl<'a> Interpreter<'a> {
 
             if *is_native {
                 match native_function {
-                    NativeFunction::Clock => {
+                    context::NativeFunction::Clock => {
                         self.context.pop_environment();
-                        let ms = SystemTime::now()
+                        let s = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
-                            .as_millis();
-                        return Value::Number((ms as f64) / 1000.0);
+                            .as_secs_f64();
+                        return context::Value::Number(s);
                     }
-                    NativeFunction::None => {
+                    context::NativeFunction::None => {
                         panic!()
                     }
                 }
@@ -595,7 +529,7 @@ impl<'a> Interpreter<'a> {
             };
             for statement in statements {
                 let statement_result = self.execute_statement(statement, defs);
-                if statement_result.control == Control::FunctionReturn {
+                if statement_result.control == context::Control::FunctionReturn {
                     if *is_initializer {
                         let return_value =
                             self.context
@@ -616,7 +550,7 @@ impl<'a> Interpreter<'a> {
                 return_value
             } else {
                 self.context.pop_environment();
-                Value::Nil
+                context::Value::Nil
             }
         } else {
             panic!(
@@ -631,28 +565,29 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Call<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::expr::Call { callee, arguments } = &expr;
 
         let callee = self.evaluate_expression(callee, defs).value;
 
-        if let Value::Function(function) = &callee {
-            let mut argument_values = Vec::<Value>::new();
+        if let context::Value::Function(function) = &callee {
+            let mut argument_values = Vec::<context::Value>::new();
 
             for arg in arguments {
                 argument_values.push(self.evaluate_expression(arg, defs).value);
             }
 
-            NodeResult::new(
+            context::NodeResult::new(
                 self.evaluate_function_call(function, &argument_values, defs),
-                Control::Continue,
+                context::Control::Continue,
             )
-        } else if let Value::Class { .. } = &callee {
-            let new_instance = Value::Instance(self.context.insert_instance(Instance {
-                class: callee,
-                properties: HashMap::<&'a str, Value>::new(),
-                reachable: false,
-            }));
+        } else if let context::Value::Class { .. } = &callee {
+            let new_instance =
+                context::Value::Instance(self.context.insert_instance(context::Instance {
+                    class: callee,
+                    properties: HashMap::<&'a str, context::Value>::new(),
+                    reachable: false,
+                }));
 
             let init_token = lexer::Token {
                 kind: lexer::TokenKind::Identifier,
@@ -663,8 +598,8 @@ impl<'a> Interpreter<'a> {
             if let Some(init_bound_function) =
                 self.evaluate_get_internal(&new_instance, &init_token, defs)
             {
-                if let Value::Function(function) = init_bound_function {
-                    let mut argument_values = Vec::<Value>::new();
+                if let context::Value::Function(function) = init_bound_function {
+                    let mut argument_values = Vec::<context::Value>::new();
 
                     for arg in arguments {
                         argument_values.push(self.evaluate_expression(arg, defs).value);
@@ -676,7 +611,7 @@ impl<'a> Interpreter<'a> {
                 panic!("Expected 0 arguments but got {}.", arguments.len());
             }
 
-            NodeResult::new(new_instance, Control::Continue)
+            context::NodeResult::new(new_instance, context::Control::Continue)
         } else {
             panic!("Can only call functions and classes.");
         }
@@ -686,7 +621,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         expr: &ast::expr::Expression<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         match expr {
             ast::expr::Expression::Literal(expr) => Interpreter::evaluate_literal(expr),
             ast::expr::Expression::UnaryOperation(expr) => self.evaluate_unary(expr, defs),
@@ -708,7 +643,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         statement: &ast::stmt::Statement<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         self.statement_exec_count += 1;
 
         if self.statement_exec_count.is_multiple_of(16384) {
@@ -751,39 +686,39 @@ impl<'a> Interpreter<'a> {
         &mut self,
         stmt: &ast::stmt::Expression<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::Expression { expr } = stmt;
         let expr_result = self.evaluate_expression(expr, defs);
-        NodeResult::new(Value::Nil, expr_result.control)
+        context::NodeResult::new(context::Value::Nil, expr_result.control)
     }
 
     fn execute_print_statement(
         &mut self,
         stmt: &ast::stmt::Print<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::Print { expr } = stmt;
 
         let expr_result = self.evaluate_expression(expr, defs);
 
         match expr_result.value {
-            Value::Boolean(b) => {
+            context::Value::Boolean(b) => {
                 println!("{b}");
             }
-            Value::Number(n) => {
+            context::Value::Number(n) => {
                 println!("{n}");
             }
-            Value::Nil => {
+            context::Value::Nil => {
                 println!("nil");
             }
-            Value::String(s) => {
+            context::Value::String(s) => {
                 println!("{s}");
             }
-            Value::Function(Function {
+            context::Value::Function(context::Function {
                 context_function_slot_idx,
                 ..
             }) => {
-                let FunctionDefinition {
+                let context::FunctionDefinition {
                     is_native,
                     is_method,
                     name,
@@ -797,44 +732,44 @@ impl<'a> Interpreter<'a> {
                     println!("<fn {name}>");
                 }
             }
-            Value::Class(Class {
+            context::Value::Class(context::Class {
                 context_class_slot_idx,
                 ..
             }) => {
-                let ClassDefinition { name, .. } = &defs.classes[context_class_slot_idx];
+                let context::ClassDefinition { name, .. } = &defs.classes[context_class_slot_idx];
                 println!("{name}");
             }
-            Value::Instance(instance_id) => {
+            context::Value::Instance(instance_id) => {
                 let instance = self.context.instances.get(&instance_id).unwrap();
-                let Instance { class, .. } = instance;
-                let Value::Class(Class {
+                let context::Instance { class, .. } = instance;
+                let context::Value::Class(context::Class {
                     context_class_slot_idx,
                     ..
                 }) = class
                 else {
                     panic!()
                 };
-                let ClassDefinition { name, .. } = &defs.classes[*context_class_slot_idx];
+                let context::ClassDefinition { name, .. } = &defs.classes[*context_class_slot_idx];
                 println!("{name} instance");
             }
         }
 
-        NodeResult::new(Value::Nil, expr_result.control)
+        context::NodeResult::new(context::Value::Nil, expr_result.control)
     }
 
     fn execute_return_statement(
         &mut self,
         stmt: &ast::stmt::Return<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::Return { expr } = stmt;
 
         match expr {
             Some(ast::stmt::Expression { expr }) => {
                 let expr_result = self.evaluate_expression(expr, defs);
-                NodeResult::new(expr_result.value, Control::FunctionReturn)
+                context::NodeResult::new(expr_result.value, context::Control::FunctionReturn)
             }
-            None => NodeResult::new(Value::Nil, Control::FunctionReturn),
+            None => context::NodeResult::new(context::Value::Nil, context::Control::FunctionReturn),
         }
     }
 
@@ -842,7 +777,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         stmt: &ast::stmt::While<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::While {
             condition: ast::stmt::Expression { expr },
             body,
@@ -852,7 +787,7 @@ impl<'a> Interpreter<'a> {
             let expr_value = self.evaluate_expression(expr, defs).value;
             if is_truthy(&expr_value) {
                 let statement_result = self.execute_statement(body, defs);
-                if statement_result.control == Control::FunctionReturn {
+                if statement_result.control == context::Control::FunctionReturn {
                     return statement_result;
                 }
             } else {
@@ -860,14 +795,14 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     fn execute_for_statement(
         &mut self,
         stmt: &ast::stmt::For<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::For {
             init: initializer_statement,
             cond: condition_expression,
@@ -890,7 +825,7 @@ impl<'a> Interpreter<'a> {
             }
 
             let body_statement_result = self.execute_statement(body_statement, defs);
-            if body_statement_result.control == Control::FunctionReturn {
+            if body_statement_result.control == context::Control::FunctionReturn {
                 self.context.pop_environment();
                 return body_statement_result;
             }
@@ -901,14 +836,14 @@ impl<'a> Interpreter<'a> {
         }
 
         self.context.pop_environment();
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     fn execute_if_statement(
         &mut self,
         stmt: &ast::stmt::If<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::If {
             condition: ast::stmt::Expression { expr },
             then_statement,
@@ -920,7 +855,7 @@ impl<'a> Interpreter<'a> {
         } else if let Some(statement) = else_statement {
             self.execute_statement(statement, defs)
         } else {
-            NodeResult::new(Value::Nil, Control::Continue)
+            context::NodeResult::new(context::Value::Nil, context::Control::Continue)
         }
     }
 
@@ -928,7 +863,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         stmt: &ast::stmt::FunctionDeclaration<'a>,
         _defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::FunctionDeclaration {
             id,
             context_function_slot_idx,
@@ -943,19 +878,19 @@ impl<'a> Interpreter<'a> {
 
         self.context.insert_symbol(
             id.lexeme,
-            Value::Function(Function {
+            context::Value::Function(context::Function {
                 context_function_slot_idx: context_function_slot_idx.unwrap(),
                 closure_id: self.context.get_current_environment_id(),
             }),
         );
 
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     fn execute_class_declaration_statement(
         &mut self,
         stmt: &ast::stmt::ClassDeclaration<'a>,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::ClassDeclaration {
             id,
             super_class: super_class_expr,
@@ -963,7 +898,7 @@ impl<'a> Interpreter<'a> {
             ..
         } = stmt;
 
-        let super_class_value: Option<Box<Value>>;
+        let super_class_value: Option<Box<context::Value>>;
 
         if let Some(expr) = super_class_expr {
             let ast::expr::Expression::Variable(expr) = expr else {
@@ -972,7 +907,7 @@ impl<'a> Interpreter<'a> {
 
             super_class_value = Some(Box::new(self.evaluate_variable(expr).value));
 
-            let Value::Class { .. } = super_class_value.as_ref().unwrap().as_ref() else {
+            let context::Value::Class { .. } = super_class_value.as_ref().unwrap().as_ref() else {
                 panic!("Superclass must be a class.");
             };
             self.context.push_new_environment_auto();
@@ -992,51 +927,51 @@ impl<'a> Interpreter<'a> {
 
         self.context.insert_symbol(
             id.lexeme,
-            Value::Class(Class {
+            context::Value::Class(context::Class {
                 context_class_slot_idx: context_class_slot_idx.unwrap(),
                 closure_id: class_closure_id,
                 super_class: super_class_value,
             }),
         );
 
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     fn execute_variable_declaration_statement(
         &mut self,
         stmt: &ast::stmt::VariableDeclaration<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::VariableDeclaration { id, init } = stmt;
 
         let expr_value = match init {
-            None => Value::Nil,
+            None => context::Value::Nil,
             Some(ast::stmt::Expression { expr }) => self.evaluate_expression(expr, defs).value,
         };
 
         self.context.insert_symbol(id.lexeme, expr_value);
 
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     fn execute_block_statement(
         &mut self,
         stmt: &ast::stmt::Block<'a>,
         defs: &'a context::Definitions,
-    ) -> NodeResult {
+    ) -> context::NodeResult {
         let ast::stmt::Block { statements } = stmt;
 
         self.context.push_new_environment_auto();
         for statement in statements {
             let statement_result = self.execute_statement(statement, defs);
-            if statement_result.control == Control::FunctionReturn {
+            if statement_result.control == context::Control::FunctionReturn {
                 self.context.pop_environment();
                 return statement_result;
             }
         }
         self.context.pop_environment();
 
-        NodeResult::new(Value::Nil, Control::Continue)
+        context::NodeResult::new(context::Value::Nil, context::Control::Continue)
     }
 
     pub fn execute(
