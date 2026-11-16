@@ -7,7 +7,7 @@ pub struct Expression<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct If<'a> {
-    pub condition: Expression<'a>,
+    pub condition:      Expression<'a>,
     pub then_statement: Box<Statement<'a>>,
     pub else_statement: Option<Box<Statement<'a>>>,
 }
@@ -15,7 +15,7 @@ pub struct If<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct While<'a> {
     pub condition: Expression<'a>,
-    pub body: Box<Statement<'a>>,
+    pub body:      Box<Statement<'a>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -38,25 +38,25 @@ pub struct Return<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDeclaration<'a> {
-    pub id: lexer::Token<'a>,
-    pub pars: Vec<lexer::Token<'a>>,
-    pub body: Box<Statement<'a>>,
-    pub is_initializer: bool,
-    pub is_method: bool,
+    pub id:                        lexer::Token<'a>,
+    pub pars:                      Vec<lexer::Token<'a>>,
+    pub body:                      Box<Statement<'a>>,
+    pub is_initializer:            bool,
+    pub is_method:                 bool,
     pub context_function_slot_idx: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassDeclaration<'a> {
-    pub id: lexer::Token<'a>,
-    pub method_decls: Vec<FunctionDeclaration<'a>>,
-    pub super_class: Option<ast::expr::Expression<'a>>,
+    pub id:                     lexer::Token<'a>,
+    pub method_decls:           Vec<FunctionDeclaration<'a>>,
+    pub super_class:            Option<ast::expr::Expression<'a>>,
     pub context_class_slot_idx: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration<'a> {
-    pub id: lexer::Token<'a>,
+    pub id:   lexer::Token<'a>,
     pub init: Option<Expression<'a>>,
 }
 

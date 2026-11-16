@@ -60,7 +60,7 @@ impl<'a> SemanticPass<'a> {
         }
     }
 
-    fn compile_error(&self, message: &str) -> ! {
+    fn compile_error(message: &str) -> ! {
         eprintln!("Compile error:, '{message}'");
         std::process::exit(1);
     }
@@ -80,14 +80,14 @@ impl<'a> SemanticPass<'a> {
 
     fn visit_this(&self) {
         if self.class_context_stack.is_empty() {
-            self.compile_error("Can't use 'this' outside of a class.'");
+            Self::compile_error("Can't use 'this' outside of a class.'");
         }
         self.context.find_symbol("this", &mut None, &mut None);
     }
 
     fn visit_super(&self, expr: &mut ast::expr::Super<'a>) {
         if self.class_context_stack.is_empty() {
-            self.compile_error("Can't use 'super' outside of a class.'");
+            Self::compile_error("Can't use 'super' outside of a class.'");
         }
         let ast::expr::Super {
             lookup_hop_count, ..

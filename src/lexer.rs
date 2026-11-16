@@ -332,23 +332,9 @@ fn match_number_literal(characters: &str, cursor_start: usize, line_number: usiz
         None
     }
     else if characters.as_bytes()[cursor_end - 1] != b'.' {
-        Some((
-            Token {
-                kind: TokenKind::Number,
-                lexeme: &characters[cursor_start..cursor_end],
-                line_number,
-            },
-            line_number,
-        ))
+        Some((Token::new ( TokenKind::Number, &characters[cursor_start..cursor_end], line_number ), line_number ))
     }
     else {
-        Some((
-            Token {
-                kind: TokenKind::Number,
-                lexeme: &characters[cursor_start..cursor_end - 1],
-                line_number,
-            },
-            line_number,
-        ))
+        Some((Token::new ( TokenKind::Number, &characters[cursor_start..cursor_end - 1], line_number ), line_number ))
     }
 }

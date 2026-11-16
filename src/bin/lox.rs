@@ -23,7 +23,7 @@ fn run_file(file_path: &String) {
             let mut semantic_pass = semantic_pass::SemanticPass::new();
             semantic_pass.visit(&mut syntax_tree);
             let defs = semantic_pass.defs.clone();
-            let mut interpreter = interpreter::Interpreter::new(semantic_pass.context);
+            let mut interpreter = interpreter::Interpreter::new();
             interpreter.execute(&syntax_tree, &defs);
         }
         io::Result::Err(e) => {
