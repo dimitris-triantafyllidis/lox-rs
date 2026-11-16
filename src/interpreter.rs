@@ -114,12 +114,12 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn runtime_error(&self, message: &str) -> ! {
+    fn runtime_error(message: &str) -> ! {
         eprintln!("Runtime error:, '{message}'");
         std::process::exit(1);
     }
 
-    fn evaluate_literal(&mut self, expr: &ast::expr::Literal<'a>) -> NodeResult {
+    fn evaluate_literal(expr: &ast::expr::Literal<'a>) -> NodeResult {
         let ast::expr::Literal { token } = expr;
 
         match token.kind {
@@ -296,7 +296,7 @@ impl<'a> Interpreter<'a> {
         let instance_value = self.evaluate_expression(instance.as_ref(), defs).value;
 
         let Some(value) = self.evaluate_get_internal(&instance_value, property, defs) else {
-            self.runtime_error(&std::format!("Undefined property '{}'.", property.lexeme));
+            Interpreter::runtime_error(&std::format!("Undefined property '{}'.", property.lexeme));
         };
         NodeResult::new(value, Control::Continue)
     }
@@ -314,7 +314,7 @@ impl<'a> Interpreter<'a> {
 
         if op.kind == lexer::TokenKind::Minus {
             let Value::Number(v) = rhs_result.value else {
-                self.runtime_error("Operand must be a number.");
+                Interpreter::runtime_error("Operand must be a number.");
             };
             NodeResult::new(Value::Number(-v), Control::Continue)
         } else if op.kind == lexer::TokenKind::Bang {
@@ -360,69 +360,69 @@ impl<'a> Interpreter<'a> {
         NodeResult::new(rhs_result.value, Control::Continue)
     }
 
-    fn op_add(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_add(vl: &Value, vr: &Value) -> Value {
         if let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) {
             Value::Number(vl + vr)
         } else if let (Value::String(vl), Value::String(vr)) = (&vl, &vr) {
             Value::String(vl.clone() + vr)
         } else {
-            self.runtime_error("Operands must be two numbers or two strings.");
+            Interpreter::runtime_error("Operands must be two numbers or two strings.");
         }
     }
 
-    fn op_sub(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_sub(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Number(vl - vr)
     }
 
-    fn op_mul(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_mul(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Number(vl * vr)
     }
 
-    fn op_div(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_div(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Number(vl / vr)
     }
 
-    fn op_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_equal(vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl == vr)
     }
 
-    fn op_not_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_not_equal(vl: &Value, vr: &Value) -> Value {
         Value::Boolean(vl != vr)
     }
 
-    fn op_less(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_less(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl < vr)
     }
 
-    fn op_less_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_less_equal(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl <= vr)
     }
 
-    fn op_greater(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_greater(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl > vr)
     }
 
-    fn op_greater_equal(&self, vl: &Value, vr: &Value) -> Value {
+    fn op_greater_equal(vl: &Value, vr: &Value) -> Value {
         let (Value::Number(vl), Value::Number(vr)) = (&vl, &vr) else {
-            self.runtime_error("Operands must be numbers.");
+            Interpreter::runtime_error("Operands must be numbers.");
         };
         Value::Boolean(vl >= vr)
     }
@@ -443,41 +443,62 @@ impl<'a> Interpreter<'a> {
 
         match op.kind {
             lexer::TokenKind::Plus => {
-                return NodeResult::new(self.op_add(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_add(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::Minus => {
-                return NodeResult::new(self.op_sub(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_sub(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::Star => {
-                return NodeResult::new(self.op_mul(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_mul(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::Slash => {
-                return NodeResult::new(self.op_div(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_div(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::Less => {
-                return NodeResult::new(self.op_less(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_less(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::LessEqual => {
                 return NodeResult::new(
-                    self.op_less_equal(&lhs_value, &rhs_value),
+                    Interpreter::op_less_equal(&lhs_value, &rhs_value),
                     Control::Continue,
                 );
             }
             lexer::TokenKind::Greater => {
-                return NodeResult::new(self.op_greater(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_greater(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::GreaterEqual => {
                 return NodeResult::new(
-                    self.op_greater_equal(&lhs_value, &rhs_value),
+                    Interpreter::op_greater_equal(&lhs_value, &rhs_value),
                     Control::Continue,
                 );
             }
             lexer::TokenKind::EqualEqual => {
-                return NodeResult::new(self.op_equal(&lhs_value, &rhs_value), Control::Continue);
+                return NodeResult::new(
+                    Interpreter::op_equal(&lhs_value, &rhs_value),
+                    Control::Continue,
+                );
             }
             lexer::TokenKind::BangEqual => {
                 return NodeResult::new(
-                    self.op_not_equal(&lhs_value, &rhs_value),
+                    Interpreter::op_not_equal(&lhs_value, &rhs_value),
                     Control::Continue,
                 );
             }
@@ -667,7 +688,7 @@ impl<'a> Interpreter<'a> {
         defs: &'a context::Definitions,
     ) -> NodeResult {
         match expr {
-            ast::expr::Expression::Literal(expr) => self.evaluate_literal(expr),
+            ast::expr::Expression::Literal(expr) => Interpreter::evaluate_literal(expr),
             ast::expr::Expression::UnaryOperation(expr) => self.evaluate_unary(expr, defs),
             ast::expr::Expression::BinaryOperation(expr) => self.evaluate_binary(expr, defs),
             ast::expr::Expression::Parentheses(expr) => self.evaluate_parentheses(expr, defs),
@@ -702,7 +723,7 @@ impl<'a> Interpreter<'a> {
                     self.context.environments.len() + self.context.instances.len();
                 // println!("Class slot count: {}", self.context.classes.len());
                 // println!("gc finished with #envs: {}, #instances: {}", self.context.environments.len(), self.context.instances.len());
-                //println!();
+                // println!();
             }
         }
 
@@ -719,7 +740,7 @@ impl<'a> Interpreter<'a> {
                 self.execute_function_declaration_statement(stmt, defs)
             }
             ast::stmt::Statement::ClassDeclaration(stmt) => {
-                self.execute_class_declaration_statement(stmt, defs)
+                self.execute_class_declaration_statement(stmt)
             }
             ast::stmt::Statement::Block(stmt) => self.execute_block_statement(stmt, defs),
             ast::stmt::Statement::If(stmt) => self.execute_if_statement(stmt, defs),
@@ -934,7 +955,6 @@ impl<'a> Interpreter<'a> {
     fn execute_class_declaration_statement(
         &mut self,
         stmt: &ast::stmt::ClassDeclaration<'a>,
-        defs: &'a context::Definitions,
     ) -> NodeResult {
         let ast::stmt::ClassDeclaration {
             id,

@@ -65,7 +65,7 @@ impl<'a> SemanticPass<'a> {
         std::process::exit(1);
     }
 
-    fn visit_literal(&mut self, _: &mut ast::expr::Literal<'a>) {}
+    fn visit_literal() {}
 
     fn visit_variable(&mut self, expr: &mut ast::expr::Variable<'a>) {
         let ast::expr::Variable {
@@ -187,7 +187,7 @@ impl<'a> SemanticPass<'a> {
 
     fn visit_expression(&mut self, expr: &mut ast::expr::Expression<'a>) {
         match expr {
-            ast::expr::Expression::Literal(expr) => self.visit_literal(expr),
+            ast::expr::Expression::Literal(_) => SemanticPass::visit_literal(),
             ast::expr::Expression::UnaryOperation(expr) => self.visit_unary(expr),
             ast::expr::Expression::BinaryOperation(expr) => self.visit_binary(expr),
             ast::expr::Expression::Parentheses(expr) => self.visit_parentheses(expr),
