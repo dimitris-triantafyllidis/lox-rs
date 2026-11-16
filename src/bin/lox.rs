@@ -8,8 +8,7 @@ fn main() -> ExitCode {
     if args.len() != 2 {
         println!("Usage: lox [script]");
         return ExitCode::from(64);
-    }
-    else if args.len() == 2 {
+    } else if args.len() == 2 {
         run_file(&args[1]);
     }
 

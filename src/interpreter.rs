@@ -6,9 +6,9 @@ use crate::{ast, context, lexer};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance<'a> {
-    pub class:      Value,
+    pub class: Value,
     pub properties: HashMap<&'a str, Value>,
-    pub reachable:  bool,
+    pub reachable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,33 +19,33 @@ pub enum NativeFunction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDefinition<'a> {
-    pub pars:            Vec<&'a str>,
-    pub body:            ast::stmt::Statement<'a>,
-    pub is_native:       bool,
-    pub is_initializer:  bool,
-    pub is_method:       bool,
+    pub pars: Vec<&'a str>,
+    pub body: ast::stmt::Statement<'a>,
+    pub is_native: bool,
+    pub is_initializer: bool,
+    pub is_method: bool,
     pub native_function: NativeFunction,
-    pub name:            String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDefinition<'a> {
-    pub methods:     HashMap<&'a str, usize>,
+    pub methods: HashMap<&'a str, usize>,
     pub super_class: Option<usize>,
-    pub name:        String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub context_function_slot_idx: usize,
-    pub closure_id:                usize,
+    pub closure_id: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class {
     pub context_class_slot_idx: usize,
-    pub closure_id:             usize,
-    pub super_class:            Option<Box<Value>>,
+    pub closure_id: usize,
+    pub super_class: Option<Box<Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,7 +67,7 @@ pub enum Control {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodeResult {
-    pub value:   Value,
+    pub value: Value,
     pub control: Control,
 }
 
@@ -82,8 +82,8 @@ pub fn is_truthy(v: &Value) -> bool {
 }
 
 pub struct Interpreter<'a> {
-    pub context:                        context::Context<'a>,
-    pub statement_exec_count:           usize,
+    pub context: context::Context<'a>,
+    pub statement_exec_count: usize,
     pub working_set_size_after_last_gc: usize,
 }
 
@@ -99,7 +99,13 @@ impl<'a> Interpreter<'a> {
 
         context.push_new_environment_auto();
 
-        context.insert_symbol ( "clock", Value::Function ( Function { context_function_slot_idx: 0, closure_id: 0 } ) );
+        context.insert_symbol(
+            "clock",
+            Value::Function(Function {
+                context_function_slot_idx: 0,
+                closure_id: 0,
+            }),
+        );
 
         Self {
             context,
@@ -117,21 +123,31 @@ impl<'a> Interpreter<'a> {
         let ast::expr::Literal { token } = expr;
 
         match token.kind {
-            lexer::TokenKind::Nil    => NodeResult::new(Value::Nil, Control::Continue),
-            lexer::TokenKind::False  => NodeResult::new(Value::Boolean(false), Control::Continue),
-            lexer::TokenKind::True   => NodeResult::new(Value::Boolean(true), Control::Continue),
-            lexer::TokenKind::Number => NodeResult::new(Value::Number(token.lexeme.parse().unwrap()), Control::Continue),
-            lexer::TokenKind::String => NodeResult::new(Value::String(token.lexeme[1..token.lexeme.len() - 1].to_string()), Control::Continue ),
+            lexer::TokenKind::Nil => NodeResult::new(Value::Nil, Control::Continue),
+            lexer::TokenKind::False => NodeResult::new(Value::Boolean(false), Control::Continue),
+            lexer::TokenKind::True => NodeResult::new(Value::Boolean(true), Control::Continue),
+            lexer::TokenKind::Number => NodeResult::new(
+                Value::Number(token.lexeme.parse().unwrap()),
+                Control::Continue,
+            ),
+            lexer::TokenKind::String => NodeResult::new(
+                Value::String(token.lexeme[1..token.lexeme.len() - 1].to_string()),
+                Control::Continue,
+            ),
             _ => panic!(),
         }
     }
 
     fn evaluate_variable(&mut self, expr: &ast::expr::Variable<'a>) -> NodeResult {
-        let ast::expr::Variable { identifier: id, lookup_hop_count, env_slot_idx } = expr;
+        let ast::expr::Variable {
+            identifier: id,
+            lookup_hop_count,
+            env_slot_idx,
+        } = expr;
         let mut lookup_hop_count_mut_copy = *lookup_hop_count;
         let mut env_slot_idx_mut_copy = *env_slot_idx;
-        NodeResult::new (
-            self.context.get_symbol_value (
+        NodeResult::new(
+            self.context.get_symbol_value(
                 id.lexeme,
                 &mut lookup_hop_count_mut_copy,
                 &mut env_slot_idx_mut_copy,
@@ -141,7 +157,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_this(&mut self) -> NodeResult {
-        NodeResult::new (
+        NodeResult::new(
             self.context.get_symbol_value("this", &mut None, &mut None),
             Control::Continue,
         )
@@ -208,8 +224,16 @@ impl<'a> Interpreter<'a> {
         panic!("Undefined property '{}'.", property.lexeme);
     }
 
-    fn evaluate_set(&mut self, expr: &ast::expr::Set<'a>, defs: &'a context::Definitions) -> NodeResult {
-        let ast::expr::Set { instance, property, value, } = expr;
+    fn evaluate_set(
+        &mut self,
+        expr: &ast::expr::Set<'a>,
+        defs: &'a context::Definitions,
+    ) -> NodeResult {
+        let ast::expr::Set {
+            instance,
+            property,
+            value,
+        } = expr;
 
         let instance = self.evaluate_expression(instance.as_ref(), defs).value;
         let value = self.evaluate_expression(value, defs).value;
@@ -637,21 +661,25 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_expression(&mut self, expr: &ast::expr::Expression<'a>, defs: &'a context::Definitions) -> NodeResult {
+    fn evaluate_expression(
+        &mut self,
+        expr: &ast::expr::Expression<'a>,
+        defs: &'a context::Definitions,
+    ) -> NodeResult {
         match expr {
-            ast::expr::Expression::Literal         (expr) => self.evaluate_literal     (expr),
-            ast::expr::Expression::UnaryOperation  (expr) => self.evaluate_unary       (expr, defs),
-            ast::expr::Expression::BinaryOperation (expr) => self.evaluate_binary      (expr, defs),
-            ast::expr::Expression::Parentheses     (expr) => self.evaluate_parentheses (expr, defs),
-            ast::expr::Expression::Variable        (expr) => self.evaluate_variable    (expr),
-            ast::expr::Expression::This                   => self.evaluate_this        (),
-            ast::expr::Expression::Assignment      (expr) => self.evaluate_assignment  (expr, defs),
-            ast::expr::Expression::LogicalOr       (expr) => self.evaluate_logical_or  (expr, defs),
-            ast::expr::Expression::LogicalAnd      (expr) => self.evaluate_logical_and (expr, defs),
-            ast::expr::Expression::Call            (expr) => self.evaluate_call        (expr, defs),
-            ast::expr::Expression::Get             (expr) => self.evaluate_get         (expr, defs),
-            ast::expr::Expression::Set             (expr) => self.evaluate_set         (expr, defs),
-            ast::expr::Expression::Super           (expr) => self.evaluate_super       (expr, defs),
+            ast::expr::Expression::Literal(expr) => self.evaluate_literal(expr),
+            ast::expr::Expression::UnaryOperation(expr) => self.evaluate_unary(expr, defs),
+            ast::expr::Expression::BinaryOperation(expr) => self.evaluate_binary(expr, defs),
+            ast::expr::Expression::Parentheses(expr) => self.evaluate_parentheses(expr, defs),
+            ast::expr::Expression::Variable(expr) => self.evaluate_variable(expr),
+            ast::expr::Expression::This => self.evaluate_this(),
+            ast::expr::Expression::Assignment(expr) => self.evaluate_assignment(expr, defs),
+            ast::expr::Expression::LogicalOr(expr) => self.evaluate_logical_or(expr, defs),
+            ast::expr::Expression::LogicalAnd(expr) => self.evaluate_logical_and(expr, defs),
+            ast::expr::Expression::Call(expr) => self.evaluate_call(expr, defs),
+            ast::expr::Expression::Get(expr) => self.evaluate_get(expr, defs),
+            ast::expr::Expression::Set(expr) => self.evaluate_set(expr, defs),
+            ast::expr::Expression::Super(expr) => self.evaluate_super(expr, defs),
         }
     }
 
@@ -679,16 +707,22 @@ impl<'a> Interpreter<'a> {
         }
 
         match statement {
-            ast::stmt::Statement::Expression          (stmt) => self.execute_expression_statement           (stmt, defs),
-            ast::stmt::Statement::Print               (stmt) => self.execute_print_statement                (stmt, defs),
-            ast::stmt::Statement::Return              (stmt) => self.execute_return_statement               (stmt, defs),
-            ast::stmt::Statement::While               (stmt) => self.execute_while_statement                (stmt, defs),
-            ast::stmt::Statement::For                 (stmt) => self.execute_for_statement                  (stmt, defs),
-            ast::stmt::Statement::VariableDeclaration (stmt) => self.execute_variable_declaration_statement (stmt, defs),
-            ast::stmt::Statement::FunctionDeclaration (stmt) => self.execute_function_declaration_statement (stmt, defs),
-            ast::stmt::Statement::ClassDeclaration    (stmt) => self.execute_class_declaration_statement    (stmt, defs),
-            ast::stmt::Statement::Block               (stmt) => self.execute_block_statement                (stmt, defs),
-            ast::stmt::Statement::If                  (stmt) => self.execute_if_statement                   (stmt, defs),
+            ast::stmt::Statement::Expression(stmt) => self.execute_expression_statement(stmt, defs),
+            ast::stmt::Statement::Print(stmt) => self.execute_print_statement(stmt, defs),
+            ast::stmt::Statement::Return(stmt) => self.execute_return_statement(stmt, defs),
+            ast::stmt::Statement::While(stmt) => self.execute_while_statement(stmt, defs),
+            ast::stmt::Statement::For(stmt) => self.execute_for_statement(stmt, defs),
+            ast::stmt::Statement::VariableDeclaration(stmt) => {
+                self.execute_variable_declaration_statement(stmt, defs)
+            }
+            ast::stmt::Statement::FunctionDeclaration(stmt) => {
+                self.execute_function_declaration_statement(stmt, defs)
+            }
+            ast::stmt::Statement::ClassDeclaration(stmt) => {
+                self.execute_class_declaration_statement(stmt, defs)
+            }
+            ast::stmt::Statement::Block(stmt) => self.execute_block_statement(stmt, defs),
+            ast::stmt::Statement::If(stmt) => self.execute_if_statement(stmt, defs),
         }
     }
 
@@ -995,4 +1029,3 @@ impl<'a> Interpreter<'a> {
         }
     }
 }
-
