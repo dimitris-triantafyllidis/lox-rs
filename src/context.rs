@@ -410,7 +410,7 @@ impl<'a> Context<'a> {
                 {
                     env_ids_to_mark_stack.push(closure_id);
 
-                    let mut s = super_class;
+                    let mut s = super_class.as_ref();
 
                     while let Some(b) = s {
                         let Value::Class(Class {
@@ -422,7 +422,7 @@ impl<'a> Context<'a> {
                             panic!("gc: Expected class value");
                         };
                         env_ids_to_mark_stack.push(*closure_id);
-                        s = super_class.clone();
+                        s = super_class.as_ref();
                     }
                 } else {
                     panic!("gc: Expected class value");
